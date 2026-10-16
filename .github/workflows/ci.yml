@@ -76,11 +76,9 @@ jobs:
 
       - name: Build Bluetooth library for iOS
         run: |
-          xcodebuild \
-            -workspace TimeboxStudio.xcworkspace \
-            -scheme TimeboxBluetooth \
-            -destination 'generic/platform=iOS' \
-            -configuration Release \
-            -derivedDataPath .build/ios \
-            CODE_SIGNING_ALLOWED=NO \
-            build
+          swift build \
+            --configuration release \
+            --target TimeboxBluetooth \
+            --triple arm64-apple-ios15.0 \
+            --sdk "$(xcrun --sdk iphoneos --show-sdk-path)" \
+            --scratch-path .build/ios
