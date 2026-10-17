@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>dev.timeboxstudio.mini-prototype</string>
+    <key>CFBundleName</key>
+    <string>timeboxmini-prototype</string>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>This experimental CLI connects to the selected Timebox Mini to try brightness and image commands.</string>
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>This experimental CLI controls the selected Timebox Mini display.</string>
+</dict>
+</plist>

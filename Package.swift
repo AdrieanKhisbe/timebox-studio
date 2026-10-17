@@ -6,6 +6,7 @@ import Foundation
 let packageDirectory = URL(fileURLWithPath: #file).deletingLastPathComponent().path
 let appInfoPlist = "\(packageDirectory)/TimeboxStudio/App/Info.plist"
 let cliInfoPlist = "\(packageDirectory)/timeboxctl/Info.plist"
+let miniPrototypeInfoPlist = "\(packageDirectory)/timeboxctl/MiniPrototype/Info.plist"
 
 let package = Package(
     name: "TimeboxStudio",
@@ -16,6 +17,7 @@ let package = Package(
     products: [
         .executable(name: "TimeboxStudio", targets: ["TimeboxStudio"]),
         .executable(name: "timeboxctl", targets: ["timeboxctl"]),
+        .executable(name: "timeboxmini-prototype", targets: ["TimeboxMiniPrototype"]),
         .library(name: "TimeboxKit", targets: ["TimeboxKit"]),
         .library(name: "TimeboxBluetooth", targets: ["TimeboxBluetooth"])
     ],
@@ -66,9 +68,18 @@ let package = Package(
                 "TimeboxUtilities"
             ],
             path: "timeboxctl",
-            exclude: ["Info.plist"],
+            exclude: ["Info.plist", "MiniPrototype"],
             linkerSettings: [
                 .unsafeFlags(["-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist", "-Xlinker", cliInfoPlist])
+            ]
+        ),
+        .executableTarget(
+            name: "TimeboxMiniPrototype",
+            dependencies: ["TimeboxBluetooth", "TimeboxKit", "TimeboxUtilities"],
+            path: "timeboxctl/MiniPrototype",
+            exclude: ["Info.plist", "README.md"],
+            linkerSettings: [
+                .unsafeFlags(["-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist", "-Xlinker", miniPrototypeInfoPlist])
             ]
         ),
         .testTarget(
