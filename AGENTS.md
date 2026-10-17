@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 Handoff notes for the Timebox Studio project. Workspace root:
 `/Users/marcovhv/projects/GIT/TimeBox` (a Swift Package + lightweight Xcode workspace).
