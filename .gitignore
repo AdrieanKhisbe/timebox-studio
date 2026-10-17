@@ -4,6 +4,8 @@ DerivedData/
 *.xcuserstate
 xcuserdata/
 .DS_Store
+tmp/
+private/
 
 # Decompiled official Divoom APK / iOS IPA — used only for protocol reverse-engineering.
 # Copyrighted; do not commit.
