@@ -23,6 +23,7 @@ final class RecordingCommandTransport: CommandTransport {
 
 final class CommandHarness {
     var stdout: [String] = []
+    var rawStdout = ""
     var stderr: [String] = []
     var input: [String] = []
     var paired: [TimeboxDevice] = []
@@ -37,6 +38,7 @@ final class CommandHarness {
                 return self.configuration
             }, makeTransport: { _ in self.transport },
             output: { self.stdout.append($0) }, errorOutput: { self.stderr.append($0) },
+            rawOutput: { self.rawStdout += $0 },
             readLine: { self.input.isEmpty ? nil : self.input.removeFirst() },
             isInteractive: interactive, variables: environment)
         return TimeboxCommandLine(environment: environment).run(arguments: arguments)

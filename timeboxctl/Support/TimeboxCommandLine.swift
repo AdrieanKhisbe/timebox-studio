@@ -11,7 +11,7 @@ public final class TimeboxCommandLine {
     public static func handles(_ arguments: [String]) -> Bool {
         guard let command = arguments.first else { return false }
         if ["brightness", "color"].contains(command), arguments.contains("--uuid") { return false }
-        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex"].contains(command)
+        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config"].contains(command)
     }
 
     @discardableResult
@@ -19,6 +19,8 @@ public final class TimeboxCommandLine {
         do {
             guard let command = arguments.first else { throw CommandFailure("invalid_arguments", "A command is required.") }
             let options = try CommandOptions(Array(arguments.dropFirst()))
+            if command == "device" || command == "config" { try manage(command, options: options); return 0 }
+            guard options.format == nil else { throw CommandFailure("invalid_arguments", "Output formats are currently supported by config show only.") }
             if command == "list" { try list(options); return 0 }
             guard !options.all, !options.save else { throw CommandFailure("invalid_arguments", "--all and --save are only valid for list.") }
             let configuration = try environment.configuration(options.configPath)
