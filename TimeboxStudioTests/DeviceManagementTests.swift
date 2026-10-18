@@ -2,6 +2,19 @@ import XCTest
 import TimeboxCLIKit
 
 final class DeviceManagementTests: XCTestCase {
+    func testBareConfigIsAnAliasForShowInAllFormats() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("config.yml")
+        try "# notes\ndevices: {}\n".write(to: url, atomically: true, encoding: .utf8)
+        for format in [[], ["--json"], ["--yaml"], ["--yml"]] {
+            let bare = CommandHarness(), explicit = CommandHarness()
+            XCTAssertEqual(bare.run(["config", "--config", url.path] + format), 0)
+            XCTAssertEqual(explicit.run(["config", "show", "--config", url.path] + format), 0)
+            XCTAssertEqual(bare.rawStdout, explicit.rawStdout)
+        }
+    }
     func testInteractiveDefaultsRenameCancellationAndInvalidEdits() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

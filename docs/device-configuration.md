@@ -30,6 +30,8 @@ that device's SDP channel; `--channel` overrides it.
 
 The CLI uses Yams to validate YAML and locate nodes, then edits only affected
 source tokens. Comments, unknown fields, order and untouched formatting survive.
+Generated keys use plain YAML spelling; quotes are used only when required to
+preserve a logical name (for example `true`, `null`, or punctuation).
 Block and flow mappings and quoted/single-line config values are supported for
 editing. Complex edited scalars (for example anchors or multiline block scalars)
 fail explicitly before saving rather than losing source content. Unknown multiline
@@ -45,6 +47,7 @@ timeboxctl device rename desk office
 timeboxctl device select             # interactive, Enter accepts current default
 timeboxctl device rename             # interactive device and new-name prompts
 timeboxctl config show               # original YAML bytes including comments
+timeboxctl config                    # alias for config show
 timeboxctl config show --yml         # --yaml alias
 timeboxctl config show --json        # plain config object, including unknown fields
 ```
