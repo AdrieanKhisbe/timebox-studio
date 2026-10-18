@@ -13,7 +13,7 @@ public protocol CommandTransport: AnyObject {
 
 public struct CommandEnvironment {
     public var discover: (Bool) throws -> [TimeboxDevice]
-    public var configuration: () throws -> DeviceConfiguration
+    public var configuration: (String?) throws -> DeviceConfiguration
     public var makeTransport: (Bool) -> CommandTransport
     public var output: (String) -> Void
     public var errorOutput: (String) -> Void
@@ -22,7 +22,7 @@ public struct CommandEnvironment {
     public var variables: [String: String]
 
     public init(discover: @escaping (Bool) throws -> [TimeboxDevice],
-                configuration: @escaping () throws -> DeviceConfiguration = { DeviceConfiguration() },
+                configuration: @escaping (String?) throws -> DeviceConfiguration = { try DeviceConfigFile(path: $0).read().configuration },
                 makeTransport: @escaping (Bool) -> CommandTransport,
                 output: @escaping (String) -> Void = { print($0) },
                 errorOutput: @escaping (String) -> Void = { fputs($0 + "\n", stderr) },

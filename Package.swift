@@ -19,10 +19,13 @@ let package = Package(
         .library(name: "TimeboxKit", targets: ["TimeboxKit"]),
         .library(name: "TimeboxBluetooth", targets: ["TimeboxBluetooth"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/jpsim/Yams.git", from: "6.2.2")
+    ],
     targets: [
         .target(
             name: "TimeboxCLIKit",
-            dependencies: ["TimeboxBluetooth", "TimeboxKit", "TimeboxUtilities"],
+            dependencies: ["TimeboxBluetooth", "TimeboxKit", "TimeboxUtilities", .product(name: "Yams", package: "Yams")],
             path: "timeboxctl/Support"
         ),
         .target(
