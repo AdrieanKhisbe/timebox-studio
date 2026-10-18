@@ -130,19 +130,44 @@ public final class TimeboxCommandLine {
         }
     }
 
-    func repl(_ target: ResolvedDevice, options: CommandOptions) throws {
+    func repl(_ initialTarget: ResolvedDevice, options: CommandOptions) throws {
         guard options.positionals.isEmpty else { throw CommandFailure("invalid_arguments", "repl takes no positional arguments.") }
-        let transport = environment.makeTransport(options.mock)
+        var target = initialTarget
+        var transport = environment.makeTransport(options.mock)
         defer { transport.disconnect() }
         try connect(transport, to: target, channel: options.channel)
         transport.wait(milliseconds: 150)
-        environment.output("Persistent connection open. Commands: color, brightness, image, hex, help, quit.")
-        while let line = environment.readLine() {
+        environment.output("Persistent connection open. Commands: target [NAME|current], color, brightness, image, hex, help, quit.")
+        while true {
+            if environment.isInteractive { environment.rawOutput("timebox> ") }
+            guard let line = environment.readLine() else { break }
             let parts = line.split(whereSeparator: \.isWhitespace).map(String.init)
             guard let command = parts.first?.lowercased() else { continue }
             if ["quit", "exit", "q"].contains(command) { break }
-            if ["help", "?"].contains(command) { environment.output("color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit"); continue }
+            if ["help", "?"].contains(command) { environment.output("target [NAME|current], color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit"); continue }
             do {
+                if command == "target" {
+                    let name = parts.dropFirst().joined(separator: " ")
+                    if name.isEmpty || name.lowercased() == "current" {
+                        environment.output("Target: \(target.logicalName ?? "(unnamed)") | \(target.device.address) | \(transport.isConnected ? "connected" : "disconnected")")
+                    } else {
+                        // Resolve first: a typo must not tear down a working connection.
+                        let configuration = try environment.configuration(options.configPath)
+                        let selected = try DeviceResolver.resolve(name: name, address: nil,
+                            environmentAddress: nil, configuration: configuration, discover: { [] })
+                        transport.disconnect()
+                        target = selected
+                        transport = environment.makeTransport(options.mock)
+                        do {
+                            try connect(transport, to: target, channel: nil)
+                            transport.wait(milliseconds: 150)
+                        } catch {
+                            transport.disconnect()
+                            throw error
+                        }
+                    }
+                    continue
+                }
                 var replOptions = try CommandOptions(Array(parts.dropFirst()))
                 if command == "color", replOptions.positionals.count == 2 {
                     replOptions.brightness = try CommandOptions.percent(replOptions.positionals.removeLast())

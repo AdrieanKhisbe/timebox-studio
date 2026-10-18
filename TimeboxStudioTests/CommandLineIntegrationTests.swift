@@ -7,6 +7,7 @@ final class RecordingCommandTransport: CommandTransport {
     var channel: UInt8? = 1
     var connections: [(String, UInt8?)] = []
     var packets: [Data] = []
+    var writeTargets: [String] = []
     var failingAddress: String?
     func connect(to device: TimeboxDevice, channel: UInt8?) throws {
         connections.append((device.address, channel))
@@ -16,6 +17,7 @@ final class RecordingCommandTransport: CommandTransport {
     func write(_ packet: Data) throws {
         guard isConnected else { throw CommandFailure("write_failed", "Not connected") }
         packets.append(packet)
+        writeTargets.append(connections.last!.0)
     }
     func wait(milliseconds: Int) {}
     func disconnect() { isConnected = false }
