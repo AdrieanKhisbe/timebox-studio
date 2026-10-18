@@ -22,13 +22,17 @@ final class RecordingCommandTransport: CommandTransport {
         guard isConnected else { throw CommandFailure("write_failed", "Not connected") }
         if failWrites { throw CommandFailure("write_failed", "Write rejected") }
         packets.append(packet)
-        queryActive = packet == Data([1, 3, 0, 0x42, 0x45, 0, 2])
+        if packet == Data([1, 3, 0, 0x42, 0x45, 0, 2]) { queryActive = true }
         writeTargets.append(connections.last!.0)
     }
     func wait(milliseconds: Int) {
-        if queryActive, !replyChunks.isEmpty { onData?(replyChunks.removeFirst()) }
+        if queryActive, !replyChunks.isEmpty {
+            let reply = replyChunks.removeFirst()
+            queryActive = false
+            onData?(reply)
+        }
     }
-    func disconnect() { isConnected = false }
+    func disconnect() { isConnected = false; queryActive = false }
 }
 
 final class CommandHarness {

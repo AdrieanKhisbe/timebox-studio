@@ -1,6 +1,6 @@
 # CLI output
 
-`list`, `brightness`, `color`, `image`, `connect`, `send-hex` and `alarm list` accept `--json`
+`list`, `brightness`, `color`, `image`, `connect`, `send-hex` and alarm commands accept `--json`
 or `--yaml` (`--yml` alias). Conflicting formats fail. Both encode the same
 one-result model; stdout contains that result only. Diagnostics, errors and
 `list --save` hints go to stderr. Human output remains the default; list names
@@ -24,6 +24,7 @@ the same path regardless of output format.
 | send-hex | `bytes` written |
 | connect | selected RFCOMM `channel` (null if unavailable); connection is closed on exit |
 | alarm list | live `alarms` array of ten slot records; see [alarm schema](alarms.md) |
+| alarm set / alarm disable | `slot`, `bytes`, `alarm` from live readback, `readback_matches: true` |
 
 Each list entry has `name` (logical or null), `mac`, `bluetooth_name`, `paired`,
 `connected`, `source` (`bluetooth` or `mock`), and `is_timebox`. The connected flag
