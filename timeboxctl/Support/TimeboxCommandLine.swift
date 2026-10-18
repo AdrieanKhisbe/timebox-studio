@@ -13,7 +13,7 @@ public final class TimeboxCommandLine {
         guard let command = arguments.first else { return false }
         if arguments.contains(where: { ["--json", "--yaml", "--yml"].contains($0) }) { return true }
         if ["brightness", "color"].contains(command), arguments.contains("--uuid") { return false }
-        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config"].contains(command)
+        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "alarm"].contains(command)
     }
 
     @discardableResult
@@ -23,13 +23,19 @@ public final class TimeboxCommandLine {
         outputFormat = arguments.first(where: { ["--json", "--yaml", "--yml"].contains($0) })
             .map { $0 == "--json" ? .json : .yaml }
         let command = arguments.first ?? ""
+        let resultCommand = command == "alarm" && arguments.dropFirst().first == "list" ? "alarm list" : command
         var target: ResolvedDevice?
         do {
             guard !command.isEmpty else { throw CommandFailure("invalid_arguments", "A command is required.") }
-            guard ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config"].contains(command), !arguments.contains("--uuid") else {
+            guard ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "alarm"].contains(command), !arguments.contains("--uuid") else {
                 throw CommandFailure("unsupported", "Structured output is not supported for this diagnostic command.")
             }
             let options = try CommandOptions(Array(arguments.dropFirst()))
+            guard command == "alarm" || options.queryTimeout == nil else { throw CommandFailure("invalid_arguments", "--timeout is only valid for alarm list.") }
+            if command == "alarm" {
+                guard options.positionals == ["list"] else { throw CommandFailure("invalid_arguments", "Use alarm list; alarm writes are not implemented.") }
+                guard !options.mock else { throw CommandFailure("unsupported", "Mock mode has no device alarm state; live listing requires a real device.") }
+            }
             if command == "device" || command == "config" { try manage(command, options: options); return 0 }
             if command == "list" {
                 let devices = try list(options)
@@ -38,11 +44,17 @@ public final class TimeboxCommandLine {
             }
             guard !options.all, !options.save else { throw CommandFailure("invalid_arguments", "--all and --save are only valid for list.") }
             if command == "repl", options.format != nil { throw CommandFailure("invalid_arguments", "The REPL is interactive; JSON/YAML streams are not supported.") }
-            let packet = ["repl", "connect"].contains(command) ? nil : try packet(command, options: options)
+            let packet = ["repl", "connect", "alarm"].contains(command) ? nil : try packet(command, options: options)
             if command == "connect", !options.positionals.isEmpty { throw CommandFailure("invalid_arguments", "connect takes no positional arguments.") }
             let configuration = try environment.configuration(options.configPath)
             let resolved = try resolve(options, configuration: configuration)
             target = resolved
+            if command == "alarm" {
+                let alarms = try readAlarms(resolved, options: options)
+                if outputFormat == nil { showAlarms(alarms) }
+                try emit(CommandResult(command: "alarm list", status: "ok", device: resolved, data: ["alarms": alarms.map(Self.alarmData)]))
+                return 0
+            }
             if command == "repl" { try repl(resolved, options: options); return 0 }
             if command == "connect" {
                 let transport = environment.makeTransport(options.mock)
@@ -67,7 +79,7 @@ public final class TimeboxCommandLine {
             let failure = Self.failure(error)
             environment.errorOutput(failure.message)
             if !["device", "config"].contains(command) {
-                do { try emit(CommandResult(command: command, status: "error", device: target, data: ["code": failure.kind, "message": failure.message])) }
+                do { try emit(CommandResult(command: resultCommand, status: "error", device: target, data: ["code": failure.kind, "message": failure.message])) }
                 catch { environment.errorOutput("Cannot encode result: \(error.localizedDescription)") }
             }
             return failure.exitCode
@@ -186,15 +198,40 @@ public final class TimeboxCommandLine {
         defer { transport.disconnect() }
         try connect(transport, to: target, channel: options.channel)
         transport.wait(milliseconds: 150)
-        environment.output("Persistent connection open. Commands: target [NAME|current], color, brightness, image, hex, help, quit.")
+        environment.output("Persistent connection open. Commands: target [NAME|current], alarm list, color, brightness, image, hex, help, quit.")
         while true {
             if environment.isInteractive { environment.rawOutput("timebox> ") }
             guard let line = environment.readLine() else { break }
             let parts = line.split(whereSeparator: \.isWhitespace).map(String.init)
             guard let command = parts.first?.lowercased() else { continue }
             if ["quit", "exit", "q"].contains(command) { break }
-            if ["help", "?"].contains(command) { environment.output("target [NAME|current], color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit"); continue }
+            if ["help", "?"].contains(command) { environment.output("target [NAME|current], alarm list [--timeout SECONDS], color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit"); continue }
             do {
+                if command == "alarm" {
+                    let alarmOptions = try CommandOptions(Array(parts.dropFirst()))
+                    guard alarmOptions.positionals == ["list"], alarmOptions.name == nil,
+                          alarmOptions.address == nil, alarmOptions.channel == nil,
+                          alarmOptions.configPath == nil, alarmOptions.format == nil,
+                          !alarmOptions.mock, !alarmOptions.all, !alarmOptions.save else {
+                        throw CommandFailure("invalid_arguments", "Use alarm list [--timeout SECONDS]; target NAME selects the REPL device.")
+                    }
+                    guard !options.mock else { throw CommandFailure("unsupported", "Mock mode has no device alarm state.") }
+                    // A fresh link excludes stale same-opcode replies; resume the
+                    // persistent session only after a successful read.
+                    transport.disconnect()
+                    transport.wait(milliseconds: 500)
+                    var queryOptions = options
+                    queryOptions.queryTimeout = alarmOptions.queryTimeout
+                    queryOptions.channel = nil
+                    let alarms = try readAlarms(target, options: queryOptions)
+                    showAlarms(alarms)
+                    transport.wait(milliseconds: 500)
+                    transport = environment.makeTransport(options.mock)
+                    do { try connect(transport, to: target, channel: nil) }
+                    catch { transport.disconnect(); throw error }
+                    transport.wait(milliseconds: 150)
+                    continue
+                }
                 if command == "target" {
                     let name = parts.dropFirst().joined(separator: " ")
                     if name.isEmpty || name.lowercased() == "current" {
@@ -241,6 +278,17 @@ public final class TimeboxCommandLine {
 
     static func failure(_ error: Error) -> CommandFailure {
         if let failure = error as? CommandFailure { return failure }
+        if let query = error as? TimeboxQueryError {
+            switch query {
+            case .timeout: return CommandFailure("query_timeout", query.localizedDescription)
+            case .invalidResponse: return CommandFailure("invalid_response", query.localizedDescription)
+            case .unsupported: return CommandFailure("unsupported", query.localizedDescription)
+            case .invalidArguments: return CommandFailure("invalid_arguments", query.localizedDescription)
+            case .disconnected: return CommandFailure("connection_failed", query.localizedDescription)
+            case .cancelled: return CommandFailure("cancelled", query.localizedDescription)
+            case .busy: return CommandFailure("query_busy", query.localizedDescription)
+            }
+        }
         return CommandFailure("execution_failed", error.localizedDescription)
     }
 }
