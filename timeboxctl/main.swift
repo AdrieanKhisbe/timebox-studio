@@ -2,6 +2,7 @@ import Foundation
 import TimeboxBluetooth
 import TimeboxKit
 import TimeboxUtilities
+import TimeboxCLIKit
 
 enum TimeboxCLI {
     static func run(arguments: [String]) async -> Int32 {
@@ -1204,6 +1205,9 @@ final class ExitCodeBox: @unchecked Sendable {
 }
 
 let cliArguments = Array(CommandLine.arguments.dropFirst())
+if TimeboxCommandLine.handles(cliArguments) {
+    exit(TimeboxCommandLine(environment: .live).run(arguments: cliArguments))
+}
 let cliCommand = cliArguments.first
 let cliIsMock = cliArguments.contains("--mock")
 let cliHasAddress = cliArguments.contains("--address")

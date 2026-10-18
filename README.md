@@ -44,6 +44,7 @@ List paired devices to find your Timebox's address:
 
 ```sh
 .build/debug/timeboxctl list
+.build/debug/timeboxctl list --all   # include other paired Bluetooth devices
 ```
 
 Send an image / color / brightness (the RFCOMM channel is auto-resolved from the
@@ -116,9 +117,10 @@ Addresses and channels are resolved per device:
 - The Bluetooth **address** comes from discovery; the **RFCOMM channel** is resolved per
   device from its SDP (Serial Port Profile, UUID `0x1101`), exactly like the official app.
 
-For the current CLI, use the paired Evo control endpoint's explicit `--address`:
-its implicit selector still excludes audio-named devices, despite the working
-Classic control path using the audio-side endpoint. Model/firmware behavior must
+The CLI and library both include audio-named Timeboxes. An explicit `--address`
+selects one device; `TIMEBOX_ADDRESS` is the environment fallback, followed by a
+saved default when provided by configuration, then the sole discovered Timebox.
+Ambiguous discovery fails instead of selecting an arbitrary device. Model/firmware behavior must
 be verified on the target Evo; pairing or opening an RFCOMM channel alone does
 not establish display compatibility. See the
 [Classic baseline validation record](docs/validation/evo-classic-baseline.md).

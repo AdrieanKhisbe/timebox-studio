@@ -31,7 +31,7 @@ public struct TimeboxDevice: Identifiable, Equatable, Hashable, Sendable {
 
     public var isTimeboxCandidate: Bool {
         let normalizedName = name.lowercased()
-        return normalizedName.contains("timebox") && !isTimeboxAudioSide
+        return normalizedName.contains("timebox")
     }
 
     public var isTimeboxAudioSide: Bool {

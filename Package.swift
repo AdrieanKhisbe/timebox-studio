@@ -21,6 +21,11 @@ let package = Package(
     ],
     targets: [
         .target(
+            name: "TimeboxCLIKit",
+            dependencies: ["TimeboxBluetooth", "TimeboxKit", "TimeboxUtilities"],
+            path: "timeboxctl/Support"
+        ),
+        .target(
             name: "TimeboxUtilities",
             path: "TimeboxStudio/Utilities"
         ),
@@ -61,12 +66,13 @@ let package = Package(
         .executableTarget(
             name: "timeboxctl",
             dependencies: [
+                "TimeboxCLIKit",
                 "TimeboxBluetooth",
                 "TimeboxKit",
                 "TimeboxUtilities"
             ],
             path: "timeboxctl",
-            exclude: ["Info.plist"],
+            exclude: ["Info.plist", "Support"],
             linkerSettings: [
                 .unsafeFlags(["-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist", "-Xlinker", cliInfoPlist])
             ]
@@ -74,6 +80,7 @@ let package = Package(
         .testTarget(
             name: "TimeboxStudioTests",
             dependencies: [
+                "TimeboxCLIKit",
                 "TimeboxBluetooth",
                 "TimeboxKit",
                 "TimeboxUtilities"
