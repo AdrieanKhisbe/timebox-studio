@@ -24,8 +24,8 @@ public final class TimeboxCommandLine {
             let options = try CommandOptions(Array(arguments.dropFirst()))
             guard command == "repl" || !options.hasREPLInputOptions else { throw CommandFailure("invalid_arguments", "Editor/history options are only valid when starting repl.") }
             if command == "list" { try list(options); return 0 }
-            guard !options.all else { throw CommandFailure("invalid_arguments", "--all is only valid for list.") }
-            let configuration = try environment.configuration()
+            guard !options.all, !options.save else { throw CommandFailure("invalid_arguments", "--all and --save are only valid for list.") }
+            let configuration = try environment.configuration(options.configPath)
             let target = try resolve(options, configuration: configuration)
             if command == "repl" { try repl(target, options: options); return 0 }
             if command == "connect" {
@@ -57,12 +57,26 @@ public final class TimeboxCommandLine {
               options.channel == nil else {
             throw CommandFailure("invalid_arguments", "list does not take a device/name/address selector or channel.")
         }
-        let devices = try environment.discover(options.mock).filter { options.all || $0.isTimeboxCandidate }
+        let discovered = try environment.discover(options.mock)
+        let configuration: DeviceConfiguration
+        if options.save {
+            configuration = try DeviceConfigFile(path: options.configPath).saveDiscovered(discovered).configuration
+            let path = options.configPath.map { " --config " + Self.shellQuote($0) } ?? ""
+            if let name = configuration.defaultName {
+                environment.errorOutput("Default: \(name). Change it with: timeboxctl device select \(Self.shellQuote(name))\(path)")
+                environment.errorOutput("Rename a logical device with: timeboxctl device rename \(Self.shellQuote(name)) 'new-name'\(path)")
+            }
+        } else { configuration = try environment.configuration(options.configPath) }
+        let devices = discovered.filter { options.all || $0.isTimeboxCandidate }
         if devices.isEmpty { environment.output("No paired Timeboxes found."); return }
         for device in devices {
-            environment.output("\(device.name)\n    address: \(device.address)\n    paired: \(device.isPaired ? "yes" : "no")\n    connected: \(device.isConnected ? "yes" : "no")")
+            let mac = try? DeviceResolver.canonicalMAC(device.address)
+            let name = configuration.devices.keys.first { configuration.devices[$0]?.mac == mac }
+            environment.output("\(name.map { $0 + " (" + device.name + ")" } ?? device.name)\n    address: \(device.address)\n    paired: \(device.isPaired ? "yes" : "no")\n    connected: \(device.isConnected ? "yes" : "no")")
         }
     }
+
+    static func shellQuote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
 
     func connect(_ transport: CommandTransport, to target: ResolvedDevice, channel: UInt8?) throws {
         environment.output("Connecting to \(target.logicalName ?? target.device.name) (\(target.device.address))...")

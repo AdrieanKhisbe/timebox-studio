@@ -20,7 +20,8 @@ let package = Package(
         .library(name: "TimeboxBluetooth", targets: ["TimeboxBluetooth"])
     ],
     dependencies: [
-        .package(url: "https://github.com/mattt/bestline-swift.git", revision: "823c299247f2f35a4fd9a70f7bea4c8c9edcc946")
+        .package(url: "https://github.com/mattt/bestline-swift.git", revision: "823c299247f2f35a4fd9a70f7bea4c8c9edcc946"),
+        .package(url: "https://github.com/jpsim/Yams.git", from: "6.2.2")
     ],
     targets: [
         .target(name: "TimeboxCommands", dependencies: ["TimeboxKit", "TimeboxUtilities"], path: "timeboxctl/Commands"),
@@ -31,7 +32,7 @@ let package = Package(
         ], path: "timeboxctl/REPL"),
         .target(
             name: "TimeboxCLIKit",
-            dependencies: ["TimeboxBluetooth", "TimeboxKit", "TimeboxUtilities", "TimeboxREPL", "TimeboxCommands"],
+            dependencies: ["TimeboxBluetooth", "TimeboxKit", "TimeboxUtilities", "TimeboxREPL", "TimeboxCommands", .product(name: "Yams", package: "Yams")],
             path: "timeboxctl/Support"
         ),
         .target(

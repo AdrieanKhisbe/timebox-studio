@@ -32,7 +32,10 @@ final class CommandHarness {
     var interactive = false
     func run(_ arguments: [String]) -> Int32 {
         let environment = CommandEnvironment(discover: { _ in self.paired },
-            configuration: { self.configuration }, makeTransport: { _ in self.transport },
+            configuration: { path in
+                if let path { return try DeviceConfigFile(path: path).read().configuration }
+                return self.configuration
+            }, makeTransport: { _ in self.transport },
             output: { self.stdout.append($0) }, errorOutput: { self.stderr.append($0) },
             readLine: { self.input.isEmpty ? nil : self.input.removeFirst() },
             isInteractive: interactive, variables: environment)
@@ -41,6 +44,26 @@ final class CommandHarness {
 }
 
 final class CommandLineIntegrationTests: XCTestCase {
+    func testListSavePersistsEveryTimeboxWithoutPromptAndResolvesSavedDefault() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let path = root.appendingPathComponent("config.yml").path
+        let harness = CommandHarness()
+        harness.paired = [
+            TimeboxDevice(name: "Timebox A", address: "AA:BB:CC:DD:EE:01", isPaired: true, isConnected: false, source: .bluetooth),
+            TimeboxDevice(name: "Timebox B", address: "AA:BB:CC:DD:EE:02", isPaired: true, isConnected: false, source: .bluetooth),
+            TimeboxDevice(name: "Speaker", address: "AA:BB:CC:DD:EE:03", isPaired: true, isConnected: false, source: .bluetooth)
+        ]
+        XCTAssertEqual(harness.run(["list", "--all", "--save", "--config", path]), 0)
+        let saved = try DeviceConfigFile(path: path).read()
+        XCTAssertEqual(saved.configuration.devices.count, 2)
+        XCTAssertEqual(saved.configuration.defaultName, "Timebox A")
+        XCTAssertTrue(harness.stderr.joined().contains("timeboxctl device select"))
+        XCTAssertTrue(harness.stderr.joined().contains("timeboxctl device rename"))
+        XCTAssertTrue(harness.transport.connections.isEmpty)
+        XCTAssertEqual(harness.run(["brightness", "50", "--config", path]), 0)
+        XCTAssertEqual(harness.transport.connections.last?.0, "AA:BB:CC:DD:EE:01")
+    }
     func testBrightnessUsesTheResolvedLogicalDeviceAndClassicPacket() {
         let harness = CommandHarness()
         harness.configuration = DeviceConfiguration(devices: ["desk": .init(mac: "AA:BB:CC:DD:EE:01")])

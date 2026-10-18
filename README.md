@@ -1,5 +1,8 @@
 # Timebox Studio
 
+For saved devices, logical names and selection rules, see
+[device configuration](docs/device-configuration.md).
+
 Control a Divoom **Timebox Evo** (16×16 RGB LED display) directly from **macOS and iOS** —
 send arbitrary images, solid colors, and brightness — with **no Divoom app, no Node, no
 Electron/web server, and no ESP32/Raspberry Pi** in the control path. Pure Swift over

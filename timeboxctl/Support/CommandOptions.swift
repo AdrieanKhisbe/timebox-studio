@@ -11,6 +11,8 @@ struct CommandOptions {
     var holdMilliseconds = 500
     var mock = false
     var all = false
+    var save = false
+    var configPath: String?
     var positionals: [String] = []
 
     init(_ arguments: [String]) throws {
@@ -41,6 +43,8 @@ struct CommandOptions {
                 holdMilliseconds = number
             case "--mock": mock = true
             case "--all": all = true
+            case "--save": save = true
+            case "--config": configPath = try value()
             default:
                 guard !argument.hasPrefix("--") else { throw CommandFailure("invalid_arguments", "Unknown option: \(argument).") }
                 positionals.append(argument)
