@@ -30,6 +30,11 @@ let package = Package(
             .product(name: "Bestline", package: "bestline-swift", condition: .when(platforms: [.macOS]))
         ], path: "timeboxctl/REPL"),
         .target(
+            name: "TimeboxCLIKit",
+            dependencies: ["TimeboxBluetooth", "TimeboxKit", "TimeboxUtilities", "TimeboxREPL", "TimeboxCommands"],
+            path: "timeboxctl/Support"
+        ),
+        .target(
             name: "TimeboxUtilities",
             path: "TimeboxStudio/Utilities"
         ),
@@ -72,12 +77,13 @@ let package = Package(
             dependencies: [
                 "TimeboxREPL",
                 "TimeboxCommands",
+                "TimeboxCLIKit",
                 "TimeboxBluetooth",
                 "TimeboxKit",
                 "TimeboxUtilities"
             ],
             path: "timeboxctl",
-            exclude: ["Info.plist", "REPL", "REPLInputSupport", "Commands"],
+            exclude: ["Info.plist", "REPL", "REPLInputSupport", "Commands", "Support"],
             linkerSettings: [
                 .unsafeFlags(["-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist", "-Xlinker", cliInfoPlist])
             ]
@@ -87,6 +93,7 @@ let package = Package(
             dependencies: [
                 "TimeboxREPL",
                 "TimeboxCommands",
+                "TimeboxCLIKit",
                 "TimeboxBluetooth",
                 "TimeboxKit",
                 "TimeboxUtilities"

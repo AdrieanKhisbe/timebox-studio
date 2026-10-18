@@ -53,7 +53,7 @@ public final class TimeboxClient {
     /// Paired devices whose name looks like a Timebox — a convenience filter over
     /// `pairedDevices()`. The user must have paired the device in macOS first.
     public static func discoverTimeboxes() -> [TimeboxDevice] {
-        pairedDevices().filter { $0.name.range(of: "timebox", options: .caseInsensitive) != nil }
+        pairedDevices().filter(\.isTimeboxCandidate)
     }
 
     // MARK: - Connection

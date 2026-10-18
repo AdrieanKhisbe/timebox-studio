@@ -28,15 +28,16 @@ select the RCSP transport. A completed GATT/RFCOMM write is transmission evidenc
 not proof of a visible effect or a live settings response. The Classic baseline
 does not revalidate the iOS path.
 
-### Audio endpoint and the current discovery mismatch
+### Audio endpoint and device selection
 
 The Classic control endpoint documented above is the audio-side paired device.
 `TimeboxClient.discoverTimeboxes()` includes all paired names containing Timebox,
-including audio names. In contrast, the CLI's implicit candidate predicate still
-excludes audio names. Use an explicit `--address` for the Classic baseline; `list`
-shows all paired devices. The warning must not advise users to discard the
-working Classic endpoint in favor of a raw-BLE endpoint. Unifying selection and
-discovery is tracked separately in
+including audio names. The CLI uses the same candidate predicate: `list` shows
+Timeboxes and `list --all` shows all paired devices. Ordinary commands resolve
+their target before choosing the Classic transport, including image and REPL.
+Use an explicit `--address` for repeatable hardware baselines. The former warning
+to discard the working audio endpoint was incorrect. Selection precedence and
+the discovery/routing foundation are tracked in
 [AdrieanKhisbe/timebox-studio#3](https://github.com/AdrieanKhisbe/timebox-studio/issues/3).
 
 ### IOBluetooth run loop (the key macOS pitfall)
