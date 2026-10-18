@@ -56,3 +56,13 @@ reference and preserves the entry's Bluetooth name and annotations. Empty names
 and collisions ignoring case are errors. `config show` fails if no file exists;
 JSON and YAML flags are mutually exclusive. YAML values without a JSON
 representation produce an explicit error for JSON output.
+
+Start a persistent interactive session with `timeboxctl repl`, or choose its
+initial device with `repl --device desk` (`--name` alias) or `repl --address MAC`.
+Inside the REPL, `target NAME` switches only the session, and `target` /
+`target current` report the logical name, MAC and current connection status.
+Unknown names leave a working connection intact. A failed switch leaves the new
+target selected and disconnected; commands cannot fall back to the old device.
+Switch back explicitly to reconnect. Startup `--channel` applies only to the
+initial device; later switches use that device's SDP. `current` is reserved for
+reporting; rename a device with that logical name to use shorthand selection.

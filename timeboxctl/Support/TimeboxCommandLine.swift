@@ -7,7 +7,7 @@ import TimeboxUtilities
 
 /// One CLI invocation. All ordinary device commands share selection and Classic routing.
 public final class TimeboxCommandLine {
-    static var replVocabulary: [String] { REPLSuggestions.commands }
+    static var replVocabulary: [String] { REPLSuggestions.commands + ["target", "target current"] }
     var environment: CommandEnvironment
     public init(environment: CommandEnvironment) { self.environment = environment }
 
@@ -119,22 +119,45 @@ public final class TimeboxCommandLine {
         catch let error as DeviceCommandError { throw CommandFailure(error.kind, error.message) }
     }
 
-    func repl(_ target: ResolvedDevice, options: CommandOptions) throws {
+    func repl(_ initialTarget: ResolvedDevice, options: CommandOptions) throws {
         guard options.positionals.isEmpty else { throw CommandFailure("invalid_arguments", "repl takes no positional arguments.") }
         let names = (try? environment.configuration(options.configPath))?.devices.keys.sorted() ?? []
         let input = try environment.makeREPLInput?(options.editor, options.historyFile, names) ?? CallbackREPLInput(environment.readLine)
         defer { try? input.close() }
-        let transport = environment.makeTransport(options.mock)
+        var target = initialTarget
+        var transport = environment.makeTransport(options.mock)
         defer { transport.disconnect() }
         try connect(transport, to: target, channel: options.channel)
         transport.wait(milliseconds: 150)
-        environment.output("Persistent connection open. Commands: color, brightness, image, hex, help, quit.")
+        environment.output("Persistent connection open. Commands: target [NAME|current], color, brightness, image, hex, help, quit.")
         while let line = try input.readLine(prompt: REPLPrompt.text(interactive: environment.isInteractive, noColor: environment.variables["NO_COLOR"] != nil)) {
             let parts = line.split(whereSeparator: \.isWhitespace).map(String.init)
             guard let command = parts.first?.lowercased() else { continue }
             if ["quit", "exit", "q"].contains(command) { break }
-            if ["help", "?"].contains(command) { environment.output("color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit"); continue }
+            if ["help", "?"].contains(command) { environment.output("target [NAME|current], color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit"); continue }
             do {
+                if command == "target" {
+                    let name = parts.dropFirst().joined(separator: " ")
+                    if name.isEmpty || name.lowercased() == "current" {
+                        environment.output("Target: \(target.logicalName ?? "(unnamed)") | \(target.device.address) | \(transport.isConnected ? "connected" : "disconnected")")
+                    } else {
+                        // Resolve first: a typo must not tear down a working connection.
+                        let configuration = try environment.configuration(options.configPath)
+                        let selected = try DeviceResolver.resolve(name: name, address: nil,
+                            environmentAddress: nil, configuration: configuration, discover: { [] })
+                        transport.disconnect()
+                        target = selected
+                        transport = environment.makeTransport(options.mock)
+                        do {
+                            try connect(transport, to: target, channel: nil)
+                            transport.wait(milliseconds: 150)
+                        } catch {
+                            transport.disconnect()
+                            throw error
+                        }
+                    }
+                    continue
+                }
                 var replOptions = try CommandOptions(Array(parts.dropFirst()))
                 guard !replOptions.hasREPLInputOptions else { throw CommandFailure("invalid_arguments", "Editor/history options are only valid when starting repl.") }
                 if command == "color", replOptions.positionals.count == 2 {
