@@ -61,7 +61,7 @@ enum TimeboxCLI {
 
         if devices.contains(where: \.isTimeboxAudioSide) && !devices.contains(where: \.isTimeboxCandidate) {
             print("")
-            print("Note: only the Timebox audio-side device is paired. LED control needs the light/control-side device, usually named Timebox-evo-light.")
+            print("Note: a Timebox audio-side device is paired. Evo Classic LED control uses this endpoint; target its --address explicitly. The current implicit selector excludes audio names.")
         }
 
         return 0
@@ -91,7 +91,7 @@ enum TimeboxCLI {
 
             if devices.contains(where: \.isTimeboxAudioSide) && !devices.contains(where: \.isTimeboxCandidate) {
                 print("")
-                print("Note: found the Timebox audio-side device, but not a light/control-side Timebox name.")
+                print("Note: found a Timebox audio-side device. Evo Classic LED control uses this endpoint; pair it if needed and target its --address explicitly.")
             }
 
             return 0
@@ -622,7 +622,8 @@ enum TimeboxCLI {
     }
 
     /// Sends an already-encoded Timebox packet over Bluetooth Classic SPP/RFCOMM
-    /// (the verified control path for the Timebox Evo). Defaults to channel 1.
+    /// (the verified control path for the Timebox Evo). Resolves the channel from
+    /// SDP unless explicitly overridden; channel 1 is a last fallback.
     /// Holds the connection open after the write so the device can finish parsing
     /// before teardown (the firmware drops commands cut off too soon), and retries
     /// the connect if macOS is momentarily holding the channel.
@@ -983,8 +984,8 @@ enum TimeboxCLI {
               scan-ble actively scans Bluetooth LE advertisements and prints UUIDs/service data.
               inspect-ble connects over BLE and discovers services/characteristics.
               send-ble-hex writes raw bytes to a BLE characteristic, auto-selecting a writable one if --characteristic is omitted.
-              brightness builds the Timebox Evo brightness packet and writes it over BLE Transparent UART.
-              color fills the whole display with one RGB color (lightning channel, plain color) over BLE; a much more visible effect than brightness. --hold-ms keeps the BLE link open after the write so the Transparent UART bridge can flush bytes to the device.
+              brightness/color with --address use Classic SPP; --uuid selects legacy raw-BLE diagnostics, not the RCSP transport used by the iOS library.
+              --hold-ms keeps a one-shot connection open after writing; a completed write does not confirm a visible display change.
               listen-ble connects, subscribes to every notify characteristic, optionally sends one packet after subscribing (raw hex, or --request-settings), and streams back any value the device reports. This proves whether the BLE pipe actually feeds the Timebox protocol parser.
               probe-ble-write connects once, subscribes, then writes the packet (default: bright-red fill) to each candidate characteristic (8841, 1E4D, ACA3) with and without response, dwelling between writes so you can watch the panel. Identifies which characteristic, if any, the device acts on.
               inspect prints SDP services and RFCOMM channel IDs for a paired device.

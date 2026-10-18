@@ -12,9 +12,32 @@ RFCOMM) — the same channel the official app opens with
 The device is a JieLi (JL) chip exposing `JL_SPP`; the LED endpoint is the **audio-side**
 Bluetooth device (e.g. `Timebox-Evo-audio`).
 
-The device's BLE "Transparent UART" endpoint (`Timebox-Evo-light`, ISSC/Microchip
-`49535343-…` service) is **not** wired to the LED protocol — writes succeed at the GATT
-layer but nothing renders, and a request-settings readback draws no reply. Dead end.
+### BLE uses RCSP, not raw SPP frames
+
+The earlier raw-SPP experiment on BLE "Transparent UART" (`Timebox-Evo-light`,
+ISSC/Microchip `49535343-…` service) completed GATT writes without rendering or a
+settings reply. That result applies to the raw diagnostic path, not BLE generally.
+`CoreBluetoothRCSPTransport` implements the subsequently established Evo path:
+strip the SPP envelope, wrap the command bytes in JieLi RCSP, and use command
+channel `01` (`01 <seq> 00 00 00 <SPP command>`). See the transport source and
+[README's iOS section](README.md#on-ios).
+
+`TimeboxClient` selects Classic on macOS and RCSP-over-BLE on iOS. The CLI's
+`--uuid` brightness/color commands remain legacy raw-BLE diagnostics; they do not
+select the RCSP transport. A completed GATT/RFCOMM write is transmission evidence,
+not proof of a visible effect or a live settings response. The Classic baseline
+does not revalidate the iOS path.
+
+### Audio endpoint and the current discovery mismatch
+
+The Classic control endpoint documented above is the audio-side paired device.
+`TimeboxClient.discoverTimeboxes()` includes all paired names containing Timebox,
+including audio names. In contrast, the CLI's implicit candidate predicate still
+excludes audio names. Use an explicit `--address` for the Classic baseline; `list`
+shows all paired devices. The warning must not advise users to discard the
+working Classic endpoint in favor of a raw-BLE endpoint. Unifying selection and
+discovery is tracked separately in
+[AdrieanKhisbe/timebox-studio#3](https://github.com/AdrieanKhisbe/timebox-studio/issues/3).
 
 ### IOBluetooth run loop (the key macOS pitfall)
 
@@ -40,6 +63,11 @@ Don't hardcode the channel. Resolve it per device from SDP:
 `IOBluetoothDevice.getServiceRecord(for: IOBluetoothSDPUUID(uuid16: 0x1101))` then
 `getRFCOMMChannelID(_:)`. This matches whatever channel that user's firmware uses.
 `--channel` / the `channel:` argument overrides.
+
+Current implementation detail: when no SPP record resolves, it tries discovered
+RFCOMM channel IDs and finally channel 1 if none are available. An open secondary
+channel alone is not evidence that it controls the display. Record both SDP data
+and the actual connected channel during hardware acceptance.
 
 ### Reliability
 

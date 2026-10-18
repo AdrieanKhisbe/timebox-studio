@@ -109,14 +109,19 @@ Add `NSBluetoothAlwaysUsageDescription` to the app's Info.plist. The transport i
 
 ### Finding the device ("will this work with anyone's Timebox?")
 
-Yes — nothing is hardcoded to one device:
+Addresses and channels are resolved per device:
 
 - `TimeboxClient.discoverTimeboxes()` — paired devices whose name contains "Timebox".
 - `TimeboxClient.pairedDevices()` — *all* paired devices, so you can present your own picker.
 - The Bluetooth **address** comes from discovery; the **RFCOMM channel** is resolved per
   device from its SDP (Serial Port Profile, UUID `0x1101`), exactly like the official app.
 
-So any user's Timebox Evo works once they've paired it with their Mac.
+For the current CLI, use the paired Evo control endpoint's explicit `--address`:
+its implicit selector still excludes audio-named devices, despite the working
+Classic control path using the audio-side endpoint. Model/firmware behavior must
+be verified on the target Evo; pairing or opening an RFCOMM channel alone does
+not establish display compatibility. See the
+[Classic baseline validation record](docs/validation/evo-classic-baseline.md).
 
 ## Library products
 
