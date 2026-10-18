@@ -128,6 +128,17 @@ public final class TimeboxClient {
         try await transport.write(try TimeboxPacketEncoder.encode(.setBrightness(percent)))
     }
 
+    /// Configure one supplied live alarm slot without changing the device clock.
+    /// Read the slot first; sound settings and unspecified volume are preserved.
+    public func setAlarm(_ current: TimeboxAlarm, schedule: TimeboxAlarmSchedule, volume: Int? = nil) async throws {
+        try await transport.write(try TimeboxPacketEncoder.encode(.setAlarm(current, schedule: schedule, volume: volume)))
+    }
+
+    /// Disable one supplied live slot, retaining every other exposed field.
+    public func disableAlarm(_ current: TimeboxAlarm) async throws {
+        try await transport.write(try TimeboxPacketEncoder.encode(.disableAlarm(current)))
+    }
+
     /// Send a raw, already-framed protocol packet (escape hatch).
     public func sendRaw(_ packet: Data) async throws {
         try await transport.write(packet)

@@ -20,9 +20,10 @@ private final class CompletionFlag {
 /// - App (main run loop already running via AppKit): the async `connect` /
 ///   `write` protocol methods hop to the main thread, start the op, and resume a
 ///   continuation from the delegate — no manual pumping.
-public final class IOBluetoothTimeboxTransport: TimeboxTransport, TimeboxTransportDiagnostics, @unchecked Sendable {
+public final class IOBluetoothTimeboxTransport: TimeboxTransport, TimeboxTransportDiagnostics, TimeboxQueryTransport, @unchecked Sendable {
     public private(set) var isConnected = false
     public private(set) var lastRFCOMMChannelID: UInt8?
+    public var onData: ((Data) -> Void)?
     public var onConnectionChange: ((Bool) -> Void)?   // Classic SPP doesn't auto-reconnect; unused
 
     #if canImport(IOBluetooth)
@@ -38,6 +39,9 @@ public final class IOBluetoothTimeboxTransport: TimeboxTransport, TimeboxTranspo
 
     public init() {
     }
+
+    public func writeQuery(_ data: Data) throws { try writePumpingRunLoop(data) }
+    public func waitForQuery(milliseconds: Int) { waitPumpingRunLoop(milliseconds: milliseconds) }
 
     // MARK: - Async protocol conformance (SwiftUI app; main run loop running)
 
@@ -163,6 +167,7 @@ public final class IOBluetoothTimeboxTransport: TimeboxTransport, TimeboxTranspo
 
         let bridge = RFCOMMChannelDelegateBridge()
         bridge.onOpenComplete = onComplete
+        bridge.onData = { [weak self] data in self?.onData?(data) }
         bridge.onClosed = { [weak self] in
             self?.isConnected = false
             self?.channel = nil

@@ -25,6 +25,34 @@ public enum TimeboxPacketEncoder {
             return try encodeLightningPlainColor(color: color, brightnessPercent: percent)
         case .image(let frame):
             return try encodePayload(TimeboxImageEncoder.imagePayload(frame: frame))
+        case let .setAlarm(current, schedule, volume):
+            try validateAlarm(current)
+            let desiredVolume = volume ?? current.volume
+            guard (0...100).contains(desiredVolume) else {
+                throw TimeboxAlarmWriteError.invalidVolume(desiredVolume)
+            }
+            return try encodePayload(Data([
+                0x43, UInt8(current.slot), 1, UInt8(schedule.hour), UInt8(schedule.minute),
+                schedule.weekdayMask, current.soundMode, current.triggerMode,
+                current.frequencyBytes[0], current.frequencyBytes[1], UInt8(desiredVolume)
+            ]))
+        case .disableAlarm(let current):
+            try validateAlarm(current)
+            return try encodePayload(Data([
+                0x43, UInt8(current.slot), 0, UInt8(current.hour), UInt8(current.minute),
+                current.weekdayMask, current.soundMode, current.triggerMode,
+                current.frequencyBytes[0], current.frequencyBytes[1], UInt8(current.volume)
+            ]))
+        }
+    }
+
+    private static func validateAlarm(_ current: TimeboxAlarm) throws {
+        guard (0...9).contains(current.slot) else { throw TimeboxAlarmWriteError.invalidSlot(current.slot) }
+        guard (0...23).contains(current.hour) else { throw TimeboxAlarmWriteError.invalidHour(current.hour) }
+        guard (0...59).contains(current.minute) else { throw TimeboxAlarmWriteError.invalidMinute(current.minute) }
+        guard (0...100).contains(current.volume) else { throw TimeboxAlarmWriteError.invalidVolume(current.volume) }
+        guard current.frequencyBytes.count == 2 else {
+            throw TimeboxAlarmWriteError.invalidFrequencyByteCount(current.frequencyBytes.count)
         }
     }
 

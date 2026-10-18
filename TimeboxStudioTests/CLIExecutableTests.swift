@@ -31,6 +31,11 @@ final class CLIExecutableTests: XCTestCase {
         let diagnostic = try invoke(["scan-ble", "--json"])
         XCTAssertEqual(diagnostic.exit, 1)
         XCTAssertEqual((try JSONSerialization.jsonObject(with: Data(diagnostic.stdout.utf8)) as? [String: Any])?["status"] as? String, "error")
+        let alarms = try invoke(["alarm", "list", "--mock", "--json"] + options)
+        XCTAssertEqual(alarms.exit, 1)
+        let alarmError = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(alarms.stdout.utf8)) as? [String: Any])
+        XCTAssertEqual(alarmError["command"] as? String, "alarm list")
+        XCTAssertEqual((alarmError["data"] as? [String: Any])?["code"] as? String, "unsupported")
     }
 
     private func invoke(_ arguments: [String], input: String = "") throws -> (exit: Int32, stdout: String, stderr: String) {

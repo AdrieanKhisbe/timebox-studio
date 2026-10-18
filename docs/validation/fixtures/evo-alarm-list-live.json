@@ -1,0 +1,29 @@
+{
+  "evidence": "Captured from paired main-evo over Classic RFCOMM; read-only query, no alarm writes.",
+  "captured_at": "2026-10-18T20:41:34Z",
+  "device": "main-evo",
+  "mac": "$MAC",
+  "channel": 1,
+  "request": "01 03 00 42 45 00 02",
+  "response": "01 69 00 04 42 55 00 01 0a 00 08 03 00 00 00 32 01 00 00 00 00 02 01 00 00 32 02 00 00 00 00 02 01 00 00 32 03 00 00 00 00 02 01 00 00 32 04 00 00 00 00 02 01 00 00 32 05 00 00 00 00 02 01 00 00 32 06 00 00 00 00 02 01 00 00 32 07 00 00 00 00 02 01 00 00 32 08 00 00 00 00 02 01 00 00 32 09 00 00 00 00 02 01 00 00 32 56 03 02",
+  "expected_record_count": 10,
+  "expected_slots": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+  "first_record": {
+    "slot": 0,
+    "enabled": true,
+    "hour": 10,
+    "minute": 0,
+    "weekday_mask": 8,
+    "weekdays": ["wed"],
+    "sound_mode_raw": 3,
+    "trigger_mode_raw": 0,
+    "frequency_bytes": [0, 0],
+    "volume": 50
+  },
+  "remaining_records_enabled": false,
+  "limitations": [
+    "No independent app-screen comparison or external modification was performed.",
+    "The recurrence, sound-mode and trigger-mode meanings of this device's stored values were not observed.",
+    "This is not a captured all-disabled or empty response."
+  ]
+}

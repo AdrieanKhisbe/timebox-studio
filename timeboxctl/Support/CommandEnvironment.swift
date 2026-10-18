@@ -2,13 +2,18 @@ import Foundation
 import TimeboxBluetooth
 
 /// Synchronous CLI boundary; the production adapter services IOBluetooth's main run loop.
-public protocol CommandTransport: AnyObject {
+public protocol CommandTransport: TimeboxQueryTransport {
     var isConnected: Bool { get }
     var channel: UInt8? { get }
     func connect(to device: TimeboxDevice, channel: UInt8?) throws
     func write(_ packet: Data) throws
     func wait(milliseconds: Int)
     func disconnect()
+}
+
+public extension CommandTransport {
+    func writeQuery(_ data: Data) throws { try write(data) }
+    func waitForQuery(milliseconds: Int) { wait(milliseconds: milliseconds) }
 }
 
 public struct CommandEnvironment {
@@ -51,6 +56,7 @@ public struct CommandEnvironment {
 }
 
 private final class SimulatedCommandTransport: CommandTransport {
+    var onData: ((Data) -> Void)?
     var isConnected = false
     var channel: UInt8? = 1
     func connect(to device: TimeboxDevice, channel: UInt8?) throws { self.channel = channel ?? 1; isConnected = true }
@@ -64,6 +70,10 @@ private final class SimulatedCommandTransport: CommandTransport {
 private final class ClassicCommandTransport: CommandTransport {
     #if canImport(IOBluetooth)
     private let transport = IOBluetoothTimeboxTransport()
+    var onData: ((Data) -> Void)? {
+        get { transport.onData }
+        set { transport.onData = newValue }
+    }
     var isConnected: Bool { transport.isConnected }
     var channel: UInt8? { transport.lastRFCOMMChannelID }
     func connect(to device: TimeboxDevice, channel: UInt8?) throws { try transport.connectPumpingRunLoop(to: device, channelID: channel) }
@@ -71,6 +81,7 @@ private final class ClassicCommandTransport: CommandTransport {
     func wait(milliseconds: Int) { transport.waitPumpingRunLoop(milliseconds: milliseconds) }
     func disconnect() { transport.disconnect() }
     #else
+    var onData: ((Data) -> Void)?
     var isConnected: Bool { false }
     var channel: UInt8? { nil }
     func connect(to device: TimeboxDevice, channel: UInt8?) throws { throw TimeboxTransportError.bluetoothUnavailable }

@@ -10,6 +10,9 @@ final class RecordingCommandTransport: CommandTransport {
     var writeTargets: [String] = []
     var failingAddress: String?
     var failWrites = false
+    var onData: ((Data) -> Void)?
+    var replyChunks: [Data] = []
+    private var queryActive = false
     func connect(to device: TimeboxDevice, channel: UInt8?) throws {
         connections.append((device.address, channel))
         if device.address == failingAddress { throw CommandFailure("connection_failed", "Device is offline") }
@@ -19,10 +22,17 @@ final class RecordingCommandTransport: CommandTransport {
         guard isConnected else { throw CommandFailure("write_failed", "Not connected") }
         if failWrites { throw CommandFailure("write_failed", "Write rejected") }
         packets.append(packet)
+        if packet == Data([1, 3, 0, 0x42, 0x45, 0, 2]) { queryActive = true }
         writeTargets.append(connections.last!.0)
     }
-    func wait(milliseconds: Int) {}
-    func disconnect() { isConnected = false }
+    func wait(milliseconds: Int) {
+        if queryActive, !replyChunks.isEmpty {
+            let reply = replyChunks.removeFirst()
+            queryActive = false
+            onData?(reply)
+        }
+    }
+    func disconnect() { isConnected = false; queryActive = false }
 }
 
 final class CommandHarness {

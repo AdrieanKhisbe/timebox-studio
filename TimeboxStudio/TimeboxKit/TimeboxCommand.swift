@@ -9,4 +9,8 @@ public enum TimeboxCommand: Equatable, Sendable {
     case lightningPlainColor(color: PixelRGB, brightnessPercent: Int)
     /// A 16x16 static image (`SPP_SET_BOX_COLOR`): the "show whatever we want" command.
     case image(PixelFrame)
+    /// Update one slot, retaining the supplied live record's sound settings.
+    case setAlarm(TimeboxAlarm, schedule: TimeboxAlarmSchedule, volume: Int? = nil)
+    /// Disable one supplied live slot, preserving all other stored fields.
+    case disableAlarm(TimeboxAlarm)
 }
