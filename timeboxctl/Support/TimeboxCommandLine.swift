@@ -7,7 +7,7 @@ import TimeboxUtilities
 
 /// One CLI invocation. All ordinary device commands share selection and Classic routing.
 public final class TimeboxCommandLine {
-    static var replVocabulary: [String] { REPLSuggestions.commands + ["target", "target current", "status", "time", "time sync", "countdown", "countdown start", "countdown stop", "stopwatch", "stopwatch start", "stopwatch stop", "stopwatch reset", "display", "display clock", "display light", "display design", "design", "effect", "alarm", "alarm list"] }
+    static var replVocabulary: [String] { REPLSuggestions.commands + ["target", "target current", "status", "time", "time sync", "countdown", "countdown start", "countdown stop", "stopwatch", "stopwatch start", "stopwatch stop", "stopwatch reset", "display", "display clock", "display light", "display design", "design", "effect", "alarm", "alarm list", "alarm set", "alarm disable"] }
     var environment: CommandEnvironment
     var outputFormat: OutputFormat?
     public init(environment: CommandEnvironment) { self.environment = environment }
@@ -28,7 +28,7 @@ public final class TimeboxCommandLine {
         let command = arguments.first ?? ""
         var resultCommand = command
         if command == "time" { resultCommand = "time sync" }
-        if command == "alarm", arguments.dropFirst().first == "list" { resultCommand = "alarm list" }
+        if command == "alarm", let operation = arguments.dropFirst().first { resultCommand = "alarm " + operation }
         var target: ResolvedDevice?
         do {
             guard !command.isEmpty else { throw CommandFailure("invalid_arguments", "A command is required.") }
@@ -36,7 +36,7 @@ public final class TimeboxCommandLine {
                 throw CommandFailure("unsupported", "Structured output is not supported for this diagnostic command.")
             }
             let options = try CommandOptions(Array(arguments.dropFirst()))
-            if ["countdown", "stopwatch"].contains(command), let operation = options.positionals.first {
+            if ["countdown", "stopwatch", "alarm"].contains(command), let operation = options.positionals.first {
                 resultCommand = command + " " + operation
             }
             guard command == "repl" || !options.hasREPLInputOptions else {
@@ -46,10 +46,10 @@ public final class TimeboxCommandLine {
                 throw CommandFailure("invalid_arguments", "--style and --color are display options.")
             }
             guard ["status", "display", "design", "effect", "alarm"].contains(command) || options.queryTimeout == nil else { throw CommandFailure("invalid_arguments", "Query timeout applies only to status commands.") }
+            guard command == "alarm" || !options.hasAlarmWriteOptions else { throw CommandFailure("invalid_arguments", "Schedule and volume options apply only to alarm commands.") }
+            let alarmOperation = command == "alarm" ? try AlarmOperation(options) : nil
             if command == "alarm" {
-                resultCommand = "alarm list"
-                guard options.positionals == ["list"] else { throw CommandFailure("invalid_arguments", "Use alarm list; alarm writes are not implemented.") }
-                guard !options.mock else { throw CommandFailure("unsupported", "Mock mode has no device alarm state; live listing requires a real device.") }
+                guard !options.mock else { throw CommandFailure("unsupported", "Mock mode has no device alarm state; alarm operations require live reads to preserve existing settings.") }
             }
             if command == "status" {
                 guard options.positionals.isEmpty else { throw CommandFailure("invalid_arguments", "status takes no positional arguments.") }
@@ -73,10 +73,8 @@ public final class TimeboxCommandLine {
             let configuration = try environment.configuration(options.configPath)
             let resolved = try resolve(options, configuration: configuration)
             target = resolved
-            if command == "alarm" {
-                let alarms = try readAlarms(resolved, options: options)
-                if outputFormat == nil { showAlarms(alarms) }
-                try emit(CommandResult(command: "alarm list", status: "ok", device: resolved, data: ["alarms": alarms.map(Self.alarmData)]))
+            if let alarmOperation {
+                try emit(performAlarm(alarmOperation, target: resolved, options: options))
                 return 0
             }
             if let operation = displayOperation {
@@ -245,16 +243,16 @@ public final class TimeboxCommandLine {
         defer { transport.disconnect() }
         try connect(transport, to: target, channel: options.channel)
         transport.wait(milliseconds: 150)
-        environment.output("Persistent connection open. Commands: target [NAME|current], status, time sync, countdown start MM:SS / stop, stopwatch start/stop/reset, display clock/light/design, effect ID, alarm list, color, brightness, image, hex, help, quit.")
+        environment.output("Persistent connection open. Commands: target [NAME|current], status, time sync, countdown start MM:SS / stop, stopwatch start/stop/reset, display clock/light/design, effect ID, alarm list/set/disable, color, brightness, image, hex, help, quit.")
         while let line = try input.readLine(prompt: REPLPrompt.text(interactive: environment.isInteractive, noColor: environment.variables["NO_COLOR"] != nil)) {
             let parts = line.split(whereSeparator: \.isWhitespace).map(String.init)
             guard let command = parts.first?.lowercased() else { continue }
             if ["quit", "exit", "q"].contains(command) { break }
-            if ["help", "?"].contains(command) { environment.output("target [NAME|current], status, time sync, countdown start MM:SS / stop, stopwatch start/stop/reset, display clock/light/design, effect ID, alarm list, color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit"); continue }
+            if ["help", "?"].contains(command) { environment.output("target [NAME|current], status, time sync, countdown start MM:SS / stop, stopwatch start/stop/reset, display clock/light/design, effect ID, alarm list/set/disable, color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit"); continue }
             do {
                 if ["display", "design", "effect"].contains(command) {
                     let displayOptions = try CommandOptions(Array(parts.dropFirst()))
-                    guard !displayOptions.hasREPLInputOptions,
+                    guard !displayOptions.hasREPLInputOptions, !displayOptions.hasAlarmWriteOptions,
                           displayOptions.name == nil, displayOptions.address == nil,
                           displayOptions.channel == nil, displayOptions.configPath == nil,
                           displayOptions.format == nil, !displayOptions.mock,
@@ -287,7 +285,7 @@ public final class TimeboxCommandLine {
                 }
                 if command == "status" {
                     let statusOptions = try CommandOptions(Array(parts.dropFirst()))
-                    guard statusOptions.positionals.isEmpty, !statusOptions.hasREPLInputOptions, statusOptions.displayStyle == nil, statusOptions.displayColor == nil,
+                    guard statusOptions.positionals.isEmpty, !statusOptions.hasREPLInputOptions, !statusOptions.hasAlarmWriteOptions, statusOptions.displayStyle == nil, statusOptions.displayColor == nil,
                           statusOptions.name == nil, statusOptions.address == nil,
                           statusOptions.channel == nil, statusOptions.configPath == nil,
                           statusOptions.format == nil, !statusOptions.mock,
@@ -310,12 +308,13 @@ public final class TimeboxCommandLine {
                 }
                 if command == "alarm" {
                     let alarmOptions = try CommandOptions(Array(parts.dropFirst()))
-                    guard alarmOptions.positionals == ["list"], !alarmOptions.hasREPLInputOptions, alarmOptions.displayStyle == nil, alarmOptions.displayColor == nil, alarmOptions.name == nil,
+                    guard !alarmOptions.hasREPLInputOptions, alarmOptions.displayStyle == nil, alarmOptions.displayColor == nil, alarmOptions.name == nil,
                           alarmOptions.address == nil, alarmOptions.channel == nil,
                           alarmOptions.configPath == nil, alarmOptions.format == nil,
                           !alarmOptions.mock, !alarmOptions.all, !alarmOptions.save else {
-                        throw CommandFailure("invalid_arguments", "Use alarm list [--timeout SECONDS]; target NAME selects the REPL device.")
+                        throw CommandFailure("invalid_arguments", "Use alarm list/set/disable; target NAME selects the REPL device.")
                     }
+                    let operation = try AlarmOperation(alarmOptions)
                     guard !options.mock else { throw CommandFailure("unsupported", "Mock mode has no device alarm state.") }
                     // A fresh link excludes stale same-opcode replies; resume the
                     // persistent session only after a successful read.
@@ -324,8 +323,7 @@ public final class TimeboxCommandLine {
                     var queryOptions = options
                     queryOptions.queryTimeout = alarmOptions.queryTimeout
                     queryOptions.channel = nil
-                    let alarms = try readAlarms(target, options: queryOptions)
-                    showAlarms(alarms)
+                    _ = try performAlarm(operation, target: target, options: queryOptions)
                     transport.wait(milliseconds: 500)
                     transport = environment.makeTransport(options.mock)
                     do { try connect(transport, to: target, channel: nil) }
@@ -357,6 +355,7 @@ public final class TimeboxCommandLine {
                 }
                 var replOptions = try CommandOptions(Array(parts.dropFirst()))
                 guard !replOptions.hasREPLInputOptions else { throw CommandFailure("invalid_arguments", "Editor/history options are only valid when starting repl.") }
+                guard !replOptions.hasAlarmWriteOptions else { throw CommandFailure("invalid_arguments", "Schedule and volume options apply only to alarm commands.") }
                 guard replOptions.queryTimeout == nil else { throw CommandFailure("invalid_arguments", "Query timeout applies only to status commands.") }
                 guard ["display", "design", "effect"].contains(command) || (replOptions.displayStyle == nil && replOptions.displayColor == nil) else { throw CommandFailure("invalid_arguments", "--style and --color are display options.") }
                 if command == "color", replOptions.positionals.count == 2 {
@@ -390,6 +389,7 @@ public final class TimeboxCommandLine {
             default: return CommandFailure("unsupported", display.localizedDescription)
             }
         }
+        if let alarm = error as? TimeboxAlarmWriteError { return CommandFailure("invalid_arguments", alarm.localizedDescription) }
         if let query = error as? TimeboxQueryError {
             switch query {
             case .timeout: return CommandFailure("query_timeout", query.localizedDescription)

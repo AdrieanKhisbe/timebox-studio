@@ -1,0 +1,83 @@
+{
+  "device": "main-evo",
+  "mac": "$MAC",
+  "slot": 2,
+  "attempt": "2026-10-18T23:02:53.649058+02:00",
+  "scheduled_local_time": "2026-10-18T23:04:00+02:00",
+  "timing_note": "Mac local HH:MM two clock minutes ahead; alarm has minute resolution, about 67 seconds after the recorded attempt.",
+  "request": "01 0d 00 43 02 01 17 04 00 02 01 00 00 32 a3 00 02",
+  "before": {
+    "enabled": false,
+    "frequency_bytes": [
+      0,
+      0
+    ],
+    "hour": 0,
+    "minute": 0,
+    "recurrence": null,
+    "slot": 2,
+    "sound_mode_raw": 2,
+    "time": "00:00",
+    "trigger_mode_raw": 1,
+    "volume": 50,
+    "weekday_mask": 0,
+    "weekdays": []
+  },
+  "after_set": {
+    "enabled": true,
+    "frequency_bytes": [
+      0,
+      0
+    ],
+    "hour": 23,
+    "minute": 4,
+    "recurrence": null,
+    "slot": 2,
+    "sound_mode_raw": 2,
+    "time": "23:04",
+    "trigger_mode_raw": 1,
+    "volume": 50,
+    "weekday_mask": 0,
+    "weekdays": []
+  },
+  "after_due": {
+    "enabled": false,
+    "frequency_bytes": [
+      0,
+      0
+    ],
+    "hour": 23,
+    "minute": 4,
+    "recurrence": null,
+    "slot": 2,
+    "sound_mode_raw": 2,
+    "time": "23:04",
+    "trigger_mode_raw": 1,
+    "volume": 50,
+    "weekday_mask": 0,
+    "weekdays": []
+  },
+  "restored": {
+    "enabled": false,
+    "frequency_bytes": [
+      0,
+      0
+    ],
+    "hour": 0,
+    "minute": 0,
+    "recurrence": null,
+    "slot": 2,
+    "sound_mode_raw": 2,
+    "time": "00:00",
+    "trigger_mode_raw": 1,
+    "volume": 50,
+    "weekday_mask": 0,
+    "weekdays": []
+  },
+  "user_observation": "it worked",
+  "other_nine_slots_unchanged": true,
+  "all_exposed_fields_restored": true,
+  "limits": [
+    "No weekly repetition, finite weekday consumption, restart or passed-time boundary observation."
+  ]
+}

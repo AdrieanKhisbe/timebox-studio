@@ -20,6 +20,10 @@ struct CommandOptions {
     var save = false
     var configPath: String?
     var format: OutputFormat?
+    var alarmTime: String?
+    var alarmDays: String?
+    var alarmVolume: Int?
+    var hasAlarmWriteOptions: Bool { alarmTime != nil || alarmDays != nil || alarmVolume != nil }
     var positionals: [String] = []
 
     init(_ arguments: [String]) throws {
@@ -63,6 +67,14 @@ struct CommandOptions {
             case "--all": all = true
             case "--save": save = true
             case "--config": configPath = try value()
+            case "--time": alarmTime = try value()
+            case "--days": alarmDays = try value()
+            case "--volume":
+                let text = try value()
+                guard let volume = Int(text), (0...100).contains(volume) else {
+                    throw CommandFailure("invalid_arguments", "Alarm volume must be an integer from 0 through 100.")
+                }
+                alarmVolume = volume
             case "--json", "--yaml", "--yml":
                 let requested: OutputFormat = argument == "--json" ? .json : .yaml
                 guard format == nil || format == requested else { throw CommandFailure("invalid_arguments", "Choose either JSON or YAML output.") }
