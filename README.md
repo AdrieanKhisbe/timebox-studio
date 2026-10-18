@@ -2,6 +2,7 @@
 
 For saved devices, logical names and selection rules, see
 [device configuration](docs/device-configuration.md).
+For structured results and exit codes, see [CLI output](docs/cli-output.md).
 
 Control a Divoom **Timebox Evo** (16×16 RGB LED display) directly from **macOS and iOS** —
 send arbitrary images, solid colors, and brightness — with **no Divoom app, no Node, no
