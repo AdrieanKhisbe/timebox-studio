@@ -27,6 +27,13 @@ channel-negotiation callback → generic `kIOReturnError`. The fix
 the main run loop (CLI: `connectPumpingRunLoop`/`writePumpingRunLoop`) or rely on the
 app's already-running run loop (async `connect`/`write`).
 
+The CLI's asynchronous dispatch bridge must also pump the main run loop while
+awaiting completion: `inspect` awaits an SDP delegate callback on that loop.
+Blocking it with an unconditional semaphore wait made real SDP inspection time
+out after eight seconds, even when Classic writes worked. The bridge now polls
+completion while running the main loop. The baseline records the failing command
+and its successful hardware rerun.
+
 ### Channel resolution (device-agnostic)
 
 Don't hardcode the channel. Resolve it per device from SDP:

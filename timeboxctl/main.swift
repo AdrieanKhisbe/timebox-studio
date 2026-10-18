@@ -1223,16 +1223,18 @@ if routeClassic, let cliCommand {
     // (which IOBluetooth delivers RFCOMM callbacks to) can be pumped.
     exitCode = TimeboxCLI.runClassicSync(command: cliCommand, arguments: Array(cliArguments.dropFirst()))
 } else {
-    // Everything else (BLE + sync) via the async runtime, bridged to a blocking
-    // call so `exit` runs after completion. BLE uses its own dispatch queue, so
-    // blocking the main thread here is fine.
+    // Everything else runs via the async runtime. Keep the main run loop alive
+    // while awaiting completion: SDP inspection also delivers IOBluetooth
+    // callbacks there, even though its command is not a Classic write.
     let semaphore = DispatchSemaphore(value: 0)
     let resultBox = ExitCodeBox()
     Task.detached(priority: .userInitiated) {
         resultBox.value = await TimeboxCLI.run(arguments: cliArguments)
         semaphore.signal()
     }
-    semaphore.wait()
+    while semaphore.wait(timeout: .now()) == .timedOut {
+        RunLoop.main.run(mode: .default, before: Date(timeIntervalSinceNow: 0.05))
+    }
     exitCode = resultBox.value
 }
 exit(exitCode)
