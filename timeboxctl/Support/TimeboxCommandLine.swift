@@ -228,7 +228,13 @@ public final class TimeboxCommandLine {
                 try transport.write(data)
                 transport.wait(milliseconds: 60)
                 environment.output(options.mock ? "simulated (\(data.count) bytes)" : "sent (\(data.count) bytes)")
-            } catch { environment.errorOutput(Self.failure(error).message) }
+            } catch {
+                let failure = Self.failure(error)
+                environment.errorOutput("Error: \(failure.message)")
+                if command == "target", failure.kind == "device_not_found" {
+                    environment.errorOutput("Target unchanged: \(target.logicalName ?? target.device.address).")
+                }
+            }
         }
         environment.output("Disconnected.")
     }

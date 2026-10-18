@@ -3,6 +3,26 @@ import TimeboxBluetooth
 import TimeboxCLIKit
 
 final class DeviceConfigFileTests: XCTestCase {
+    func testGeneratedConfigUsesPlainKeysAndQuotesOnlyWhenRequired() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = DeviceConfigFile(url: directory.appendingPathComponent("config.yml"))
+        let device = TimeboxDevice(name: "Timebox One", address: "AA:BB:CC:DD:EE:01", isPaired: true, isConnected: false, source: .bluetooth)
+        let saved = try file.saveDiscovered([device])
+        XCTAssertTrue(saved.text.contains("default:"))
+        XCTAssertTrue(saved.text.contains("devices:"))
+        XCTAssertTrue(saved.text.contains("  Timebox One:"))
+        XCTAssertTrue(saved.text.contains("    mac:"))
+        XCTAssertFalse(saved.text.contains("\"devices\":"))
+        let renamed = try file.rename("Timebox One", to: "main-evo")
+        XCTAssertTrue(renamed.text.contains("  main-evo:"))
+        // YAML boolean and punctuation keys need quotes to remain logical names.
+        for name in ["true", "null", "a: b", "a, b", "#name"] {
+            let changed = try file.rename(try XCTUnwrap(file.read().configuration.defaultName), to: name)
+            XCTAssertEqual(changed.configuration.defaultName, name)
+            XCTAssertNotNil(changed.configuration.devices[name])
+        }
+    }
     func testInvalidConfigurationIsNeverOverwritten() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

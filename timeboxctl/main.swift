@@ -963,7 +963,7 @@ enum TimeboxCLI {
               timeboxctl list [--all] [--save] [--config PATH] [--json|--yaml|--yml] [--mock]
               timeboxctl device select [NAME] [--config PATH]
               timeboxctl device rename [OLD [NEW]] [--config PATH]
-              timeboxctl config show [--yaml|--yml|--json] [--config PATH]
+              timeboxctl config [show] [--yaml|--yml|--json] [--config PATH]
               timeboxctl scan [--seconds 12] [--mock]
               timeboxctl scan-ble [--seconds 12]
               timeboxctl inspect-ble --uuid "BE32D255-6999-AE59-4577-4F5BDA0458D3" [--service AF30]

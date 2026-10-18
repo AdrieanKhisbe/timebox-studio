@@ -2,6 +2,21 @@ import XCTest
 import TimeboxCLIKit
 
 final class REPLTargetTests: XCTestCase {
+    func testUnknownTargetReportsErrorAndIsIgnoredWithoutDisconnecting() {
+        let harness = CommandHarness()
+        harness.configuration = .init(defaultName: "desk", devices: ["desk": .init(mac: "AA:BB:CC:DD:EE:01")])
+        harness.input = ["target unknown", "target", "brightness 50", "quit"]
+        XCTAssertEqual(harness.run(["repl"]), 0)
+        XCTAssertTrue(harness.stderr.joined().contains("Error: Unknown configured device 'unknown'"))
+        XCTAssertTrue(harness.stderr.joined().contains("Target unchanged"))
+        XCTAssertTrue(harness.stdout.joined().contains("Target: desk | AA:BB:CC:DD:EE:01 | connected"))
+        XCTAssertEqual(harness.transport.connections.count, 1)
+        XCTAssertEqual(harness.transport.writeTargets, ["AA:BB:CC:DD:EE:01"])
+        let startup = CommandHarness()
+        startup.configuration = harness.configuration
+        XCTAssertEqual(startup.run(["repl", "--device", "unknown"]), 1)
+        XCTAssertTrue(startup.transport.connections.isEmpty)
+    }
     func testFailedSwitchLeavesNewTargetDisconnectedAndNeverWritesToOldDevice() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

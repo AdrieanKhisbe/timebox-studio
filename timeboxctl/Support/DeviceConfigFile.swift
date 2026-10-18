@@ -169,19 +169,31 @@ struct YAMLSourceEditor {
     indirect enum Value {
         case string(String)
         case mapping([String: Value])
+        static func key(_ name: String) -> String {
+            // Validate plain spelling with the same YAML resolver used on read.
+            // Values such as true/null and punctuation names still need quoting.
+            if !name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }),
+               let root = try? Yams.compose(yaml: "{\(name): null}"),
+               let mapping = root.mapping, mapping.count == 1,
+               let pair = mapping.first, DeviceConfigDocument.string(pair.key) == name,
+               pair.key.scalar?.style == .plain {
+                return name
+            }
+            return Value.string(name).flow
+        }
         var flow: String {
             switch self {
             case .string(let value): return String(data: try! JSONEncoder().encode(value), encoding: .utf8)!
-            case .mapping(let values): return "{" + values.keys.sorted().map { Value.string($0).flow + ": " + values[$0]!.flow }.joined(separator: ", ") + "}"
+            case .mapping(let values): return "{" + values.keys.sorted().map { Value.key($0) + ": " + values[$0]!.flow }.joined(separator: ", ") + "}"
             }
         }
         func entry(_ key: String, indent: Int, newline: String) -> String {
             if case .mapping(let entries) = self, !entries.isEmpty {
-                return Value.string(key).flow + ":" + newline + entries.keys.sorted().map {
+                return Value.key(key) + ":" + newline + entries.keys.sorted().map {
                     String(repeating: " ", count: indent + 2) + entries[$0]!.entry($0, indent: indent + 2, newline: newline)
                 }.joined(separator: newline)
             }
-            return Value.string(key).flow + ": " + flow
+            return Value.key(key) + ": " + flow
         }
     }
     var text: String
@@ -214,7 +226,7 @@ struct YAMLSourceEditor {
             guard let mark = parent.mark else { throw unsafe() }
             let start = offset(mark)
             let close = try closingBrace(from: start)
-            replace(close..<close, with: (mapping.isEmpty ? "" : ", ") + Value.string(key).flow + ": " + nested.flow)
+            replace(close..<close, with: (mapping.isEmpty ? "" : ", ") + Value.key(key) + ": " + nested.flow)
         } else if let first = mapping.first, let mark = first.key.mark {
             let position = offset(mark), indent = mark.column - 1
             replace(position..<position, with: nested.entry(key, indent: indent, newline: newline) + newline + String(repeating: " ", count: indent))
@@ -234,7 +246,7 @@ struct YAMLSourceEditor {
             node = next
         }
         guard let pair = node.mapping?.first(where: { $0.key.scalar?.string == old }) else { throw unsafe() }
-        replace(try scalarRange(pair.key, flow: isFlow(node), isKey: true), with: Value.string(new).flow)
+        replace(try scalarRange(pair.key, flow: isFlow(node), isKey: true), with: Value.key(new))
     }
 
     private func offset(_ mark: Mark) -> Int {

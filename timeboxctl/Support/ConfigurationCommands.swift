@@ -9,7 +9,7 @@ extension TimeboxCommandLine {
         let file = DeviceConfigFile(path: options.configPath)
         let document = try file.read()
         if command == "config" {
-            guard options.positionals == ["show"] else { throw CommandFailure("invalid_arguments", "Use config show [--yaml|--yml|--json].") }
+            guard options.positionals.isEmpty || options.positionals == ["show"] else { throw CommandFailure("invalid_arguments", "Use config [show] [--yaml|--yml|--json].") }
             guard document.exists else { throw CommandFailure("invalid_config", "No configuration has been saved. Run timeboxctl list --save first.") }
             if options.format == .json {
                 let value = try Yams.load(yaml: document.text) ?? [String: Any]()
