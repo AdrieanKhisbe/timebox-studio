@@ -41,7 +41,7 @@ public enum TimeboxTransportError: LocalizedError, Equatable {
         case .deviceNotFound(let address):
             return "Could not find an IOBluetoothDevice for address \(address). Make sure it is paired with macOS."
         case .noRFCOMMChannel(let name):
-            return "No RFCOMM channel could be discovered for '\(name)'. The light-side Timebox device may not be paired, may be asleep, or may expose services only after reconnecting."
+            return "No RFCOMM channel could be discovered for '\(name)'. The paired control endpoint may be asleep or may expose services only after reconnecting."
         case .scanTimedOut(let seconds):
             return "Bluetooth device scan timed out after \(String(format: "%.1f", seconds)) seconds. macOS may be waiting on Bluetooth privacy permission, or IOBluetooth may be blocked by the current host process."
         case let .inquiryFailed(code, message):

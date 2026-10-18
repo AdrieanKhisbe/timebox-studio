@@ -19,7 +19,15 @@ let package = Package(
         .library(name: "TimeboxKit", targets: ["TimeboxKit"]),
         .library(name: "TimeboxBluetooth", targets: ["TimeboxBluetooth"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/jpsim/Yams.git", from: "6.2.2")
+    ],
     targets: [
+        .target(
+            name: "TimeboxCLIKit",
+            dependencies: ["TimeboxBluetooth", "TimeboxKit", "TimeboxUtilities", .product(name: "Yams", package: "Yams")],
+            path: "timeboxctl/Support"
+        ),
         .target(
             name: "TimeboxUtilities",
             path: "TimeboxStudio/Utilities"
@@ -61,12 +69,13 @@ let package = Package(
         .executableTarget(
             name: "timeboxctl",
             dependencies: [
+                "TimeboxCLIKit",
                 "TimeboxBluetooth",
                 "TimeboxKit",
                 "TimeboxUtilities"
             ],
             path: "timeboxctl",
-            exclude: ["Info.plist"],
+            exclude: ["Info.plist", "Support"],
             linkerSettings: [
                 .unsafeFlags(["-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist", "-Xlinker", cliInfoPlist])
             ]
@@ -74,6 +83,7 @@ let package = Package(
         .testTarget(
             name: "TimeboxStudioTests",
             dependencies: [
+                "TimeboxCLIKit",
                 "TimeboxBluetooth",
                 "TimeboxKit",
                 "TimeboxUtilities"
