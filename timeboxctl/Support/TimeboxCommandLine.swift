@@ -207,7 +207,7 @@ public final class TimeboxCommandLine {
             guard let command = parts.first?.lowercased() else { continue }
             if ["quit", "exit", "q"].contains(command) { break }
             if ["help", "?"].contains(command) {
-                environment.output("target [NAME|current], alarm list, alarm set SLOT --time HH:MM [--days mon,tue --recurring] [--volume 0..100], alarm disable SLOT, color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit")
+                environment.output("target [NAME|current], alarm list, alarm set SLOT --time HH:MM [--days mon,tue] [--volume 0..100], alarm disable SLOT, color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit")
                 continue
             }
             do {
@@ -286,7 +286,6 @@ public final class TimeboxCommandLine {
     static func failure(_ error: Error) -> CommandFailure {
         if let failure = error as? CommandFailure { return failure }
         if let alarm = error as? TimeboxAlarmWriteError {
-            if case .unsupportedFiniteWeekdays = alarm { return CommandFailure("unsupported", alarm.localizedDescription) }
             return CommandFailure("invalid_arguments", alarm.localizedDescription)
         }
         if let query = error as? TimeboxQueryError {

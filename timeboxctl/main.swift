@@ -965,7 +965,7 @@ enum TimeboxCLI {
               timeboxctl device rename [OLD [NEW]] [--config PATH]
               timeboxctl config [show] [--yaml|--yml|--json] [--config PATH]
               timeboxctl alarm list [--device NAME | --address MAC] [--config PATH] [--timeout 5] [--json|--yaml|--yml]
-              timeboxctl alarm set SLOT --time HH:MM [--days mon,tue --recurring] [--volume 0..100] [--device NAME] [--json|--yaml|--yml]
+              timeboxctl alarm set SLOT --time HH:MM [--days mon,tue] [--volume 0..100] [--device NAME] [--json|--yaml|--yml]
               timeboxctl alarm disable SLOT [--device NAME] [--json|--yaml|--yml]
               timeboxctl scan [--seconds 12] [--mock]
               timeboxctl scan-ble [--seconds 12]

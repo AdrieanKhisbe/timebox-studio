@@ -2,15 +2,13 @@
 
 ```sh
 timeboxctl alarm set 2 --time 07:30                     # once, device-local time
-timeboxctl alarm set 2 --time 07:30 --days mon,tue --recurring
-timeboxctl alarm set 2 --time 07:30 --days mon,tue --recurrent  # alias
+timeboxctl alarm set 2 --time 07:30 --days mon,tue       # weekly on Monday and Tuesday
 timeboxctl alarm disable 2
 ```
 
-Slots are 0 through 9. Recurrence requires at least one weekday. `--days` without
-recurrence remains **blocked pending investigation** and returns `unsupported`
-before any Bluetooth access. It is still an intended feature; the CLI never
-silently converts finite weekdays to weekly repetition. See
+Slots are 0 through 9. With no `--days`, the alarm fires once. With `--days`,
+it repeats weekly on those weekdays; no recurrence flag is needed. Finite
+weekday schedules are outside this interface after the app investigation. See
 [finite weekday findings](validation/evo-finite-weekday-follow-up.md).
 
 Set and disable first read all slots, preserve the selected slot's sound mode,
@@ -29,7 +27,7 @@ state and returns `unsupported` rather than inventing default fields.
 
 The same set/disable syntax works inside the REPL, using its current target.
 Normal selectors, config and output flags apply to one-shot commands. Typed
-Swift callers create `TimeboxAlarmSchedule(hour:minute:weekdays:recurring:)` and
+Swift callers create `TimeboxAlarmSchedule(hour:minute:weekdays:)` and
 use `TimeboxClient.setAlarm(_:schedule:volume:)` or `disableAlarm(_:)` with a fresh
 live `TimeboxAlarm` record. The library encoder preserves its other fields; those
 write helpers report transport completion. Obtain fresh readback through
@@ -39,7 +37,7 @@ The authorized slot 2 experiment fired with no weekdays and auto-disabled at its
 scheduled minute; the user confirmed it worked. All exposed fields were restored
 and read back. See [write validation](validation/evo-alarm-write-evidence.md).
 Weekly repetition, missed-time boundaries and persistence across restarts still
-require observation. Finite weekday scheduling remains an open part of T9.
+require observation. Finite weekday scheduling has no established wire encoding.
 
 ## Read live alarms
 
@@ -102,4 +100,4 @@ handling lives in TimeboxBluetooth.
 The live capture, user-confirmed official-app comparison and decoder tests establish
 enumeration. An external app edit followed by readback, and observation of
 recurrence behavior remains subject to manual acceptance. Finite weekday writes
-remain a separate investigation.
+have no established wire encoding.

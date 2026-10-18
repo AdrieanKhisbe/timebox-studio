@@ -39,18 +39,12 @@ final class TimeboxAlarmWriteTests: XCTestCase {
         XCTAssertEqual(Array(packet[3..<14]), [0x43, 2, 0, 0, 0, 255, 254, 253, 171, 205, 50])
     }
 
-    func testRejectsInvalidTimeRecurrenceWithoutDaysAndUnprovenFiniteWeekdays() throws {
+    func testRejectsInvalidTimeAndUsesZeroMaskWithoutWeekdays() throws {
         for hour in [-1, 24] {
             XCTAssertThrowsError(try TimeboxAlarmSchedule(hour: hour, minute: 0))
         }
         for minute in [-1, 60] {
             XCTAssertThrowsError(try TimeboxAlarmSchedule(hour: 0, minute: minute))
-        }
-        XCTAssertThrowsError(try TimeboxAlarmSchedule(hour: 7, minute: 30, recurring: true)) { error in
-            XCTAssertEqual(error as? TimeboxAlarmWriteError, .recurrenceRequiresWeekdays)
-        }
-        XCTAssertThrowsError(try TimeboxAlarmSchedule(hour: 7, minute: 30, weekdays: [.mon, .tue])) { error in
-            XCTAssertEqual(error as? TimeboxAlarmWriteError, .unsupportedFiniteWeekdays)
         }
         XCTAssertEqual(try TimeboxAlarmSchedule(hour: 0, minute: 0).weekdayMask, 0)
         XCTAssertEqual(try TimeboxAlarmSchedule(hour: 23, minute: 59).weekdayMask, 0)
@@ -75,7 +69,7 @@ final class TimeboxAlarmWriteTests: XCTestCase {
             "slot": 1, "soundMode": 1, "triggerMode": 1,
             "frequencyBytes": [11, 10], "volume": 80
         ])
-        let schedule = try TimeboxAlarmSchedule(hour: 7, minute: 30, weekdays: [.mon, .wed, .fri], recurring: true)
+        let schedule = try TimeboxAlarmSchedule(hour: 7, minute: 30, weekdays: [.mon, .wed, .fri])
         XCTAssertEqual(schedule.weekdayMask, 0x2a)
         // Pinned hass Timebox golden. Byte agreement is not a week-long firing test.
         XCTAssertEqual(

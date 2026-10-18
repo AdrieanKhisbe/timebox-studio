@@ -3,28 +3,26 @@ import TimeboxKit
 import Yams
 
 final class AlarmCommandTests: XCTestCase {
-    func testRecurringAliasesAndREPLUseTheSameValidatedPackets() throws {
+    func testWeekdaysImplyWeeklyRepetitionInCLIAndREPL() throws {
         let before = try AlarmQueryTests.capturedFrame()
         var recurring = before
         recurring[27] = 1; recurring[28] = 7; recurring[29] = 30; recurring[30] = 6; recurring[35] = 25
         recurring[recurring.count - 3] = 0x69
         let expected = Data([1, 13, 0, 0x43, 2, 1, 7, 30, 6, 2, 1, 0, 0, 25, 0x9A, 0, 2])
-        for flag in ["--recurring", "--recurrent"] {
-            let cli = CommandHarness()
-            cli.configuration = .init(defaultName: "desk", devices: ["desk": .init(mac: "AA:BB:CC:DD:EE:01")])
-            cli.transport.replyChunks = [before, recurring]
-            XCTAssertEqual(cli.run(["alarm", "set", "2", "--time", "07:30", "--days", "mon,tue", flag, "--volume", "25", "--yml"]), 0, cli.stderr.joined())
-            XCTAssertTrue(cli.transport.packets.contains(expected))
-            let result = try XCTUnwrap(Yams.load(yaml: cli.rawStdout) as? NSDictionary)
-            XCTAssertEqual(result["status"] as? String, "sent")
-            let repl = CommandHarness()
-            repl.configuration = cli.configuration
-            repl.transport.replyChunks = [before, recurring]
-            repl.input = ["alarm set 2 --time 07:30 --days mon,tue \(flag) --volume 25", "target", "quit"]
-            XCTAssertEqual(repl.run(["repl"]), 0)
-            XCTAssertEqual(repl.transport.packets, cli.transport.packets)
-            XCTAssertTrue(repl.stdout.joined().contains("Target: desk | AA:BB:CC:DD:EE:01 | connected"))
-        }
+        let cli = CommandHarness()
+        cli.configuration = .init(defaultName: "desk", devices: ["desk": .init(mac: "AA:BB:CC:DD:EE:01")])
+        cli.transport.replyChunks = [before, recurring]
+        XCTAssertEqual(cli.run(["alarm", "set", "2", "--time", "07:30", "--days", "mon,tue", "--volume", "25", "--yml"]), 0, cli.stderr.joined())
+        XCTAssertTrue(cli.transport.packets.contains(expected))
+        let result = try XCTUnwrap(Yams.load(yaml: cli.rawStdout) as? NSDictionary)
+        XCTAssertEqual(result["status"] as? String, "sent")
+        let repl = CommandHarness()
+        repl.configuration = cli.configuration
+        repl.transport.replyChunks = [before, recurring]
+        repl.input = ["alarm set 2 --time 07:30 --days mon,tue --volume 25", "target", "quit"]
+        XCTAssertEqual(repl.run(["repl"]), 0)
+        XCTAssertEqual(repl.transport.packets, cli.transport.packets)
+        XCTAssertTrue(repl.stdout.joined().contains("Target: desk | AA:BB:CC:DD:EE:01 | connected"))
     }
 
     func testMissingSnapshotOrReadbackNeverReportsSuccessfulAlarmWrite() throws {
@@ -58,8 +56,8 @@ final class AlarmCommandTests: XCTestCase {
             (["set", "2", "--time", "24:00"], Int32(2)),
             (["set", "10", "--time", "07:30"], 2),
             (["set", "2", "--time", "07:30", "--recurring"], 2),
-            (["set", "2", "--time", "07:30", "--days", "mon,mon", "--recurring"], 2),
-            (["set", "2", "--time", "07:30", "--days", "mon,tue"], 1),
+            (["set", "2", "--time", "07:30", "--days", "mon,mon"], 2),
+            (["set", "2", "--time", "07:30", "--recurrent"], 2),
             (["set", "2", "--time", "07:30", "--volume", "101"], 2),
             (["disable", "2", "--time", "07:30"], 2)] {
             let invalid = CommandHarness()

@@ -41,7 +41,7 @@ enum AlarmOperation {
                 }
             }
         }
-        do { self = .set(slot, try TimeboxAlarmSchedule(hour: hour, minute: minute, weekdays: days, recurring: options.recurring), options.alarmVolume) }
+        do { self = .set(slot, try TimeboxAlarmSchedule(hour: hour, minute: minute, weekdays: days), options.alarmVolume) }
         catch { throw TimeboxCommandLine.failure(error) }
     }
 }

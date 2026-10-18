@@ -1,6 +1,6 @@
 # Finite weekday alarm follow-up
 
-Open requirement of [AdrieanKhisbe/timebox-studio#10](https://github.com/AdrieanKhisbe/timebox-studio/issues/10).
+Investigation for [AdrieanKhisbe/timebox-studio#10](https://github.com/AdrieanKhisbe/timebox-studio/issues/10).
 Investigated 2026-10-18 after the successful near-future once test, then extended
 by tracing the actual Android APK's editor, model and serializer. The user chose
 to **keep finite weekdays blocked and investigate further**.
@@ -9,8 +9,9 @@ to **keep finite weekdays blocked and investigate further**.
 documented `43` command cannot represent finite multiple weekdays separately
 from weekly repeat days. Its editor makes Never mutually exclusive with days;
 its packer never sets bit 7. This establishes a limitation of that app-controlled
-path, not impossibility of an undiscovered Evo firmware capability. The original
-finite-weekday requirement remains open.
+path, not impossibility of an undiscovered Evo firmware capability. The user subsequently simplified the interface: selected weekdays imply
+weekly repetition, and no weekdays means once. Finite weekdays are outside
+this revised interface.
 
 Desired finite semantics remain: a no-recurrence alarm selecting Monday and
 Tuesday fires at each day's next requested local time, then stops. A weekly mask
@@ -184,8 +185,12 @@ and already-passed-today cases need their own observations. Do not change the
 device clock or extend hardware-write authorization implicitly to accelerate
 these tests.
 
-Until that evidence exists, retain the dedicated `unsupportedFiniteWeekdays`
-error for days supplied without recurrence. Do not silently make the alarm
-weekly, allocate extra slots, or add a host scheduler. Keep the issue's finite
-requirement open while providing the independently established once and weekly
-paths.
+## Interface decision after investigation
+
+The user accepted the limitation and requested removal of `--recurring` and
+its `--recurrent` alias. `--days mon,tue` now directly means weekly repetition
+on Monday and Tuesday; omitting `--days` means once. The Swift schedule likewise
+accepts weekdays without a separate recurrence parameter. There is no finite
+weekday mode, extra-slot allocation, or host scheduler in this interface.
+The earlier rejection of weekdays without a recurrence flag is superseded by
+this explicit decision, rather than silently changing the original semantics.

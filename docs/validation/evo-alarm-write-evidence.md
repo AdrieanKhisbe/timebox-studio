@@ -44,12 +44,12 @@ such as next Monday once plus next Tuesday once. Do not treat bit `80`, sound
 mode, or trigger mode as a recurrence toggle. A supported weekly mask must not
 be silently substituted for the requested finite semantics.
 
-The user explicitly chose to keep finite weekdays blocked and investigate
-further. Implement no-days once and documented weekly masks through
-`--days ... --recurring` (alias `--recurrent`), while explicitly rejecting
-`--days` without recurrence as unsupported before any alarm write. Finite
-weekdays remain an open requirement of the original issue, not a removed
-feature. The issue remains partially complete until their encoding is settled.
+The initial implementation required `--recurring` (alias `--recurrent`) alongside
+`--days`, rejecting finite weekdays while investigation continued. After the
+[actual app investigation](evo-finite-weekday-follow-up.md), the user revised
+the interface: `--days` now implies weekly repetition and both recurrence flags
+are removed. No weekdays still means once. Finite weekdays are outside that
+revised interface; this decision does not establish a finite wire encoding.
 
 ## Authorized slot 2 experiment
 
