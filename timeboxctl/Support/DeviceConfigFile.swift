@@ -132,6 +132,35 @@ public struct DeviceConfigFile {
         } catch { throw CommandFailure("invalid_config", "Cannot save config file: \(error.localizedDescription)") }
         return result
     }
+
+    @discardableResult
+    public func select(_ name: String) throws -> DeviceConfigDocument {
+        let original = try read()
+        guard let key = original.configuration.name(matching: name) else {
+            throw CommandFailure("device_not_found", "Unknown logical device: \(name). Run timeboxctl list --save first.")
+        }
+        var editor = YAMLSourceEditor(text: original.text)
+        try editor.set(["default"], value: .string(key))
+        return try write(editor.text, replacing: original)
+    }
+
+    @discardableResult
+    public func rename(_ old: String, to new: String) throws -> DeviceConfigDocument {
+        let original = try read()
+        guard let key = original.configuration.name(matching: old) else {
+            throw CommandFailure("device_not_found", "Unknown logical device: \(old).")
+        }
+        guard !new.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw CommandFailure("invalid_arguments", "The new logical name must not be empty.")
+        }
+        if let collision = original.configuration.name(matching: new), collision != key {
+            throw CommandFailure("invalid_arguments", "A device named '\(new)' already exists.")
+        }
+        var editor = YAMLSourceEditor(text: original.text)
+        try editor.renameKey(in: ["devices"], from: key, to: new)
+        if original.configuration.defaultName == key { try editor.set(["default"], value: .string(new)) }
+        return try write(editor.text, replacing: original)
+    }
 }
 
 /// Yams validates/locates nodes. Only edited tokens are replaced; the original
@@ -205,7 +234,7 @@ struct YAMLSourceEditor {
             node = next
         }
         guard let pair = node.mapping?.first(where: { $0.key.scalar?.string == old }) else { throw unsafe() }
-        replace(try scalarRange(pair.key), with: Value.string(new).flow)
+        replace(try scalarRange(pair.key, flow: isFlow(node), isKey: true), with: Value.string(new).flow)
     }
 
     private func offset(_ mark: Mark) -> Int {
@@ -218,7 +247,7 @@ struct YAMLSourceEditor {
         return position + mark.column - 1
     }
 
-    private func scalarRange(_ node: Node, flow: Bool = false) throws -> Range<Int> {
+    private func scalarRange(_ node: Node, flow: Bool = false, isKey: Bool = false) throws -> Range<Int> {
         guard let scalar = node.scalar, let mark = scalar.mark, scalar.anchor == nil,
               scalar.style != .literal, scalar.style != .folded else { throw unsafe() }
         let bytes = scalars, start = offset(mark)
@@ -240,6 +269,7 @@ struct YAMLSourceEditor {
         while end < bytes.count {
             let byte = bytes[end]
             if byte == "\n" || byte == "\r" || (flow && (byte == "," || byte == "}" || byte == "]")) { break }
+            if isKey, byte == ":", end + 1 == bytes.count || CharacterSet.whitespacesAndNewlines.contains(bytes[end + 1]) || ["{", "[", "}", "]", ","].contains(bytes[end + 1]) { break }
             if byte == "#", end == start || CharacterSet.whitespaces.contains(bytes[end - 1]) { break }
             end += 1
         }

@@ -36,3 +36,23 @@ fail explicitly before saving rather than losing source content. Unknown multili
 fields are retained. Duplicate names (ignoring case), duplicate MAC identities,
 invalid addresses and dangling defaults are rejected. Writes validate the result
 and use an atomic replacement; malformed files are never silently repaired.
+
+Manage logical names and the saved default without connecting to Bluetooth:
+
+```sh
+timeboxctl device select desk
+timeboxctl device rename desk office
+timeboxctl device select             # interactive, Enter accepts current default
+timeboxctl device rename             # interactive device and new-name prompts
+timeboxctl config show               # original YAML bytes including comments
+timeboxctl config show --yml         # --yaml alias
+timeboxctl config show --json        # plain config object, including unknown fields
+```
+
+All commands honor `--config PATH`. Missing interactive arguments with redirected
+stdin fail immediately. `q` or EOF cancels selection; EOF cancels the new-name
+prompt. Invalid input leaves the file unchanged. Renaming updates a default
+reference and preserves the entry's Bluetooth name and annotations. Empty names
+and collisions ignoring case are errors. `config show` fails if no file exists;
+JSON and YAML flags are mutually exclusive. YAML values without a JSON
+representation produce an explicit error for JSON output.

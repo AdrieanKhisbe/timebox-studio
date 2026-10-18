@@ -14,7 +14,7 @@ public final class TimeboxCommandLine {
     public static func handles(_ arguments: [String]) -> Bool {
         guard let command = arguments.first else { return false }
         if ["brightness", "color"].contains(command), arguments.contains("--uuid") { return false }
-        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex"].contains(command)
+        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config"].contains(command)
     }
 
     @discardableResult
@@ -22,7 +22,11 @@ public final class TimeboxCommandLine {
         do {
             guard let command = arguments.first else { throw CommandFailure("invalid_arguments", "A command is required.") }
             let options = try CommandOptions(Array(arguments.dropFirst()))
-            guard command == "repl" || !options.hasREPLInputOptions else { throw CommandFailure("invalid_arguments", "Editor/history options are only valid when starting repl.") }
+            guard command == "repl" || !options.hasREPLInputOptions else {
+                throw CommandFailure("invalid_arguments", "Editor/history options are only valid when starting repl.")
+            }
+            if command == "device" || command == "config" { try manage(command, options: options); return 0 }
+            guard options.format == nil else { throw CommandFailure("invalid_arguments", "Output formats are currently supported by config show only.") }
             if command == "list" { try list(options); return 0 }
             guard !options.all, !options.save else { throw CommandFailure("invalid_arguments", "--all and --save are only valid for list.") }
             let configuration = try environment.configuration(options.configPath)
@@ -108,13 +112,17 @@ public final class TimeboxCommandLine {
     }
 
     func packet(_ command: String, options: CommandOptions) throws -> Data {
+        if command == "color", options.positionals.count != 1 {
+            throw CommandFailure("invalid_arguments", "color requires one RRGGBB value.")
+        }
         do { return try DeviceCommand(name: command, arguments: options.positionals, brightness: options.brightness).encoded() }
         catch let error as DeviceCommandError { throw CommandFailure(error.kind, error.message) }
     }
 
     func repl(_ target: ResolvedDevice, options: CommandOptions) throws {
         guard options.positionals.isEmpty else { throw CommandFailure("invalid_arguments", "repl takes no positional arguments.") }
-        let input = try environment.makeREPLInput?(options.editor, options.historyFile, []) ?? CallbackREPLInput(environment.readLine)
+        let names = (try? environment.configuration(options.configPath))?.devices.keys.sorted() ?? []
+        let input = try environment.makeREPLInput?(options.editor, options.historyFile, names) ?? CallbackREPLInput(environment.readLine)
         defer { try? input.close() }
         let transport = environment.makeTransport(options.mock)
         defer { transport.disconnect() }

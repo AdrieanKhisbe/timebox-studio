@@ -18,6 +18,7 @@ public struct CommandEnvironment {
     public var makeTransport: (Bool) -> CommandTransport
     public var output: (String) -> Void
     public var errorOutput: (String) -> Void
+    public var rawOutput: (String) -> Void
     public var makeREPLInput: ((String, String?, [String]) throws -> REPLLineInput)?
     public var readLine: () -> String?
     public var isInteractive: Bool
@@ -28,12 +29,14 @@ public struct CommandEnvironment {
                 makeTransport: @escaping (Bool) -> CommandTransport,
                 output: @escaping (String) -> Void = { print($0) },
                 errorOutput: @escaping (String) -> Void = { fputs($0 + "\n", stderr) },
+                rawOutput: @escaping (String) -> Void = { FileHandle.standardOutput.write(Data($0.utf8)) },
                 readLine: @escaping () -> String? = { Swift.readLine() },
                 isInteractive: Bool = false, variables: [String: String] = [:],
                 makeREPLInput: ((String, String?, [String]) throws -> REPLLineInput)? = nil) {
         self.makeREPLInput = makeREPLInput
         self.discover = discover; self.configuration = configuration; self.makeTransport = makeTransport
         self.output = output; self.errorOutput = errorOutput; self.readLine = readLine
+        self.rawOutput = rawOutput
         self.isInteractive = isInteractive; self.variables = variables
     }
 

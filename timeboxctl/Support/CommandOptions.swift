@@ -1,5 +1,7 @@
 import Foundation
 
+enum OutputFormat: String { case json, yaml }
+
 struct CommandOptions {
     var editor = "bestline"
     var historyFile: String?
@@ -13,6 +15,7 @@ struct CommandOptions {
     var all = false
     var save = false
     var configPath: String?
+    var format: OutputFormat?
     var positionals: [String] = []
 
     init(_ arguments: [String]) throws {
@@ -45,6 +48,10 @@ struct CommandOptions {
             case "--all": all = true
             case "--save": save = true
             case "--config": configPath = try value()
+            case "--json", "--yaml", "--yml":
+                let requested: OutputFormat = argument == "--json" ? .json : .yaml
+                guard format == nil || format == requested else { throw CommandFailure("invalid_arguments", "Choose either JSON or YAML output.") }
+                format = requested
             default:
                 guard !argument.hasPrefix("--") else { throw CommandFailure("invalid_arguments", "Unknown option: \(argument).") }
                 positionals.append(argument)
