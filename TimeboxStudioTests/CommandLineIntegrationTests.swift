@@ -9,6 +9,7 @@ final class RecordingCommandTransport: CommandTransport {
     var packets: [Data] = []
     var writeTargets: [String] = []
     var failingAddress: String?
+    var failWrites = false
     func connect(to device: TimeboxDevice, channel: UInt8?) throws {
         connections.append((device.address, channel))
         if device.address == failingAddress { throw CommandFailure("connection_failed", "Device is offline") }
@@ -16,6 +17,7 @@ final class RecordingCommandTransport: CommandTransport {
     }
     func write(_ packet: Data) throws {
         guard isConnected else { throw CommandFailure("write_failed", "Not connected") }
+        if failWrites { throw CommandFailure("write_failed", "Write rejected") }
         packets.append(packet)
         writeTargets.append(connections.last!.0)
     }
@@ -33,6 +35,7 @@ final class CommandHarness {
     let transport = RecordingCommandTransport()
     var environment: [String: String] = [:]
     var interactive = false
+    var stdoutIsTerminal = false
     func run(_ arguments: [String]) -> Int32 {
         let environment = CommandEnvironment(discover: { _ in self.paired },
             configuration: { path in
@@ -42,7 +45,7 @@ final class CommandHarness {
             output: { self.stdout.append($0) }, errorOutput: { self.stderr.append($0) },
             rawOutput: { self.rawStdout += $0 },
             readLine: { self.input.isEmpty ? nil : self.input.removeFirst() },
-            isInteractive: interactive, variables: environment)
+            isInteractive: interactive, stdoutIsTerminal: stdoutIsTerminal, variables: environment)
         return TimeboxCommandLine(environment: environment).run(arguments: arguments)
     }
 }

@@ -960,7 +960,7 @@ enum TimeboxCLI {
         print(
             """
             Usage:
-              timeboxctl list [--all] [--save] [--config PATH] [--mock]
+              timeboxctl list [--all] [--save] [--config PATH] [--json|--yaml|--yml] [--mock]
               timeboxctl device select [NAME] [--config PATH]
               timeboxctl device rename [OLD [NEW]] [--config PATH]
               timeboxctl config show [--yaml|--yml|--json] [--config PATH]
@@ -983,7 +983,12 @@ enum TimeboxCLI {
               timeboxctl send-hex [--name "Timebox-evo-light" | --address "fa-5e-6f-6e-79-42"] [--channel 1] [--mock] "AA BB CC"
 
             Notes:
-              list shows paired macOS Bluetooth devices.
+              list shows paired Timeboxes (including audio names); --all includes other paired devices.
+              list --save merges discovered Timeboxes into ~/.config/timebox-studio/config.yml without prompting.
+              Ordinary device commands accept --device NAME (--name alias), --address MAC, or a saved default.
+              --config PATH overrides the config file for discovery, management, REPL and device commands.
+              list and one-shot device commands accept --json or --yaml (--yml alias); logs go to stderr.
+              repl: target NAME switches the session; target / target current report its selected device.
               scan actively searches nearby Bluetooth Classic devices that may not be paired yet.
               scan-ble actively scans Bluetooth LE advertisements and prints UUIDs/service data.
               inspect-ble connects over BLE and discovers services/characteristics.
@@ -994,7 +999,8 @@ enum TimeboxCLI {
               probe-ble-write connects once, subscribes, then writes the packet (default: bright-red fill) to each candidate characteristic (8841, 1E4D, ACA3) with and without response, dwelling between writes so you can watch the panel. Identifies which characteristic, if any, the device acts on.
               inspect prints SDP services and RFCOMM channel IDs for a paired device.
               probe-rfcomm bypasses SDP and directly attempts RFCOMM channels 1 through 8 by default.
-              send-hex connects to the first paired non-audio Timebox candidate unless --name or --address is supplied.
+              Selection: explicit device/address, TIMEBOX_ADDRESS, config default, then a sole discovered Timebox.
+              Multiple Timeboxes require an explicit choice; selected-device failures never fall back.
             """
         )
     }

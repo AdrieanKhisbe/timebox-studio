@@ -20,6 +20,7 @@ public struct CommandEnvironment {
     public var rawOutput: (String) -> Void
     public var readLine: () -> String?
     public var isInteractive: Bool
+    public var stdoutIsTerminal: Bool
     public var variables: [String: String]
 
     public init(discover: @escaping (Bool) throws -> [TimeboxDevice],
@@ -29,11 +30,12 @@ public struct CommandEnvironment {
                 errorOutput: @escaping (String) -> Void = { fputs($0 + "\n", stderr) },
                 rawOutput: @escaping (String) -> Void = { FileHandle.standardOutput.write(Data($0.utf8)) },
                 readLine: @escaping () -> String? = { Swift.readLine() },
-                isInteractive: Bool = false, variables: [String: String] = [:]) {
+                isInteractive: Bool = false, stdoutIsTerminal: Bool = false, variables: [String: String] = [:]) {
         self.discover = discover; self.configuration = configuration; self.makeTransport = makeTransport
         self.output = output; self.errorOutput = errorOutput; self.readLine = readLine
         self.rawOutput = rawOutput
         self.isInteractive = isInteractive; self.variables = variables
+        self.stdoutIsTerminal = stdoutIsTerminal
     }
 
     public static var live: CommandEnvironment {
@@ -44,7 +46,7 @@ public struct CommandEnvironment {
         }, makeTransport: { mock in
             if mock { return SimulatedCommandTransport() }
             return ClassicCommandTransport()
-        }, isInteractive: isatty(STDIN_FILENO) != 0, variables: ProcessInfo.processInfo.environment)
+        }, isInteractive: isatty(STDIN_FILENO) != 0, stdoutIsTerminal: isatty(STDOUT_FILENO) != 0, variables: ProcessInfo.processInfo.environment)
     }
 }
 

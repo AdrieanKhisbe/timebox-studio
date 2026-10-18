@@ -6,41 +6,81 @@ import TimeboxUtilities
 /// One CLI invocation. All ordinary device commands share selection and Classic routing.
 public final class TimeboxCommandLine {
     var environment: CommandEnvironment
+    var outputFormat: OutputFormat?
     public init(environment: CommandEnvironment) { self.environment = environment }
 
     public static func handles(_ arguments: [String]) -> Bool {
         guard let command = arguments.first else { return false }
+        if arguments.contains(where: { ["--json", "--yaml", "--yml"].contains($0) }) { return true }
         if ["brightness", "color"].contains(command), arguments.contains("--uuid") { return false }
         return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config"].contains(command)
     }
 
     @discardableResult
     public func run(arguments: [String]) -> Int32 {
+        // Keep even argument-validation failures machine-readable. With conflicting
+        // flags the first requested format carries the error result.
+        outputFormat = arguments.first(where: { ["--json", "--yaml", "--yml"].contains($0) })
+            .map { $0 == "--json" ? .json : .yaml }
+        let command = arguments.first ?? ""
+        var target: ResolvedDevice?
         do {
-            guard let command = arguments.first else { throw CommandFailure("invalid_arguments", "A command is required.") }
+            guard !command.isEmpty else { throw CommandFailure("invalid_arguments", "A command is required.") }
+            guard ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config"].contains(command), !arguments.contains("--uuid") else {
+                throw CommandFailure("unsupported", "Structured output is not supported for this diagnostic command.")
+            }
             let options = try CommandOptions(Array(arguments.dropFirst()))
             if command == "device" || command == "config" { try manage(command, options: options); return 0 }
-            guard options.format == nil else { throw CommandFailure("invalid_arguments", "Output formats are currently supported by config show only.") }
-            if command == "list" { try list(options); return 0 }
-            guard !options.all, !options.save else { throw CommandFailure("invalid_arguments", "--all and --save are only valid for list.") }
-            let configuration = try environment.configuration(options.configPath)
-            let target = try resolve(options, configuration: configuration)
-            if command == "repl" { try repl(target, options: options); return 0 }
-            if command == "connect" {
-                guard options.positionals.isEmpty else { throw CommandFailure("invalid_arguments", "connect takes no positional arguments.") }
-                let transport = environment.makeTransport(options.mock)
-                defer { transport.disconnect() }
-                try connect(transport, to: target, channel: options.channel)
+            if command == "list" {
+                let devices = try list(options)
+                try emit(CommandResult(command: command, status: "ok", data: ["devices": devices]))
                 return 0
             }
-            let packet = try packet(command, options: options)
-            try send(packet, to: target, options: options)
+            guard !options.all, !options.save else { throw CommandFailure("invalid_arguments", "--all and --save are only valid for list.") }
+            if command == "repl", options.format != nil { throw CommandFailure("invalid_arguments", "The REPL is interactive; JSON/YAML streams are not supported.") }
+            let packet = ["repl", "connect"].contains(command) ? nil : try packet(command, options: options)
+            if command == "connect", !options.positionals.isEmpty { throw CommandFailure("invalid_arguments", "connect takes no positional arguments.") }
+            let configuration = try environment.configuration(options.configPath)
+            let resolved = try resolve(options, configuration: configuration)
+            target = resolved
+            if command == "repl" { try repl(resolved, options: options); return 0 }
+            if command == "connect" {
+                let transport = environment.makeTransport(options.mock)
+                defer { transport.disconnect() }
+                try connect(transport, to: resolved, channel: options.channel)
+                try emit(CommandResult(command: command, status: options.mock ? "simulated" : "ok", device: resolved,
+                    data: ["channel": transport.channel.map { Int($0) } as Any? ?? NSNull()]))
+                return 0
+            }
+            guard let packet else { throw CommandFailure("invalid_arguments", "A one-shot command is required.") }
+            try send(packet, to: resolved, options: options)
+            var data: [String: Any] = ["bytes": packet.count]
+            switch command {
+            case "brightness": data["brightness"] = try CommandOptions.percent(options.positionals[0])
+            case "color": data["color"] = options.positionals[0].replacingOccurrences(of: "#", with: "").uppercased(); data["brightness"] = options.brightness
+            case "image": data["path"] = options.positionals[0]; data["width"] = 16; data["height"] = 16
+            default: break
+            }
+            try emit(CommandResult(command: command, status: options.mock ? "simulated" : "sent", device: resolved, data: data))
             return 0
         } catch {
             let failure = Self.failure(error)
             environment.errorOutput(failure.message)
+            if !["device", "config"].contains(command) {
+                do { try emit(CommandResult(command: command, status: "error", device: target, data: ["code": failure.kind, "message": failure.message])) }
+                catch { environment.errorOutput("Cannot encode result: \(error.localizedDescription)") }
+            }
             return failure.exitCode
         }
+    }
+
+    func emit(_ result: CommandResult) throws {
+        if let outputFormat { environment.rawOutput(try result.formatted(outputFormat)) }
+    }
+
+    func diagnostic(_ message: String) {
+        if outputFormat != nil { environment.errorOutput(message) }
+        else { environment.output(message) }
     }
 
     func resolve(_ options: CommandOptions, configuration: DeviceConfiguration) throws -> ResolvedDevice {
@@ -50,7 +90,7 @@ public final class TimeboxCommandLine {
         }
     }
 
-    func list(_ options: CommandOptions) throws {
+    func list(_ options: CommandOptions) throws -> [[String: Any]] {
         guard options.name == nil, options.address == nil, options.positionals.isEmpty,
               options.channel == nil else {
             throw CommandFailure("invalid_arguments", "list does not take a device/name/address selector or channel.")
@@ -59,6 +99,7 @@ public final class TimeboxCommandLine {
         let configuration: DeviceConfiguration
         if options.save {
             configuration = try DeviceConfigFile(path: options.configPath).saveDiscovered(discovered).configuration
+            environment.errorOutput("Saved \(configuration.devices.count) device(s) in \(DeviceConfigFile(path: options.configPath).url.path).")
             let path = options.configPath.map { " --config " + Self.shellQuote($0) } ?? ""
             if let name = configuration.defaultName {
                 environment.errorOutput("Default: \(name). Change it with: timeboxctl device select \(Self.shellQuote(name))\(path)")
@@ -66,21 +107,29 @@ public final class TimeboxCommandLine {
             }
         } else { configuration = try environment.configuration(options.configPath) }
         let devices = discovered.filter { options.all || $0.isTimeboxCandidate }
-        if devices.isEmpty { environment.output("No paired Timeboxes found."); return }
-        for device in devices {
+        if devices.isEmpty, outputFormat == nil { environment.output("No paired Timeboxes found.") }
+        return devices.map { device in
             let mac = try? DeviceResolver.canonicalMAC(device.address)
             let name = configuration.devices.keys.first { configuration.devices[$0]?.mac == mac }
-            environment.output("\(name.map { $0 + " (" + device.name + ")" } ?? device.name)\n    address: \(device.address)\n    paired: \(device.isPaired ? "yes" : "no")\n    connected: \(device.isConnected ? "yes" : "no")")
+            if outputFormat == nil {
+                let title = name.map { $0 + " (" + device.name + ")" } ?? device.name
+                let emphasized = environment.stdoutIsTerminal && environment.variables["NO_COLOR"] == nil
+                    ? "\u{001B}[1m" + title + "\u{001B}[0m" : title
+                environment.output("\(emphasized)\n    address: \(device.address)\n    paired: \(device.isPaired ? "yes" : "no")\n    connected: \(device.isConnected ? "yes" : "no")")
+            }
+            return ["name": name as Any? ?? NSNull(), "mac": mac ?? device.address,
+                "bluetooth_name": device.name, "paired": device.isPaired, "connected": device.isConnected,
+                "source": device.source.rawValue, "is_timebox": device.isTimeboxCandidate]
         }
     }
 
     static func shellQuote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
 
     func connect(_ transport: CommandTransport, to target: ResolvedDevice, channel: UInt8?) throws {
-        environment.output("Connecting to \(target.logicalName ?? target.device.name) (\(target.device.address))...")
+        diagnostic("Connecting to \(target.logicalName ?? target.device.name) (\(target.device.address))...")
         do { try transport.connect(to: target.device, channel: channel) }
         catch { throw CommandFailure("connection_failed", error.localizedDescription) }
-        environment.output("Connected on RFCOMM channel \(transport.channel.map(String.init) ?? "unknown").")
+        diagnostic("Connected on RFCOMM channel \(transport.channel.map(String.init) ?? "unknown").")
     }
 
     func send(_ packet: Data, to target: ResolvedDevice, options: CommandOptions) throws {
@@ -94,7 +143,7 @@ public final class TimeboxCommandLine {
                 catch { throw CommandFailure("write_failed", error.localizedDescription) }
                 transport.wait(milliseconds: options.holdMilliseconds)
                 transport.disconnect()
-                environment.output(options.mock ? "Simulated \(packet.count) byte(s)." : "Sent \(packet.count) byte(s).")
+                diagnostic(options.mock ? "Simulated \(packet.count) byte(s)." : "Sent \(packet.count) byte(s).")
                 return
             } catch {
                 transport.disconnect()

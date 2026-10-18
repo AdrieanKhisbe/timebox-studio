@@ -21,7 +21,7 @@ struct CommandOptions {
         while index < arguments.count {
             let argument = arguments[index]
             func value() throws -> String {
-                guard index + 1 < arguments.count else { throw CommandFailure("invalid_arguments", "Missing value for \(argument).") }
+                guard index + 1 < arguments.count, !arguments[index + 1].hasPrefix("--") else { throw CommandFailure("invalid_arguments", "Missing value for \(argument).") }
                 index += 1
                 return arguments[index]
             }
