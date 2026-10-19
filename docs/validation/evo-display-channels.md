@@ -170,8 +170,14 @@ inverse and round analog. Returning from a rainbow clock after five seconds to
 not an independently read current tab index or persistence after restart.
 
 The source-backed capability request returned `18 01`. Parent diagnostic tab0
-showed rotating scenes; tab1 showed visibly different content. Tab2 looked the
-same as tab1, so duplicate content and ignored selection remain indistinguishable.
+showed rotating scenes; tab1 showed visibly different content. The first tab2 attempt looked the
+same as tab1; that historical attempt alone was ambiguous. Later production CLI
+validation selected tab1 and then tab2 successfully, each with a fresh capability
+read and two control packets totaling17 bytes. The user explicitly confirmed
+that different artwork appeared on tab2. Together with the earlier tab0/1
+comparison, all three selections are now visibly distinct on this Evo. Repeated
+RFCOMM-open timeouts preceded the successful retry; those failures occurred
+before queries/control writes and did not establish a tab-protocol failure.
 No upload, save, delete, enumeration, restart or artwork replacement occurred.
 
 `45 03 00` was sent twice from clock and again from blue light;
@@ -207,7 +213,7 @@ The REPL then quit normally.
 Remaining physical acceptance: compare complete stored profile readbacks across
 additional channel options. The controlled transport tests cover rejection,
 partial transmission and reconnect failure paths.
-Tab2’s distinct behavior and VJ support remain unresolved. Transport completion
+VJ support remains unresolved. Transport completion
 is not visible validation. The parent retains the exclusive hardware lease;
 this investigating agent performed no device access.
 

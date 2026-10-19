@@ -180,6 +180,7 @@ brightness 100, power on). They do not preserve unspecified stored settings.
 Clock styles0–5 were visually confirmed. Bare clock/light selection reads fresh
 settings and re-encodes the stored target profile; unknown layouts fail before
 control writes. Design tabs0–2 require a fresh positive device capability reply.
-Tab2 distinct content and legacy VJ effects remain unverified. REPL/client live
+All three tabs showed distinct existing artwork on the tested Evo; legacy VJ
+effects remain unverified. REPL/client live
 operations reconnect on success and remain disconnected on failure. Custom/design
 channel selection is distinct from stored-content enumeration. See [display evidence and acceptance](docs/validation/evo-display-channels.md).
