@@ -10,6 +10,18 @@ enum AlarmOperation {
         switch self { case .list: return "alarm list"; case .set: return "alarm set"; case .disable: return "alarm disable" }
     }
 
+    func validate(model: TimeboxModel) throws {
+        let slot: Int
+        switch self {
+        case .list: return
+        case .set(let value, _, _), .disable(let value): slot = value
+        }
+        let count = model.alarmSlotCount
+        guard (0..<count).contains(slot) else {
+            throw CommandFailure("invalid_arguments", "Alarm slot must be 0...\(count - 1) for \(model.rawValue).")
+        }
+    }
+
     init(_ options: CommandOptions) throws {
         if options.positionals == ["list"] {
             guard !options.hasAlarmWriteOptions else { throw CommandFailure("invalid_arguments", "alarm list does not take write options.") }

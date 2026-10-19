@@ -1,9 +1,10 @@
 import Foundation
 
 extension TimeboxQuery where Response == [TimeboxAlarm] {
-    /// Manufacturer's 0x42 query; ten records verified by the captured Evo reply.
-    public static var alarms: Self {
-        Self(request: Data([1, 3, 0, 0x42, 0x45, 0, 2]), responseCommand: 0x42,
-             decode: TimeboxAlarmDecoder.decode)
+    /// Exact model-specific slot count; no empty or truncated list is accepted.
+    public static var alarms: Self { alarms(model: .evo) }
+    public static func alarms(model: TimeboxModel) -> Self {
+        try! Self(payload: Data([0x42]), responseCommand: 0x42, model: model,
+                  decode: { try TimeboxAlarmDecoder.decode($0, model: model) })
     }
 }

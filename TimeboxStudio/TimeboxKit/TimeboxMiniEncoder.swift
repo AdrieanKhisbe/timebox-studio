@@ -25,9 +25,14 @@ public enum TimeboxMiniEncoder {
                 if index < 120 { payload.append((second.green >> 4) | (second.blue & 0xF0)) }
             }
             return try frame(payload)
-        case .setAlarm, .disableAlarm: throw TimeboxModelError.unsupported("alarms")
+        case .setAlarm(let current, _, _), .disableAlarm(let current):
+            try TimeboxPacketEncoder.validateAlarm(current, model: .mini)
+            // Share all full-record field validation with Evo, then escape OldMode.
+            return escapeFrame(try TimeboxPacketEncoder.encode(command, model: .evo))
+        case .stopwatch(let action): return try frame(Data([0x45, 6, action.rawValue]))
+        case .display(.clock(style: nil)): return try frame(Data([0x45, 0, 1]))
         case .synchronizeClock: throw TimeboxModelError.unsupported("clock synchronization")
-        case .startCountdown, .stopCountdown, .stopwatch: throw TimeboxModelError.unsupported("timers")
+        case .startCountdown, .stopCountdown: throw TimeboxModelError.unsupported("timers")
         case .display, .displayProfile, .selectDesignTab: throw TimeboxModelError.unsupported("display channels")
         }
     }
@@ -36,7 +41,9 @@ public enum TimeboxMiniEncoder {
     }
     /// The unescaped length and checksum cover the interior, not wire bytes.
     public static func frame(_ payload: Data) throws -> Data {
-        let unescaped = try TimeboxPacketEncoder.encodePayload(payload)
+        escapeFrame(try TimeboxPacketEncoder.encodePayload(payload))
+    }
+    private static func escapeFrame(_ unescaped: Data) -> Data {
         var packet = Data([0x01])
         for byte in unescaped.dropFirst().dropLast() {
             if (1...3).contains(byte) { packet.append(contentsOf: [0x03, byte + 3]) }

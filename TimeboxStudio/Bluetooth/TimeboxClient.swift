@@ -128,13 +128,19 @@ public final class TimeboxClient {
 
     // MARK: - Sending (connection must be open)
 
-    /// Select an Evo display channel or apply a documented complete profile.
+    /// Select the Mini bare clock or an Evo channel/documented complete profile.
     /// Live-preserving selections close this persistent link, use dedicated fresh
     /// query/write links, then reconnect it. Failure leaves it disconnected.
     /// Receive-capable Classic is required; custom/BLE write adapters are never
     /// silently replaced with a native Classic transport.
     public func display(_ selection: TimeboxDisplay) async throws {
-        try requireEvo("display channels")
+        let selectedModel = try model
+        if selectedModel == .mini {
+            guard selection == .clock() else { throw TimeboxModelError.unsupported("display channels except bare clock") }
+            let packet = try TimeboxPacketEncoder.encode(.display(selection), model: selectedModel)
+            try await transport.write(packet)
+            return
+        }
         try selection.validate()
         if selection.requiresLivePreparation {
             #if os(macOS)

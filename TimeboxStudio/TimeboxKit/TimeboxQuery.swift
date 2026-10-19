@@ -1,10 +1,11 @@
 import Foundation
 
-/// A sourced request and decoder for its associated Evo NewMode response.
+/// A sourced request and decoder for its model-specific response framing.
 /// Command matching alone is safe only on a fresh, exclusively owned connection:
-/// Evo replies have no transaction identifier. Do not use this for unsolicited
+/// These replies have no transaction identifier. Do not use this for unsolicited
 /// opcodes unless evidence distinguishes their notifications from query replies.
 public struct TimeboxQuery<Response> {
+    public let model: TimeboxModel
     public let request: Data
     public let responseCommand: UInt8
     public let decode: (Data) throws -> Response
@@ -12,7 +13,8 @@ public struct TimeboxQuery<Response> {
     /// are ignored; this does not replace fresh-link ownership or strict framing.
     public let matchesResponseData: (Data) -> Bool
 
-    init(request: Data, responseCommand: UInt8, decode: @escaping (Data) throws -> Response) {
+    init(request: Data, responseCommand: UInt8, model: TimeboxModel = .evo, decode: @escaping (Data) throws -> Response) {
+        self.model = model
         self.request = request
         self.responseCommand = responseCommand
         self.decode = decode
@@ -20,11 +22,12 @@ public struct TimeboxQuery<Response> {
     }
 
     /// `payload` includes the documented request opcode, without a frame envelope.
-    public init(payload: Data, responseCommand: UInt8,
+    public init(payload: Data, responseCommand: UInt8, model: TimeboxModel = .evo,
                 matchingResponse: @escaping (Data) -> Bool = { _ in true },
                 decode: @escaping (Data) throws -> Response) throws {
         guard !payload.isEmpty else { throw TimeboxResponseError.malformed("empty query payload") }
-        self.request = try TimeboxPacketEncoder.encodePayload(payload)
+        self.model = model
+        self.request = try model == .mini ? TimeboxMiniEncoder.frame(payload) : TimeboxPacketEncoder.encodePayload(payload)
         self.responseCommand = responseCommand
         self.decode = decode
         self.matchesResponseData = matchingResponse

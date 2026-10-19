@@ -6,7 +6,7 @@ final class MiniMergedFeatureSafetyTests: XCTestCase {
     func testMiniWriterRejectsBeforeCreatingQueryOrControlTransport() {
         let transport = MiniSafetyTransport()
         var factories = 0
-        for selection: TimeboxDisplay in [.clock(), .light(), .design(index: 1), .clock(style: .rainbow)] {
+        for selection: TimeboxDisplay in [.light(), .design(index: 1), .clock(style: .rainbow)] {
             XCTAssertThrowsError(try TimeboxDisplayWriter.perform(selection, device: .mock, model: .mini,
                 makeTransport: { factories += 1; return transport })) {
                 guard case .unsupported = $0 as? TimeboxModelError else { return XCTFail("\($0)") }
@@ -25,12 +25,11 @@ final class MiniMergedFeatureSafetyTests: XCTestCase {
         try await client.connect(to: .mock)
         let animation = try TimeboxAnimation(frames: [TimeboxAnimationFrame(image: PixelFrame(), durationMilliseconds: 500)])
         let operations: [() async throws -> Void] = [
-            { try await client.display(.clock()) },
+            { try await client.display(.clock(style: .rainbow)) },
             { try await client.display(.design(index: 1)) },
             { try await client.synchronizeClock() },
             { try await client.startCountdown(TimeboxCountdownDuration("00:01")) },
             { try await client.stopCountdown() },
-            { try await client.stopwatch(.start) },
             { _ = try await client.send(animation: animation) },
             { _ = try await client.send(text: "test") }
         ]

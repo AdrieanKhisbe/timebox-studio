@@ -4,6 +4,7 @@ public enum TimeboxModel: String, Codable, CaseIterable, Sendable {
     case evo, mini
     public var width: Int { self == .mini ? 11 : 16 }
     public var height: Int { width }
+    public var alarmSlotCount: Int { self == .mini ? 3 : 10 }
 }
 
 public enum TimeboxModelError: LocalizedError, Equatable {

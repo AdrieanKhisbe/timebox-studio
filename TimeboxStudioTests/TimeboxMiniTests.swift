@@ -113,13 +113,13 @@ final class TimeboxMiniTests: XCTestCase {
         XCTAssertEqual(unescape(harness.transport.packets[0]).count, 191)
     }
 
-    func testSavedModelAutoBypassAndUnsupportedAlarmPreflight() {
+    func testSavedModelAutoBypassAndUnsupportedCountdownPreflight() {
         let harness = CommandHarness(); harness.detectedModels = []
         harness.configuration = .init(defaultName: "mini", devices: ["mini": .init(mac: "AA:BB:CC:DD:EE:01", model: .mini)])
         XCTAssertEqual(harness.run(["brightness", "3", "--json"]), 0)
         XCTAssertTrue(harness.rawStdout.contains("config"))
         let previousConnections = harness.transport.connections.count
-        XCTAssertEqual(harness.run(["alarm", "list"]), 1)
+        XCTAssertEqual(harness.run(["countdown", "start", "00:30"]), 1)
         XCTAssertEqual(harness.transport.connections.count, previousConnections)
         XCTAssertTrue(harness.stderr.joined().contains("Mini"))
         XCTAssertEqual(harness.run(["brightness", "50", "--model", "auto"]), 1)
@@ -132,7 +132,7 @@ final class TimeboxMiniTests: XCTestCase {
             "mini": .init(mac: "AA:BB:CC:DD:EE:01"),
             "evo": .init(mac: "AA:BB:CC:DD:EE:02", model: .evo),
             "unknown": .init(mac: "AA:BB:CC:DD:EE:03")])
-        harness.input = ["color FF0000", "alarm list", "target evo", "color FF0000", "target unknown", "target", "color FF0000", "quit"]
+        harness.input = ["color FF0000", "countdown start 00:30", "target evo", "color FF0000", "target unknown", "target", "color FF0000", "quit"]
         XCTAssertEqual(harness.run(["repl", "--model", "mini", "--channel", "4"]), 0)
         XCTAssertEqual(harness.transport.connections.count, 2)
         XCTAssertNil(harness.transport.connections.last?.1)
@@ -161,15 +161,15 @@ final class TimeboxMiniTests: XCTestCase {
         XCTAssertThrowsError(try file.read())
     }
 
-    func testUnsupportedMiniLibraryAlarmsAndUnresolvedClientRejectBeforeTransport() async throws {
-        let current = TimeboxAlarm(slot: 2, enabled: false, hour: 0, minute: 0, weekdayMask: 0, soundMode: 2, triggerMode: 1, frequencyBytes: [0, 0], volume: 50)
+    func testInvalidMiniAlarmSlotAndUnresolvedClientRejectBeforeTransport() async throws {
+        let current = TimeboxAlarm(slot: 3, enabled: false, hour: 0, minute: 0, weekdayMask: 0, soundMode: 2, triggerMode: 1, frequencyBytes: [0, 0], volume: 50)
         XCTAssertThrowsError(try TimeboxPacketEncoder.encode(.disableAlarm(current), model: .mini))
         let unresolved = TimeboxClient(model: nil)
         do { try await unresolved.setBrightness(50); XCTFail("Expected unknown model") }
         catch { XCTAssertEqual(error as? TimeboxModelError, .unidentified) }
         let mini = TimeboxClient(model: .mini)
-        do { try await mini.disableAlarm(current); XCTFail("Expected unsupported") }
-        catch { XCTAssertEqual(error as? TimeboxModelError, .unsupported("alarms")) }
+        do { try await mini.disableAlarm(current); XCTFail("Expected invalid Mini slot") }
+        catch { XCTAssertEqual(error as? TimeboxAlarmWriteError, .invalidSlot(3)) }
     }
 
     func testLibraryUsesSelectedModelThroughTransportBoundary() async throws {

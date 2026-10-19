@@ -1,7 +1,7 @@
 import Foundation
 
-/// One of the ten configured slots returned by the Evo's `0x42` query.
-/// Sound and trigger modes remain numeric until their Evo meanings are verified.
+/// One configured slot returned by the model-specific `0x42` query.
+/// Sound and trigger modes remain numeric; unsupported meanings are not inferred.
 public struct TimeboxAlarm: Equatable, Sendable, Codable {
     public let slot: Int
     public let enabled: Bool
@@ -12,6 +12,16 @@ public struct TimeboxAlarm: Equatable, Sendable, Codable {
     public let triggerMode: UInt8
     public let frequencyBytes: [UInt8]
     public let volume: Int
+
+    /// Exact ten-byte device record, suitable for strict readback comparison.
+    /// Throws for invalid values constructed through public Codable decoding.
+    public var recordBytes: Data {
+        get throws {
+            try TimeboxPacketEncoder.validateAlarm(self)
+            return Data([UInt8(slot), enabled ? 1 : 0, UInt8(hour), UInt8(minute), weekdayMask,
+                         soundMode, triggerMode] + frequencyBytes + [UInt8(volume)])
+        }
+    }
 
     /// Known weekday bits in device order. The original mask preserves bit 7,
     /// whose meaning is unverified; it is not interpreted as a recurrence flag.
@@ -27,6 +37,7 @@ public struct TimeboxAlarm: Equatable, Sendable, Codable {
 
 public enum TimeboxAlarmDecodingError: LocalizedError, Equatable, Sendable {
     case invalidLength(Int)
+    case invalidModelLength(model: TimeboxModel, actual: Int)
     case invalidSlot(Int)
     case duplicateSlot(Int)
     case invalidEnabled(slot: Int, value: UInt8)
@@ -35,10 +46,12 @@ public enum TimeboxAlarmDecodingError: LocalizedError, Equatable, Sendable {
 
     public var errorDescription: String? {
         switch self {
+        case let .invalidModelLength(model, actual):
+            return "Incomplete or malformed \(model.rawValue) alarm list: expected \(model.alarmSlotCount * 10) data bytes, received \(actual)."
         case .invalidLength(let length):
             return "Incomplete or malformed Evo alarm list: expected 100 data bytes for ten slots, received \(length)."
         case .invalidSlot(let slot):
-            return "Malformed Evo alarm list: slot \(slot) is outside 0 through 9."
+            return "Malformed alarm list: slot \(slot) is outside this model’s supported range."
         case .duplicateSlot(let slot):
             return "Malformed Evo alarm list: slot \(slot) appears more than once."
         case let .invalidEnabled(slot, value):
@@ -53,19 +66,24 @@ public enum TimeboxAlarmDecodingError: LocalizedError, Equatable, Sendable {
 
 public enum TimeboxAlarmDecoder {
     /// Decodes the data after the successful `04 42 55` reply prefix.
-    /// A complete Evo reply contains ten ten-byte records, including disabled
-    /// slots. Framing, checksum and acknowledgement validation belong to the
+    /// Evo replies contain ten ten-byte records; original Mini replies contain
+    /// three, including disabled slots. Framing, checksum and acknowledgement validation belong to the
     /// response layer. Missing bytes are never interpreted as an empty list.
     public static func decode(_ data: Data) throws -> [TimeboxAlarm] {
-        guard data.count == 100 else {
-            throw TimeboxAlarmDecodingError.invalidLength(data.count)
+        try decode(data, model: .evo)
+    }
+
+    public static func decode(_ data: Data, model: TimeboxModel) throws -> [TimeboxAlarm] {
+        guard data.count == model.alarmSlotCount * 10 else {
+            if model == .evo { throw TimeboxAlarmDecodingError.invalidLength(data.count) }
+            throw TimeboxAlarmDecodingError.invalidModelLength(model: model, actual: data.count)
         }
         let bytes = Array(data)
         var seen = Set<Int>()
         var alarms: [TimeboxAlarm] = []
         for offset in stride(from: 0, to: bytes.count, by: 10) {
             let slot = Int(bytes[offset])
-            guard (0...9).contains(slot) else {
+            guard (0..<model.alarmSlotCount).contains(slot) else {
                 throw TimeboxAlarmDecodingError.invalidSlot(slot)
             }
             guard seen.insert(slot).inserted else {

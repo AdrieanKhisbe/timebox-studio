@@ -1,0 +1,129 @@
+{
+  "date": "2026-10-19",
+  "device": "AKTBR",
+  "mac": "$MAC",
+  "build": "feature/mini-clock-stopwatch-alarms release",
+  "before": [
+    {
+      "enabled": false,
+      "frequency_bytes": [
+        0,
+        0
+      ],
+      "hour": 0,
+      "minute": 0,
+      "recurrence": null,
+      "slot": 0,
+      "sound_mode_raw": 0,
+      "time": "00:00",
+      "trigger_mode_raw": 1,
+      "volume": 50,
+      "weekday_mask": 0,
+      "weekdays": []
+    },
+    {
+      "enabled": false,
+      "frequency_bytes": [
+        0,
+        0
+      ],
+      "hour": 0,
+      "minute": 0,
+      "recurrence": null,
+      "slot": 1,
+      "sound_mode_raw": 0,
+      "time": "00:00",
+      "trigger_mode_raw": 1,
+      "volume": 50,
+      "weekday_mask": 0,
+      "weekdays": []
+    },
+    {
+      "enabled": false,
+      "frequency_bytes": [
+        0,
+        0
+      ],
+      "hour": 0,
+      "minute": 0,
+      "recurrence": null,
+      "slot": 2,
+      "sound_mode_raw": 0,
+      "time": "00:00",
+      "trigger_mode_raw": 1,
+      "volume": 50,
+      "weekday_mask": 0,
+      "weekdays": []
+    }
+  ],
+  "set": {
+    "exit": 0,
+    "status": "sent",
+    "readback_matches": true
+  },
+  "disable": {
+    "exit": 0,
+    "status": "sent",
+    "readback_matches": true
+  },
+  "after": [
+    {
+      "enabled": false,
+      "frequency_bytes": [
+        0,
+        0
+      ],
+      "hour": 0,
+      "minute": 0,
+      "recurrence": null,
+      "slot": 0,
+      "sound_mode_raw": 0,
+      "time": "00:00",
+      "trigger_mode_raw": 1,
+      "volume": 50,
+      "weekday_mask": 0,
+      "weekdays": []
+    },
+    {
+      "enabled": false,
+      "frequency_bytes": [
+        0,
+        0
+      ],
+      "hour": 0,
+      "minute": 0,
+      "recurrence": null,
+      "slot": 1,
+      "sound_mode_raw": 0,
+      "time": "00:00",
+      "trigger_mode_raw": 1,
+      "volume": 50,
+      "weekday_mask": 0,
+      "weekdays": []
+    },
+    {
+      "enabled": false,
+      "frequency_bytes": [
+        0,
+        0
+      ],
+      "hour": 0,
+      "minute": 0,
+      "recurrence": null,
+      "slot": 2,
+      "sound_mode_raw": 0,
+      "time": "00:00",
+      "trigger_mode_raw": 1,
+      "volume": 50,
+      "weekday_mask": 0,
+      "weekdays": []
+    }
+  ],
+  "exact_baseline_restored": true,
+  "repl": {
+    "alarm_list": "3 slots, reconnected",
+    "clock": "user confirmed visible",
+    "stopwatch": "user confirmed counting upward after reset/start and stopped zero after stop/reset",
+    "disconnected": true
+  }
+}
