@@ -63,6 +63,12 @@ opened, and no display/clock/alarm command was sent. These failures establish a
 capture limitation, not a difference between the devices. No guessed identity
 opcode was sent.
 
+A subsequent parent-coordinated standard SDP refresh completed successfully on
+both units and exposed seven services each, but neither had a UUID1200 DeviceID
+record. The [actual-app and identity follow-up](timebox-model-identity.md) traces
+why app name routing, firmware numbers and a modern registration query do not
+supply a verified Mini/Evo discriminator. Explicit/config overrides remain valid.
+
 Consequently real hardware without a saved or explicit model fails before display
 encoding or writes, suggesting `--model evo` or `--model mini`. Existing CLI users
 should add `model: evo` to an Evo config entry or pass `--model evo`. Simulated
