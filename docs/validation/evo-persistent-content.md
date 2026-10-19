@@ -20,7 +20,7 @@ Persistence and enumeration on the user's Evo remain unverified.
 | Select design tab | hass-divoom sends custom channel then `BD 17 index`; actual Android app `CmdManager.q1(int)` emits the corresponding external command. | Evo-supported tab range, numbering and retention unknown. | Do not expose arbitrary byte IDs as verified Evo support. |
 | Numbered VJ effects | Evo-specific effect enum and `45 03 effect` fixtures. | No new physical observations. | Built-in display selection, not uploaded content IDs. |
 | Save user GIF | Manufacturer page294 describes `B1` start/data/end with acknowledgement; page296 describes indexed `8C` upload. | Compatibility and restart persistence unverified. | No production storage writes. |
-| Item count | Manufacturer page295 describes `B6 FF` returning a count. Other parameter values delete an item. | No response captured from Evo. | Candidate read-only investigation only; never scan parameters. |
+| Custom EQ/rhythm count | Manufacturer page295 and actual app request `B6 FF`; the app appends that many custom EQ entries after12 built-ins. Other B6 argument values delete an item. | No response captured from Evo. | EQ subset only; not general artwork/tab enumeration. Never scan parameters. |
 | Enumerate file IDs | Manufacturer page298 describes `8E user_index` and paginated ID replies for a 64-pixel custom-image function. | It is not an Evo listing fixture; device/firmware support unknown. | Do not port a generic 64-pixel interface as Evo support. |
 | Select existing content by file ID | No Evo-specific selection/identity correspondence established by these sources. | None. | Unsupported until verified independently of tab/effect indices. |
 
@@ -49,7 +49,7 @@ Their readable JSON is served by
 Pages were retrieved directly on the research date. Do not confuse the same
 site's Wi-Fi/cloud image-upload lists with a Classic RFCOMM device inventory.
 
-The source-only count request candidate is `01 04 00 B6 FF B9 01 02`.
+The source-only custom EQ/rhythm count request candidate is `01 04 00 B6 FF B9 01 02`.
 This fixture is calculated from the documented request, not captured hardware.
 Do not replace `FF` with candidate indices: those request deletion.
 
@@ -65,6 +65,31 @@ Actual Divoom Android APK3.8.40 was available from the earlier alarm research
 code leads only: the code serves many device models, and the sentinel is not
 assumed to be safe enumeration. Decompiled copyrighted source stays outside Git.
 
+## Narrowing the count getter from the actual app
+
+The same hash-verified APK3.8.40 provides the full consumer path:
+`LightEqualizerFragment.standardLoad → LightViewModel.e → CmdManager.Q` sends
+exactly `B6 FF`. The fragment first creates12 built-in EQ entries. The successful
+B6 reply parser `u.h` posts its first data byte through `T1.i`; the fragment’s
+`F2(count)` appends that many custom EQ entries. `showDelDialog` instead passes
+`(position - 12) + 1` to `LightViewModel.i → CmdManager.a2`, a deletion operation.
+Thus this count concerns the custom equalizer/rhythm subset, not arbitrary image/
+GIF inventory, custom tabs, persistent content IDs or a storage capacity limit.
+
+The request in `standardLoad` has no count-specific device gate. The create button
+is gated to `PixooArch`, and higher-resolution products choose different built-in
+thumbnails. Source reachability alone still does not prove Evo count support.
+JADX reconstructed these handlers; it reported an unrelated reconstruction error
+elsewhere in the fragment. Copyrighted decompiled source remains outside Git.
+
+A future coordinated read would accept only a checksum-valid successful B6 reply
+with exactly one unsigned count byte. No echoed query selector/nonce distinguishes
+count from delete acknowledgements: exclusive fresh connection ownership is
+required, with no competing or pending delete operations. Timeout means unknown,
+not zero. Do not issue another B6 argument, retry as a scan, or infer file IDs.
+The parent decided a physical count probe was unnecessary for this investigation;
+no request, delete or other storage command was sent.
+
 ## Outstanding validation and proposed follow-ups
 
 There is no verified new capability ready for an implementation ticket yet.
@@ -75,9 +100,9 @@ No existing user artwork may be overwritten as implicit exploration.
 
 1. Capture model/firmware and app behavior while selecting existing custom tabs,
    without editing/deleting/uploading. Record tab IDs separately from content IDs.
-2. If the Evo actually accepts the exact count request, capture its response with
+2. If a future scoped EQ investigation needs the exact count request, capture its response with
    the strict receive framing from [AdrieanKhisbe/timebox-studio#11](https://github.com/AdrieanKhisbe/timebox-studio/issues/11).
-   Do not probe other `B6` values. A count alone is not a list.
+   Do not probe other `B6` values. An EQ count alone is not an artwork list.
 3. Establish a device-specific safe enumeration request from app/capture evidence
    before attempting the generic `8E` lead. Preserve unknown fields and validate
    complete multipart replies; no fabricated IDs.
