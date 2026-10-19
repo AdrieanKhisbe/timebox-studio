@@ -1,0 +1,12 @@
+{
+  "kind": "derived, not a physical capture",
+  "source": "https://github.com/RomRider/node-divoom-timebox-evo/blob/2a086b86feaca1b544029f97803336579f0d3a25/PROTOCOL.md#command-46-wip",
+  "derivation": "Published placeholder example with mode=0, light brightness=50 and system brightness=75; envelope/checksum constructed from documented framing. Field map cross-checked with manufacturer page288.",
+  "request": "01 03 00 46 49 00 02",
+  "response": "01 1b 00 04 46 55 00 00 00 4a 00 7f 32 7f 01 0b 4b 01 7f 00 7f 00 01 00 01 00 01 00 8d 03 02",
+  "expected": {
+    "mode_raw": 0,
+    "brightness": 75,
+    "light_brightness": 50
+  }
+}

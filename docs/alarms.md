@@ -79,8 +79,10 @@ connection, closes it on success, timeout, cancellation or decoding failure, and
 never retries on that link. This prevents stale/duplicate responses from matching
 a later identical query. A matching command and validated frame are required;
 unrelated replies do not complete the read. Writes must not interleave on a query
-connection. This implements the alarm-specific receive path; general settings
-queries, BLE response decoding and multiplexed queries remain outside its scope.
+connection. The shared `TimeboxQueryReader` implements framed receive handling and ownership;
+`TimeboxQuery.alarms` supplies the verified alarm request and typed record decoder.
+Settings field decoding, BLE response decoding and multiplexed queries require
+separate evidence. See [device query contract](device-queries.md).
 
 Swift apps can read directly on the main actor:
 

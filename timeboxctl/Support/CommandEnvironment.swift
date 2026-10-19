@@ -12,7 +12,6 @@ public protocol CommandTransport: TimeboxQueryTransport {
 }
 
 public extension CommandTransport {
-    func writeQuery(_ data: Data) throws { try write(data) }
     func waitForQuery(milliseconds: Int) { wait(milliseconds: milliseconds) }
 }
 
@@ -59,6 +58,9 @@ private final class SimulatedCommandTransport: CommandTransport {
     var onData: ((Data) -> Void)?
     var isConnected = false
     var channel: UInt8? = 1
+    func beginQuery() throws { throw TimeboxQueryError.unsupported }
+    func endQuery() {}
+    func writeQuery(_ data: Data) throws { throw TimeboxQueryError.unsupported }
     func connect(to device: TimeboxDevice, channel: UInt8?) throws { self.channel = channel ?? 1; isConnected = true }
     func write(_ packet: Data) throws {
         guard isConnected else { throw CommandFailure("connection_failed", "No simulated device is connected.") }
@@ -74,6 +76,9 @@ private final class ClassicCommandTransport: CommandTransport {
         get { transport.onData }
         set { transport.onData = newValue }
     }
+    func beginQuery() throws { try transport.beginQuery() }
+    func endQuery() { transport.endQuery() }
+    func writeQuery(_ data: Data) throws { try transport.writeQuery(data) }
     var isConnected: Bool { transport.isConnected }
     var channel: UInt8? { transport.lastRFCOMMChannelID }
     func connect(to device: TimeboxDevice, channel: UInt8?) throws { try transport.connectPumpingRunLoop(to: device, channelID: channel) }
@@ -82,6 +87,9 @@ private final class ClassicCommandTransport: CommandTransport {
     func disconnect() { transport.disconnect() }
     #else
     var onData: ((Data) -> Void)?
+    func beginQuery() throws { throw TimeboxQueryError.unsupported }
+    func endQuery() {}
+    func writeQuery(_ data: Data) throws { throw TimeboxQueryError.unsupported }
     var isConnected: Bool { false }
     var channel: UInt8? { nil }
     func connect(to device: TimeboxDevice, channel: UInt8?) throws { throw TimeboxTransportError.bluetoothUnavailable }

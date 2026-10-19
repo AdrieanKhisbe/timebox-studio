@@ -1,0 +1,179 @@
+# Evo settings response investigation
+
+[AdrieanKhisbe/timebox-studio#13](https://github.com/AdrieanKhisbe/timebox-studio/issues/13),
+2026-10-19. Built on the framed receive/query contract of
+[AdrieanKhisbe/timebox-studio#11](https://github.com/AdrieanKhisbe/timebox-studio/issues/11).
+
+## Sources and field map
+
+Manufacturer [Get light mode, page 288](https://docin.divoom-gz.com/web/#/5/288)
+and its [public page JSON](https://docin.divoom-gz.com/server/index.php?s=/api/page/info&page_id=288)
+document a payload-free `0x46` request and a successful `04 46 55` reply.
+This source explicitly distinguishes lighting brightness from system brightness.
+The documented payload extends through index 19:
+
+| Data index | Documented field | Public implementation |
+| --- | --- | --- |
+| 0 | Configured display channel | Raw byte and conservative sourced name; not rendered pixels |
+| 1 | Temperature unit | Raw only |
+| 2 | VJ selection | Raw only |
+| 3–5 | Lighting RGB | Raw only |
+| 6 | Lighting brightness | `lightBrightness` / `light_brightness` |
+| 7–9 | Lighting effect, switch, music selection | Raw only |
+| 10 | System brightness | `brightness` |
+| 11–19 | Clock format, RGB, mode and options | Raw only |
+
+Manufacturer [Set light mode, page 287](https://docin.divoom-gz.com/web/#/5/287)
+agrees on modes 0 through 5. Its mode 6 describes a scoreboard while page 288
+calls mode 6 lyrics. Mode 6 therefore remains unlabeled. Unknown values are
+preserved; they are not guessed to be supported display features.
+
+The independent [Evo receiving documentation](https://github.com/RomRider/node-divoom-timebox-evo/blob/2a086b86feaca1b544029f97803336579f0d3a25/PROTOCOL.md#receiving-messages)
+confirms the request and reply envelope and places the brightness fields at the
+same offsets. Its WIP sample contains 22 data bytes. We require the documented
+20-byte minimum and preserve all trailing bytes instead of requiring a guessed
+fixed firmware revision length. Both exposed brightness values must be 0–100.
+
+The archived app [enum](https://github.com/DavidVentura/divoom/blob/0cb77c83503012fb7f5c8b7d4a52f8eeab398e66/decompiled-sources/SppProc.java)
+names command 70 (`0x46`) `SPP_GET_BOX_MODE`, distinct from sleep-scene query
+162 (`0xA2`). No sleep command or clock write is part of status.
+
+## Reproducible automated evidence
+
+[Source-derived fixture](fixtures/evo-status-derived.json) substitutes explicit
+mode 0, lighting brightness 50 and system brightness 75 into the reference's
+placeholder example, then frames it with the documented length/checksum. It is
+**synthetic, not a physical capture**. It checks field offset selection with two
+different brightness values, independent of any previous outgoing commands.
+
+Unit/integration tests cover fragmentation, unknown and ambiguous mode values,
+truncation, corrupt checksums, invalid brightness and boundary values, full raw
+extension preservation, timeout/disconnect, one-shot JSON/YAML equivalence,
+read-only request bytes, mock rejection and REPL target/resume behavior. The
+shared query suite additionally covers cancellation, duplicates, unrelated
+responses, stale callbacks and competing writes. These tests need no Bluetooth.
+
+## Hardware observations and remaining acceptance
+
+A coordinated read-only attempt on 2026-10-19 targeted `main-evo` (`$MAC`):
+
+```sh
+.build/debug/timeboxctl status --device main-evo --json --timeout 5
+```
+
+Opening RFCOMM channel 1 timed out before any query
+packet was sent. The transport returned IOReturn `-536870186` / `0xE00002D6`
+(RFCOMM channel-open callback timeout); structured output correctly reported
+`status: error`, `data.code: connection_failed`. No status reply was captured
+and no mode, brightness, alarm or clock settings changed. No retries or alternate
+channel probes were performed. The existing macOS speaker/SPP ownership issue
+may explain this failure, but was not established by this attempt.
+
+After the user confirmed the Evo had reconnected, exactly one authorized
+read-only retry succeeded on RFCOMM channel 1. Recorded at
+**2026-10-19T15:38:28Z**, the query returned these 20 settings data bytes:
+
+```text
+00 00 00 34 12 40 64 00 01 00 64 01 FF 00 00 02 01 00 00 00
+```
+
+The [live settings fixture](fixtures/evo-status-live.json) preserves these actual
+data and the redacted structured result. The generic reader verified the incoming
+frame's success prefix, length, checksum and end marker. The fixture's complete
+frame is canonically reconstructed from that validated captured payload; original
+notification boundaries were not logged. This is distinguished from the separate
+source-derived fixture.
+
+The observed payload length exactly matches the manufacturer's documented
+20-byte minimum. Source-defined mode byte 0 decodes as clock; both the lighting
+brightness byte at index 6 and system byte at index 10 are `64` (100 decimal).
+These values came from the device, not outgoing control history. Because both
+brightness bytes have the same value, this capture alone cannot independently
+distinguish their meaning. The source-derived fixture tests distinct offsets.
+No setting, alarm, display content or clock writes were sent in this retry.
+
+### Brightness differential and restoration
+
+The user then reported selecting clock mode at 30% in the official app and
+closing its connection. A fresh query returned **the identical 100/100 baseline**.
+No visible dimming was established for that app operation. Its delivery, selected
+device/control and cause remain unknown. This mismatch must not be relabeled as
+a successful independent-app test or silently discarded.
+
+The user explicitly authorized Timebox Studio to set the brightness. The parent
+agent sent `brightness 30`, then performed a fresh `status`. Both index 6 and
+index 10 changed from 100 to 30; every other settings byte stayed identical.
+The user independently confirmed that the real display was dim. The parent
+then restored `brightness 100`; a final fresh status matched the complete
+20-byte baseline, including both brightness bytes at 100. No clock or alarm
+writes were involved.
+
+The [differential fixture](fixtures/evo-status-differential.json) contains exact
+redacted data-array transcriptions from the parent's tool outputs, with the date
+and provenance stated. Original output streams, exact timestamps and notification
+chunks were not saved; the fixture does not claim a captured raw envelope.
+A regression replays those captured payloads inside explicitly synthetic frames
+through fresh readers and verifies the 100 → 30 → 100 sequence and restoration.
+
+This demonstrates that the queried brightness values respond to actual device
+changes and is consistent with the user-observed dimming. It is not evidence
+that the response is merely a last-requested cache: the read engine creates a new
+connection and obtains new device bytes each time. However, **both brightness
+fields co-vary under this setting**, so this experiment cannot independently
+isolate their meanings. Their names still come from the manufacturer field map.
+Mode remained 0 throughout; no independent mode change was validated.
+
+As a bounded cross-check, the same hash-verified official app 3.8.40 examined in
+[the earlier app investigation](evo-finite-weekday-follow-up.md) routes
+`LightSettingServer.j(value)` through `CmdManager.z2(value)` to
+`SPP_SET_SYSTEM_BRIGHT` (`0x74`). Its `LightSettingServer.a()` instead calls
+`CmdManager.M()` / `SPP_LIGHT_CURRENT_LEVEL` (`0x31`) for a separate brightness
+read. This source does not explain why the user's app operation above left the
+settings response unchanged, and supplies no evidence that `0x46` reports cached
+defaults. No `0x31` probe was sent during this validation.
+
+### Configured channel versus visible overlay
+
+Subsequent parent-coordinated checks established this field's scope. While the
+previously user-confirmed scrolling Hello animation was playing, a fresh `0x46`
+query still returned channel 0 and the original clock-profile data. It did not
+identify the rendered text/animation. Manufacturer
+[page 290](https://docin.divoom-gz.com/web/#/5/290) separately documents `0x49` as
+an animation transfer command, without defining a rendered-overlay status flag.
+Do not infer such a flag or current content from the channel byte.
+
+The parent then explicitly selected blue light at 30% and queried again. Channel
+became 1, lighting RGB became `00 00 FF`, and both brightness bytes were 30. The
+user confirmed the actual display was dim blue. Selecting clock style 0 and then
+restoring system brightness 100 changed channel back to 0, with clock RGB
+`FF FF FF`, clock style 0 and both brightness fields at 100. The user confirmed
+the white clock. The lighting RGB remained blue in this clock reply: the response
+contains configured fields for inactive profiles, not only visible pixels.
+
+The [configured-channel fixture](fixtures/evo-status-configured-channel.json)
+records these exact redacted payloads and user observations, transcribed from
+parent tool outputs. Original frame chunks and exact timestamps were not saved;
+replay frames in tests are explicitly synthetic. The final complete clock
+profile intentionally replaced the earlier clock color/style; brightness returned
+to 100, but this was not an exact restoration of every profile field.
+
+Accordingly, human output says **configured channel**. Existing machine fields
+`mode` and `mode_raw` keep their names and values for compatibility, with that
+scope documented. These successful reads and physical observations verify clock
+and light channel selection; they do not identify a visible overlay, current
+design or rendered pixels. No new overlay boolean or guessed content model is
+introduced.
+
+Remaining acceptance: independent physical/app channel selection with fresh
+query, independent brightness-field isolation if stronger semantics are claimed,
+and other effects/styles. Preserve the unsuccessful app observation. The supported
+configured-channel interpretation is narrower than a claim to always know the
+visible display mode. Automated validation includes the captured channel sequence,
+physical brightness differential and source-derived/malformed fixtures.
+
+Coordinated validation must query `main-evo` without setters, record raw data and
+mode/brightness, then have the user change the relevant setting with physical
+controls or the official app. Disconnect competing controllers before each query.
+Compare the second live reply with that observed change. Brightness writes from
+Timebox Studio itself are not independent validation. MACs in published reports
+must be `$MAC`. Do not claim other fields, BLE, or model identity from this test.
