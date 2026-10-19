@@ -7,7 +7,7 @@ import TimeboxUtilities
 
 /// One CLI invocation. All ordinary device commands share selection and Classic routing.
 public final class TimeboxCommandLine {
-    static var replVocabulary: [String] { REPLSuggestions.commands + ["target", "target current", "status"] }
+    static var replVocabulary: [String] { REPLSuggestions.commands + ["target", "target current", "status", "time", "time sync"] }
     var environment: CommandEnvironment
     var outputFormat: OutputFormat?
     public init(environment: CommandEnvironment) { self.environment = environment }
@@ -16,7 +16,7 @@ public final class TimeboxCommandLine {
         guard let command = arguments.first else { return false }
         if arguments.contains(where: { ["--json", "--yaml", "--yml"].contains($0) }) { return true }
         if ["brightness", "color"].contains(command), arguments.contains("--uuid") { return false }
-        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "status"].contains(command)
+        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "status", "time"].contains(command)
     }
 
     @discardableResult
@@ -26,10 +26,12 @@ public final class TimeboxCommandLine {
         outputFormat = arguments.first(where: { ["--json", "--yaml", "--yml"].contains($0) })
             .map { $0 == "--json" ? .json : .yaml }
         let command = arguments.first ?? ""
+        var resultCommand = command
+        if command == "time" { resultCommand = "time sync" }
         var target: ResolvedDevice?
         do {
             guard !command.isEmpty else { throw CommandFailure("invalid_arguments", "A command is required.") }
-            guard ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "status"].contains(command), !arguments.contains("--uuid") else {
+            guard ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "status", "time"].contains(command), !arguments.contains("--uuid") else {
                 throw CommandFailure("unsupported", "Structured output is not supported for this diagnostic command.")
             }
             let options = try CommandOptions(Array(arguments.dropFirst()))
@@ -44,7 +46,7 @@ public final class TimeboxCommandLine {
             if command == "device" || command == "config" { try manage(command, options: options); return 0 }
             if command == "list" {
                 let devices = try list(options)
-                try emit(CommandResult(command: command, status: "ok", data: ["devices": devices]))
+                try emit(CommandResult(command: resultCommand, status: "ok", data: ["devices": devices]))
                 return 0
             }
             guard !options.all, !options.save else { throw CommandFailure("invalid_arguments", "--all and --save are only valid for list.") }
@@ -63,7 +65,7 @@ public final class TimeboxCommandLine {
                 let transport = environment.makeTransport(options.mock)
                 defer { transport.disconnect() }
                 try connect(transport, to: resolved, channel: options.channel)
-                try emit(CommandResult(command: command, status: options.mock ? "simulated" : "ok", device: resolved,
+                try emit(CommandResult(command: resultCommand, status: options.mock ? "simulated" : "ok", device: resolved,
                     data: ["channel": transport.channel.map { Int($0) } as Any? ?? NSNull()]))
                 return 0
             }
@@ -71,18 +73,19 @@ public final class TimeboxCommandLine {
             try send(packet, to: resolved, options: options)
             var data: [String: Any] = ["bytes": packet.count]
             switch command {
+            case "time": data["operation"] = "sync"
             case "brightness": data["brightness"] = try CommandOptions.percent(options.positionals[0])
             case "color": data["color"] = options.positionals[0].replacingOccurrences(of: "#", with: "").uppercased(); data["brightness"] = options.brightness
             case "image": data["path"] = options.positionals[0]; data["width"] = 16; data["height"] = 16
             default: break
             }
-            try emit(CommandResult(command: command, status: options.mock ? "simulated" : "sent", device: resolved, data: data))
+            try emit(CommandResult(command: resultCommand, status: options.mock ? "simulated" : "sent", device: resolved, data: data))
             return 0
         } catch {
             let failure = Self.failure(error)
             environment.errorOutput(failure.message)
             if !["device", "config"].contains(command) {
-                do { try emit(CommandResult(command: command, status: "error", device: target, data: ["code": failure.kind, "message": failure.message])) }
+                do { try emit(CommandResult(command: resultCommand, status: "error", device: target, data: ["code": failure.kind, "message": failure.message])) }
                 catch { environment.errorOutput("Cannot encode result: \(error.localizedDescription)") }
             }
             return failure.exitCode
@@ -170,6 +173,10 @@ public final class TimeboxCommandLine {
     }
 
     func packet(_ command: String, options: CommandOptions) throws -> Data {
+        if command == "time" {
+            guard options.positionals == ["sync"] else { throw CommandFailure("invalid_arguments", "Use time sync.") }
+            return try TimeboxPacketEncoder.encode(.synchronizeClock(TimeboxClockSnapshot(date: environment.clock(), timeZone: environment.timeZone())))
+        }
         if command == "color", options.positionals.count != 1 {
             throw CommandFailure("invalid_arguments", "color requires one RRGGBB value.")
         }
@@ -187,12 +194,12 @@ public final class TimeboxCommandLine {
         defer { transport.disconnect() }
         try connect(transport, to: target, channel: options.channel)
         transport.wait(milliseconds: 150)
-        environment.output("Persistent connection open. Commands: target [NAME|current], status, color, brightness, image, hex, help, quit.")
+        environment.output("Persistent connection open. Commands: target [NAME|current], status, time sync, color, brightness, image, hex, help, quit.")
         while let line = try input.readLine(prompt: REPLPrompt.text(interactive: environment.isInteractive, noColor: environment.variables["NO_COLOR"] != nil)) {
             let parts = line.split(whereSeparator: \.isWhitespace).map(String.init)
             guard let command = parts.first?.lowercased() else { continue }
             if ["quit", "exit", "q"].contains(command) { break }
-            if ["help", "?"].contains(command) { environment.output("target [NAME|current], status, color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit"); continue }
+            if ["help", "?"].contains(command) { environment.output("target [NAME|current], status, time sync, color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit"); continue }
             do {
                 if command == "status" {
                     let statusOptions = try CommandOptions(Array(parts.dropFirst()))

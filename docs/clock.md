@@ -1,0 +1,7 @@
+# Clock synchronization
+
+`timeboxctl time sync` (also `time sync` in the REPL) sends one local wall-clock snapshot. Normal device selectors and JSON/YAML output apply. `TimeboxClient.synchronizeClock(at:timeZone:)` provides the same operation to apps; the pure `TimeboxClockSnapshot` captures Gregorian components using an explicit timezone. The CLI clock and timezone providers are injectable.
+
+The packet contains `18 year%100 year/100 month day hour minute second weekday`, with Sunday zero. Year bytes are decimal parts, not a little-endian binary integer. Sources: [hass-divoom's own datetime encoder](https://github.com/d03n3rfr1tz3/hass-divoom/blob/main/custom_components/divoom/devices/divoom.py#L770-L786) and original Divoom Android 3.8.40 `CmdManager.X0()` (APK SHA256 `d7ae490205cf71cc37f74948bd1ca7f1b2a446070565294b3ae835c0a51fde81`; see the pinned provenance in [alarm investigation](validation/evo-finite-weekday-follow-up.md)). No decompiled source is distributed.
+
+The application accepts Gregorian years 1–9999 CE as an explicit representational policy, not a verified firmware date range. There is no timezone identifier on the wire, ongoing synchronization, future DST maintenance, or modification of the Mac's clock. Structured success says `sent`, not clock readback verified. Hardware acceptance is pending: compare displayed date/time after sync, including weekday. No hardware clock writes were performed during implementation.

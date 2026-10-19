@@ -27,6 +27,8 @@ public struct CommandEnvironment {
     public var readLine: () -> String?
     public var isInteractive: Bool
     public var stdoutIsTerminal: Bool
+    public var clock: () -> Date
+    public var timeZone: () -> TimeZone
     public var variables: [String: String]
 
     public init(discover: @escaping (Bool) throws -> [TimeboxDevice],
@@ -37,7 +39,9 @@ public struct CommandEnvironment {
                 rawOutput: @escaping (String) -> Void = { FileHandle.standardOutput.write(Data($0.utf8)) },
                 readLine: @escaping () -> String? = { Swift.readLine() },
                 isInteractive: Bool = false, stdoutIsTerminal: Bool = false, variables: [String: String] = [:],
-                makeREPLInput: ((String, String?, [String]) throws -> REPLLineInput)? = nil) {
+                makeREPLInput: ((String, String?, [String]) throws -> REPLLineInput)? = nil,
+                clock: @escaping () -> Date = Date.init, timeZone: @escaping () -> TimeZone = { .current }) {
+        self.clock = clock; self.timeZone = timeZone
         self.makeREPLInput = makeREPLInput
         self.discover = discover; self.configuration = configuration; self.makeTransport = makeTransport
         self.output = output; self.errorOutput = errorOutput; self.readLine = readLine
