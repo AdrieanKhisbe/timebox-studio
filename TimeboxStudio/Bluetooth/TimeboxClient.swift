@@ -139,6 +139,16 @@ public final class TimeboxClient {
         try await transport.write(try TimeboxPacketEncoder.encode(.disableAlarm(current)))
     }
 
+    /// Prepare the complete upload before writing any bytes; never auto-retry a partial upload.
+    public func send(animation: TimeboxAnimation, adapt: Bool = false) async throws -> TimeboxAnimationUpload {
+        let upload = try TimeboxAnimationEncoder.prepare(animation, adapt: adapt)
+        for packet in upload.packets {
+            try await transport.write(packet)
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+        return upload
+    }
+
     /// Send a raw, already-framed protocol packet (escape hatch).
     public func sendRaw(_ packet: Data) async throws {
         try await transport.write(packet)

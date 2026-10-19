@@ -10,6 +10,7 @@ final class RecordingCommandTransport: CommandTransport {
     var writeTargets: [String] = []
     var failingAddress: String?
     var failWrites = false
+    var failOnWriteNumber: Int?
     var onData: ((Data) -> Void)?
     var replyChunks: [Data] = []
     private var queryActive = false
@@ -20,7 +21,7 @@ final class RecordingCommandTransport: CommandTransport {
     }
     func write(_ packet: Data) throws {
         guard isConnected else { throw CommandFailure("write_failed", "Not connected") }
-        if failWrites { throw CommandFailure("write_failed", "Write rejected") }
+        if failWrites || failOnWriteNumber == packets.count + 1 { throw CommandFailure("write_failed", "Write rejected") }
         packets.append(packet)
         if packet == Data([1, 3, 0, 0x42, 0x45, 0, 2]) { queryActive = true }
         writeTargets.append(connections.last!.0)

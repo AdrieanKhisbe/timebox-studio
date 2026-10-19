@@ -1,0 +1,19 @@
+# GIF animation uploads
+
+`timeboxctl animation art.gif [--resize fit|fill|stretch] [--adapt]` uploads an animation, also available in the REPL. Normal selectors and JSON/YAML apply to the ordinary CLI. Static `image` still uses frame zero and its existing stretch default. Library callers use `GIFAnimationLoader`, `TimeboxAnimationEncoder.prepare`, and `TimeboxClient.send(animation:adapt:)`. The complete upload is prepared and validated before its first write; a failed partial upload is reported and never automatically retried.
+
+Fit uses nearest-neighbor scaling with black padding. Fill preserves aspect and crops centrally. Stretch fills 16×16 independently along both axes. Odd padding/crop pixels fall on the right/bottom. GIF transparency composites against black. The loader explicitly parses offsets and disposal (retain, restore background, restore previous); ImageIO decodes isolated LZW patches rather than assuming extracted frames are already composited. User-input GIF timing, plain-text extensions and reserved disposal methods are rejected. Missing/zero delay becomes 100ms; positive GIF delay remains its centisecond value converted to milliseconds.
+
+## Protocol evidence and limits
+
+The original [node-divoom-timebox-evo protocol author](https://github.com/RomRider/node-divoom-timebox-evo/blob/2a086b8/PROTOCOL.md#animations) and [encoder](https://github.com/RomRider/node-divoom-timebox-evo/blob/2a086b8/src/drawing/jimp_overloads.ts) describe legacy `49 sizeLE16 packetIndex frameStream`. Each frame is `AA lengthLE16 delayLE16 00 paletteCount palette indices`. Palettes reset per frame and indices use the same LSB-first packing as static images. The reference splits **400 hex characters = 200 binary bytes**, not 400 bytes. Indices start at zero. These field widths imply at most 256 chunks / 51,200 stream bytes and frame delays 1...65,535ms. They are format envelope checks, **not a hardware measurement of Evo memory capacity or minimum playback interval**. No separately verified frame-count limit is claimed.
+
+The reference describes endless looping; GIF finite loop metadata is not sent and no finite-loop or persistence guarantee is offered. Original fixtures include a hand-assembled red-frame packet and a tiny GIF generated from the [GIF89a container specification](https://www.w3.org/Graphics/GIF/spec-gif89a.txt), with clear-code LZW pixels, transparent patches and disposal 2/3. GIF is a Service Mark property of CompuServe Incorporated.
+
+Host resource limits are explicit: 16 MiB input, at most 4096 pixels on either canvas axis and 4 megapixels per canvas, 64 megapixels of total decoded work, 2048 input/effective frames, and one day per source frame. These bound allocation and decoding work, independently of unverified firmware limits.
+
+## Explicit adaptation
+
+Without `--adapt`, values outside the upload envelope fail before connecting. With adaptation: split long holds into repeated identical frames up to 65,535ms each; reduce RGB component precision from eight to one bit until the upload fits; if needed, combine adjacent frame pairs, keeping the first image and adding durations only when the combined hold fits. Repeat pairing until the upload fits or no legal pairing remains. Order and total duration are preserved, but palette detail and intermediate images may change. Unfit results still fail. Effective/source frame counts, durations and component precision appear on stderr and in structured results. Resizing never grants permission for this lossy adaptation.
+
+Hardware acceptance remains pending: visible frame order, delay and loop behavior, a multi-chunk upload, display state after partial failure, disconnect behavior, and actual device memory/timing limits. No hardware connection or upload was made during this implementation. `sent` reports transmission only.
