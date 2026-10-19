@@ -26,6 +26,7 @@ struct CommandOptions {
     var hasAlarmWriteOptions: Bool { alarmTime != nil || alarmDays != nil || alarmVolume != nil }
     var resize: String?
     var adapt = false
+    var stream = false
     var positionals: [String] = []
 
     init(_ arguments: [String]) throws {
@@ -63,6 +64,7 @@ struct CommandOptions {
                 holdMilliseconds = number
             case "--resize": resize = try value()
             case "--adapt": adapt = true
+            case "--stream": stream = true
             case "--mock": mock = true
             case "--all": all = true
             case "--save": save = true

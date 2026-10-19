@@ -12,6 +12,9 @@ final class RecordingCommandTransport: CommandTransport {
     var failingAddress: String?
     var failWrites = false
     var failOnWriteNumber: Int?
+    var uptime: TimeInterval = 0
+    var writeSeconds: TimeInterval = 0
+    var waits: [Int] = []
     var onData: ((Data) -> Void)?
     var replyChunks: [Data] = []
     var disconnectOnQueryWait = false
@@ -43,10 +46,13 @@ final class RecordingCommandTransport: CommandTransport {
         guard isConnected else { throw CommandFailure("write_failed", "Not connected") }
         if failWrites || failOnWriteNumber == packets.count + 1 { throw CommandFailure("write_failed", "Write rejected") }
         packets.append(packet)
+        uptime += writeSeconds
         if [Data([1, 3, 0, 0x42, 0x45, 0, 2]), Data([1, 3, 6, 0, 0x42, 0x45, 0, 2]), Data([1, 3, 0, 0x46, 0x49, 0, 2]), Data([1, 4, 0, 0xBD, 0x18, 0xD9, 0, 2])].contains(packet) { queryActive = true }
         writeTargets.append(connections.last!.0)
     }
     func wait(milliseconds: Int) {
+        waits.append(milliseconds)
+        uptime += Double(milliseconds) / 1000
         if queryActive, disconnectOnQueryWait { isConnected = false; queryActive = false; return }
         if queryActive, !replyChunks.isEmpty {
             let reply = replyChunks.removeFirst()
@@ -80,7 +86,8 @@ final class CommandHarness {
             output: { self.stdout.append($0) }, errorOutput: { self.stderr.append($0) },
             rawOutput: { self.rawStdout += $0 },
             readLine: { self.input.isEmpty ? nil : self.input.removeFirst() },
-            isInteractive: interactive, stdoutIsTerminal: stdoutIsTerminal, variables: environment, clock: clock, timeZone: timeZone)
+            isInteractive: interactive, stdoutIsTerminal: stdoutIsTerminal, variables: environment, clock: clock, timeZone: timeZone,
+            monotonicTime: { self.transport.uptime })
         return TimeboxCommandLine(environment: environment).run(arguments: arguments)
     }
 }

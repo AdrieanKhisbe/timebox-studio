@@ -32,6 +32,7 @@ public struct CommandEnvironment {
     public var stdoutIsTerminal: Bool
     public var clock: () -> Date
     public var timeZone: () -> TimeZone
+    public var monotonicTime: () -> TimeInterval
     public var variables: [String: String]
 
     public init(discover: @escaping (Bool) throws -> [TimeboxDevice],
@@ -43,7 +44,9 @@ public struct CommandEnvironment {
                 rawOutput: @escaping (String) -> Void = { FileHandle.standardOutput.write(Data($0.utf8)) },
                 readLine: @escaping () -> String? = { Swift.readLine() },
                 isInteractive: Bool = false, stdoutIsTerminal: Bool = false, variables: [String: String] = [:],
-                clock: @escaping () -> Date = Date.init, timeZone: @escaping () -> TimeZone = { .current }) {
+                clock: @escaping () -> Date = Date.init, timeZone: @escaping () -> TimeZone = { .current },
+                monotonicTime: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
+        self.monotonicTime = monotonicTime
         self.clock = clock; self.timeZone = timeZone
         self.detectModels = detectModels
 

@@ -86,5 +86,6 @@ claim follows from these checks.
 Clock synchronization was added afterward; see the separate
 [clock-sync report](mini-clock-sync.md). Native GIF support is covered in the
 [animation report](mini-animation.md). Native countdown, other display channels/styles,
-status and text retain their Mini unsupported guards. The prototype’s image
+status retain their Mini unsupported guards. Text now has an explicit
+[host-streaming mode](mini-streaming-text.md). The prototype’s image
 countdown is explicitly host-driven and is not promoted by this change.

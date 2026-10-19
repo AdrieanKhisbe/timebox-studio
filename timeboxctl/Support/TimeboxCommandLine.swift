@@ -35,6 +35,7 @@ public final class TimeboxCommandLine {
                 throw CommandFailure("unsupported", "Structured output is not supported for this diagnostic command.")
             }
             let options = try CommandOptions(Array(arguments.dropFirst()))
+            guard command == "text" || !options.stream else { throw CommandFailure("invalid_arguments", "--stream applies only to text.") }
             guard command == "alarm" || !options.hasAlarmWriteOptions else { throw CommandFailure("invalid_arguments", "Schedule and volume options apply only to alarm commands.") }
             guard ["alarm", "status", "display", "design", "effect"].contains(command) || options.queryTimeout == nil else { throw CommandFailure("invalid_arguments", "Query timeout applies only to device queries and live display operations.") }
             guard ["display", "design", "effect"].contains(command) || (options.displayStyle == nil && options.displayColor == nil) else {
@@ -78,8 +79,11 @@ public final class TimeboxCommandLine {
             if !["send-hex", "connect"].contains(command) {
                 resolved.modelResolution = try resolveModel(options, target: resolved, configuration: configuration)
             }
-            if ["status", "design", "effect", "text", "countdown"].contains(command), resolved.modelResolution?.model == .mini {
+            if ["status", "design", "effect", "countdown"].contains(command), resolved.modelResolution?.model == .mini {
                 throw TimeboxModelError.unsupported(command)
+            }
+            if command == "text", resolved.modelResolution?.model == .mini, !options.stream {
+                throw CommandFailure("unsupported", "Mini scrolling text requires explicit --stream mode: text --stream \"Hello\".")
             }
             let packet: Data?
             if ["repl", "connect", "alarm", "animation", "text", "status", "display", "design", "effect"].contains(command) {
@@ -91,6 +95,13 @@ public final class TimeboxCommandLine {
             }
             target = resolved
             let selectedModel = resolved.modelResolution?.model ?? .evo
+            if command == "text", options.stream {
+                guard options.positionals.count == 1 else { throw CommandFailure("invalid_arguments", "text requires one message; quote messages containing spaces.") }
+                let stream = try prepareTextStream(options.positionals[0], model: selectedModel)
+                try sendTextStream(stream, to: resolved, options: options)
+                try emit(CommandResult(command: command, status: options.mock ? "simulated" : "sent", device: resolved, data: textStreamData(stream)))
+                return 0
+            }
             let renderedText = command == "text" ? try prepareText(options) : nil
             let animation = command == "animation" ? try prepareAnimation(options, model: selectedModel) : renderedText?.upload
             try alarmOperation?.validate(model: resolved.modelResolution?.model ?? .evo)
@@ -291,7 +302,7 @@ public final class TimeboxCommandLine {
         defer { transport.disconnect() }
         try connect(transport, to: target, channel: options.channel)
         transport.wait(milliseconds: 150)
-        environment.output("Persistent connection open. Commands: target [NAME|current], status, display, design, effect, text MESSAGE, animation PATH [--resize fit|fill|stretch] [--adapt], alarm list/set/disable, time sync, countdown start/stop, stopwatch start/stop/reset, color, brightness, image, hex, help, quit.")
+        environment.output("Persistent connection open. Commands: target [NAME|current], status, display, design, effect, text [--stream] MESSAGE, animation PATH [--resize fit|fill|stretch] [--adapt], alarm list/set/disable, time sync, countdown start/stop, stopwatch start/stop/reset, color, brightness, image, hex, help, quit.")
         while true {
             if environment.isInteractive { environment.rawOutput("timebox> ") }
             guard let line = environment.readLine() else { break }
@@ -299,15 +310,25 @@ public final class TimeboxCommandLine {
             guard let command = parts.first?.lowercased() else { continue }
             if ["quit", "exit", "q"].contains(command) { break }
             if ["help", "?"].contains(command) {
+                environment.output("text --stream MESSAGE: one complete host-driven scroll; required for Mini, with --stream before the quoted message.")
                 environment.output("target [NAME|current], text MESSAGE, animation PATH [--resize fit|fill|stretch] [--adapt], time sync, countdown start MM:SS, countdown stop, stopwatch start/stop/reset, status [--timeout SECONDS], display clock [--style 0..5], display light [--color RRGGBB] [--brightness 0..100], display design, design 0..2 (fresh capability required), effects unsupported, alarm list, alarm set SLOT --time HH:MM [--days mon,tue] [--volume 0..100], alarm disable SLOT, color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit")
                 continue
             }
             do {
-                if ["status", "design", "effect", "text", "countdown"].contains(command), target.modelResolution?.model == .mini {
+                guard command == "text" || !parts.dropFirst().contains("--stream") else { throw CommandFailure("invalid_arguments", "--stream applies only to text.") }
+                if ["status", "design", "effect", "countdown"].contains(command), target.modelResolution?.model == .mini {
                     throw TimeboxModelError.unsupported(command)
                 }
                 if command == "text" {
-                    let text = try Self.replText(line)
+                    let parsed = try Self.replTextStream(line)
+                    if parsed.stream {
+                        let stream = try prepareTextStream(parsed.text, model: target.modelResolution!.model)
+                        try streamText(stream, using: transport)
+                        environment.output(options.mock ? "simulated complete text scroll" : "completed one text scroll")
+                        continue
+                    }
+                    guard target.modelResolution?.model != .mini else { throw CommandFailure("unsupported", "Mini scrolling text requires explicit --stream mode: text --stream \"Hello\".") }
+                    let text = parsed.text
                     let rendered = try TimeboxTextRenderer.render(text)
                     let upload = try TimeboxAnimationEncoder.prepare(rendered.animation)
                     guard transport.isConnected else { throw CommandFailure("connection_failed", "The selected target is disconnected.") }

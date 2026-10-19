@@ -44,6 +44,11 @@ accuracy, 12-frame capacity, power-cycle/disconnect persistence, frame replaceme
 unequal-delay behavior, adaptation variants or a100ms minimum. Those remain
 unverified. The158-test suite and release build passed before this hardware check.
 
-## Mini scrolling-text follow-up
+## Mini scrolling text
 
-[AdrieanKhisbe/timebox-studio#18](https://github.com/AdrieanKhisbe/timebox-studio/issues/18) currently promises one-pixel-per-100ms scrolling without text truncation or frame thinning. Even a single glyph needs more than 12 viewport positions at 11×11, and its 100ms cadence conflicts with the conservative 200ms minimum. Therefore Mini `text` remains explicitly unsupported. A follow-up must agree on an intelligible Mini-specific motion/storage contract or establish a streaming method; it must not silently apply GIF sampling to written content.
+[AdrieanKhisbe/timebox-studio#18](https://github.com/AdrieanKhisbe/timebox-studio/issues/18)
+promises one-pixel-per-100ms scrolling without truncation or frame thinning. Even
+one glyph needs more than 12 viewport positions at 11×11, and the cadence conflicts
+with the conservative native animation minimum. Mini therefore requires explicit
+`text --stream` for host-driven static frames; GIF sampling is never silently
+applied to written content. See [the streaming contract](mini-streaming-text.md).
