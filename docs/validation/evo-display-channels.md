@@ -1,7 +1,7 @@
 # Evo display channels: implemented subset and evidence gates
 
 Issue: [AdrieanKhisbe/timebox-studio#8](https://github.com/AdrieanKhisbe/timebox-studio/issues/8).
-Date: 2026-10-19. No new display writes or hardware observations were performed.
+Date: 2026-10-19. Parent-coordinated light/clock observations are recorded below.
 This is a partial implementation; the issue is not complete until the blocked
 interfaces and physical acceptance are settled.
 
@@ -10,7 +10,7 @@ interfaces and physical acceptance are settled.
 | Operation | Behavior |
 | --- | --- |
 | `display clock --style 0..5` | Complete clock profile: selected reference style, time on, weather/temperature/calendar off, white RGB. |
-| `display light --color RGB [--brightness N]` | Complete plain-light profile: supplied color, brightness100 if omitted, power on. |
+| `display light --color RGB [--brightness N]` | Complete plain-light profile: supplied color, brightness 100 if omitted, power on. |
 | `display light --brightness N` | Complete plain-light profile with white RGB, not preservation of the existing color. |
 | `display design` | Select the custom channel with `45 05`; does not choose a tab or enumerate stored content. |
 | `effect 0..15` | Select the VJ channel with an identifier from the Evo-specific named effect catalogue. |
@@ -66,8 +66,8 @@ Independent frozen fixtures used by tests:
 
 ```text
 custom channel: 01 04 00 45 05 4E 00 02
-clock style0:  01 0D 00 45 00 01 00 01 00 00 00 FF FF FF 51 03 02
-VJ effect0:    01 05 00 45 03 00 4D 00 02
+clock style 0:  01 0D 00 45 00 01 00 01 00 00 00 FF FF FF 51 03 02
+VJ effect 0:    01 05 00 45 03 00 4D 00 02
 VJ effect10:   01 05 00 45 03 0A 57 00 02
 ```
 
@@ -75,6 +75,64 @@ Tests exercise those fixtures, meaningful invalid IDs and percentages,
 unsupported preservation/index requests before device I/O, the actual library
 transport boundary, and ordinary CLI/REPL equivalence. Tests run without hardware.
 The release build and full suite are recorded with the implementation commit.
+
+## Integrated light/clock observations (2026-10-19)
+
+The parent tested main-evo (`$MAC`) on Classic channel 1; the investigating agent
+performed no device access. `display light --color 0000FF --brightness 30`
+transmitted 17 bytes, and the user confirmed a dim blue display. A subsequent
+20-byte settings response reported configured channel 1, blue RGB, brightness
+values 30 at data 6 and data 10, effect 0 and power 1.
+
+`display clock --style 0` then `brightness 100` ran serially (17-byte profile,
+8-byte brightness packet). The user confirmed a white clock. Readback reported
+configured channel 0, white RGB, style 0, time checkbox 1, other checkboxes 0, and
+brightness 100 at both positions. The test intentionally replaced the previous
+clock color/style with the announced complete profile; it did not preserve them.
+
+An earlier settings response had reported channel 0 while a user-confirmed Hello
+animation was visible. Therefore getter mode is configured channel, not proof
+of the currently rendered overlay/pixels. Both brightness fields co-varied;
+this sequence does not establish independent brightness-field semantics.
+The [redacted observation record](fixtures/evo-display-integrated-observations.json)
+retains the raw data arrays and user confirmations. Exact notification chunks and
+timestamps were not captured. Styles 1–5, VJ effects, custom retention and design
+indices remain unverified by this session.
+
+## Actual app selector and tab evidence
+
+Actual Divoom APK3.8.40, SHA256
+`d7ae490205cf71cc37f74948bd1ca7f1b2a446070565294b3ae835c0a51fde81`,
+was inspected with JADX 1.5.6. Decompiled copyrighted code remains outside Git.
+`DeviceFunction.DeviceTypeEnum.setDeviceMode` routes the original Evo through its
+TiVi architecture. `LightCommonMainFragment.H2` switches channels through
+`LightViewModel`:
+
+- Light `v()` serializes the cached RGB/level/effect/power fields with
+  `CmdManager.A2`, not a bare selector.
+- Clock `x()` serializes cached clock fields with `CmdManager.E2`.
+- VJ `y()` sends the cached effect index with `CmdManager.G2`.
+
+This source supports explicit full-profile re-encoding, but it does not prove
+that short clock/light/effect selectors preserve settings. Fresh read/complete
+write is a possible future preservation contract only after field/firmware
+behavior is verified; no guessed defaults implement preservation here.
+
+`LightCustomFragment` has exactly three page buttons, calling its selection
+handler with indices 0,1,2; that handler calls `CmdManager.q1(index)` which emits
+external subcommand `BD 17 index`. However it gates selection on a capability
+flag, initially false for the original Evo. `CmdManager.U0()` requests
+`BD 18` (GET_NEW_POWER_ON_CHANNEL); the `u.i` reply parser enables the flag only
+for payload `18 01`. This provides a bounded app-backed investigation candidate,
+not universal firmware support for tab indices.
+
+The source-established read-only capability request candidate is
+`01 04 00 BD 18 D9 00 02`. Capture commandBD's response and validate that its
+payload begins 18 before interpreting the flag. A timeout, unsupported reply or
+unknown value is unknown capability, not a reason to try arbitrary indices.
+Only after positive capability evidence should parent-coordinated non-writing
+selection tests consider indices 0–2, preserving existing custom artwork. This
+investigating agent sent no capability query or tab-selection packet.
 
 ## Manual acceptance / remaining work
 
