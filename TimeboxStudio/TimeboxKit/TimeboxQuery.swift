@@ -9,7 +9,7 @@ public struct TimeboxQuery<Response> {
     public let responseCommand: UInt8
     public let decode: (Data) throws -> Response
 
-    private init(request: Data, responseCommand: UInt8, decode: @escaping (Data) throws -> Response) {
+    init(request: Data, responseCommand: UInt8, decode: @escaping (Data) throws -> Response) {
         self.request = request
         self.responseCommand = responseCommand
         self.decode = decode

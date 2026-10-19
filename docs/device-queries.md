@@ -14,8 +14,9 @@ let sameShape = try await TimeboxAlarmReader.read(device: device)
 command and throwing typed data decoder. Its initializer frames the request.
 `TimeboxResponseDecoder` validates Evo NewMode delimiters, little-endian length,
 additive checksum and the `04 command 55` success envelope before exposing data.
-No CLI formatting or transport dependencies enter this layer. The only built-in
-query is `.alarms`: settings fields are not inferred from outgoing writes.
+No CLI formatting or transport dependencies enter this layer. Built-in queries
+are `.alarms` and the sourced `.status` settings subset. Settings fields are not
+inferred from outgoing writes; see [status field evidence](validation/evo-status.md).
 
 `TimeboxQueryReader` and `TimeboxQueryTransport` belong to TimeboxBluetooth. The
 transport exposes raw `onData` events, synchronous query writes and run-loop
@@ -81,7 +82,7 @@ real adapter contract through simulated transport; they do not claim hardware.
 BLE/RCSP writes remain supported and unchanged. The observed RCSP write ACK is
 not evidence for an application settings/alarm reply decoder: no RCSP query
 support is claimed. Mini OldMode framing is likewise outside this Evo decoder.
-There is no general settings model until its field map has been established;
+The settings model exposes only the sourced mode/brightness subset;
 [AdrieanKhisbe/timebox-studio#13](https://github.com/AdrieanKhisbe/timebox-studio/issues/13)
-tracks that work. Multiplexing, automatic retries and receive-history emulation
+tracks its independent Evo hardware validation. Multiplexing, automatic retries and receive-history emulation
 are not provided.
