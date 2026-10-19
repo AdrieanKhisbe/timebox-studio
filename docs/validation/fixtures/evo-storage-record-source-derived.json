@@ -1,0 +1,20 @@
+{
+  "provenance": "Native values derived from APK3.8.40 arm64 disassembly, not executed native output or hardware capture. Swift values obtained by offline public encoder harness.",
+  "library_sha256": "b62ff2242b87ac799259b0eb3bca791fdd9add1c298213a32a67ff599a9292ef",
+  "width": 16,
+  "height": 16,
+  "native_save_milliseconds": 500,
+  "fixtures": [
+    {
+      "input": "256 red RGB pixels",
+      "native_source_derived_record_hex": "AA0A00F4010001FF0000",
+      "swift_static_record_hex": "AA2A0000000001FF00000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "input": "256 alternating red/green RGB pixels, first red",
+      "native_source_derived_record_hex": "AA2D00F4010002FF000000FF00AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "swift_static_record_hex": "AA2D0000000002FF000000FF00AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    }
+  ],
+  "limits": "No Android native execution, transfer, storage write or persistence test. No claim for differential later frames, text, high-color quantization or arbitrary animations."
+}

@@ -6,6 +6,11 @@ public enum TimeboxCommand: Equatable, Sendable {
     case stopwatch(TimeboxStopwatchAction)
     case raw(Data)
     case synchronizeClock(TimeboxClockSnapshot)
+    case display(TimeboxDisplay)
+    case displayProfile(TimeboxDisplayProfile)
+    /// Low-level verified index encoding. High-level callers must freshly gate
+    /// device support through TimeboxDisplayWriter before channel/tab packets.
+    case selectDesignTab(Int)
     case setBrightness(Int)
     /// PROTOCOL.md "Lightning channel" plain single color: fills the whole
     /// display with one color. A much more visible effect than brightness,

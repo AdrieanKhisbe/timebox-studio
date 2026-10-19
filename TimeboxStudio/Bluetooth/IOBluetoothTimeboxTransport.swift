@@ -23,8 +23,9 @@ private final class CompletionFlag {
 public final class IOBluetoothTimeboxTransport: TimeboxTransport, TimeboxTransportDiagnostics, TimeboxQueryTransport, @unchecked Sendable {
     public private(set) var isConnected = false
     public private(set) var lastRFCOMMChannelID: UInt8?
+    private var queryAccess = TimeboxQueryAccess()
     public var onData: ((Data) -> Void)?
-    public var onConnectionChange: ((Bool) -> Void)?   // Classic SPP doesn't auto-reconnect; unused
+    public var onConnectionChange: ((Bool) -> Void)?   // Unexpected Classic disconnects; no auto-reconnect
 
     #if canImport(IOBluetooth)
     private var bluetoothDevice: IOBluetoothDevice?
@@ -40,7 +41,19 @@ public final class IOBluetoothTimeboxTransport: TimeboxTransport, TimeboxTranspo
     public init() {
     }
 
-    public func writeQuery(_ data: Data) throws { try writePumpingRunLoop(data) }
+    public func beginQuery() throws {
+        guard Thread.isMainThread else { throw TimeboxQueryError.invalidArguments }
+        try queryAccess.beginQuery(isConnected: isConnected, hasReceiveHandler: onData != nil)
+    }
+
+    public func endQuery() { queryAccess.endQuery() }
+
+    public func writeQuery(_ data: Data) throws {
+        guard Thread.isMainThread else { throw TimeboxQueryError.invalidArguments }
+        try queryAccess.beginWrite(isQuery: true)
+        defer { queryAccess.endWrite() }
+        try performWritePumpingRunLoop(data)
+    }
     public func waitForQuery(milliseconds: Int) { waitPumpingRunLoop(milliseconds: milliseconds) }
 
     // MARK: - Async protocol conformance (SwiftUI app; main run loop running)
@@ -91,6 +104,8 @@ public final class IOBluetoothTimeboxTransport: TimeboxTransport, TimeboxTranspo
     // MARK: - Synchronous, run-loop-pumping entry points (CLI; call on main thread)
 
     public func connectPumpingRunLoop(to device: TimeboxDevice, channelID: UInt8?) throws {
+        guard Thread.isMainThread else { throw TimeboxQueryError.invalidArguments }
+        guard !queryAccess.isBusy else { throw TimeboxQueryError.busy }
         #if canImport(IOBluetooth)
         guard !device.address.isEmpty, device.address != "unknown-address" else {
             throw TimeboxTransportError.deviceAddressMissing(device.name)
@@ -113,6 +128,13 @@ public final class IOBluetoothTimeboxTransport: TimeboxTransport, TimeboxTranspo
     }
 
     public func writePumpingRunLoop(_ data: Data) throws {
+        guard Thread.isMainThread else { throw TimeboxQueryError.invalidArguments }
+        try queryAccess.beginWrite()
+        defer { queryAccess.endWrite() }
+        try performWritePumpingRunLoop(data)
+    }
+
+    private func performWritePumpingRunLoop(_ data: Data) throws {
         #if canImport(IOBluetooth)
         guard isConnected, let channel, let bridge = delegateBridge else {
             throw TimeboxTransportError.notConnected
@@ -167,10 +189,15 @@ public final class IOBluetoothTimeboxTransport: TimeboxTransport, TimeboxTranspo
 
         let bridge = RFCOMMChannelDelegateBridge()
         bridge.onOpenComplete = onComplete
-        bridge.onData = { [weak self] data in self?.onData?(data) }
-        bridge.onClosed = { [weak self] in
-            self?.isConnected = false
-            self?.channel = nil
+        bridge.onData = { [weak self, weak bridge] data in
+            guard let self, let bridge, self.delegateBridge === bridge else { return }
+            self.onData?(data)
+        }
+        bridge.onClosed = { [weak self, weak bridge] in
+            guard let self, let bridge, self.delegateBridge === bridge else { return }
+            self.isConnected = false
+            self.channel = nil
+            self.onConnectionChange?(false)
         }
 
         var openedChannel: IOBluetoothRFCOMMChannel?
@@ -224,6 +251,7 @@ public final class IOBluetoothTimeboxTransport: TimeboxTransport, TimeboxTranspo
 
         lastRFCOMMChannelID = channelID
         isConnected = true
+        queryAccess.didConnect()
     }
 
     private func pumpRunLoop(until flag: CompletionFlag, timeout: TimeInterval) {
@@ -260,6 +288,10 @@ public final class IOBluetoothTimeboxTransport: TimeboxTransport, TimeboxTranspo
     private func openViaRunningRunLoop(address: String, channelID: UInt8) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             DispatchQueue.main.async {
+                guard !self.queryAccess.isBusy else {
+                    continuation.resume(throwing: TimeboxQueryError.busy)
+                    return
+                }
                 let flag = CompletionFlag()
                 do {
                     try self.beginOpen(address: address, channelID: channelID) { status in
@@ -268,6 +300,7 @@ public final class IOBluetoothTimeboxTransport: TimeboxTransport, TimeboxTranspo
                         if status == kIOReturnSuccess {
                             self.lastRFCOMMChannelID = channelID
                             self.isConnected = true
+                            self.queryAccess.didConnect()
                             continuation.resume()
                         } else {
                             self.cleanup()
@@ -298,6 +331,10 @@ public final class IOBluetoothTimeboxTransport: TimeboxTransport, TimeboxTranspo
     }
 
     private func startWrite(_ data: Data, continuation: CheckedContinuation<Void, Error>) {
+        guard !queryAccess.isBusy else {
+            continuation.resume(throwing: TimeboxQueryError.busy)
+            return
+        }
         guard isConnected, let channel, let bridge = delegateBridge else {
             continuation.resume(throwing: TimeboxTransportError.notConnected)
             return
@@ -307,6 +344,8 @@ public final class IOBluetoothTimeboxTransport: TimeboxTransport, TimeboxTranspo
             return
         }
 
+        do { try queryAccess.beginWrite() }
+        catch { continuation.resume(throwing: error); return }
         let flag = CompletionFlag()
         let length = UInt16(data.count)
         let buffer = UnsafeMutableRawPointer.allocate(byteCount: data.count, alignment: 1)
@@ -315,6 +354,7 @@ public final class IOBluetoothTimeboxTransport: TimeboxTransport, TimeboxTranspo
         bridge.onWriteComplete = { status in
             guard !flag.isDone else { return }
             flag.isDone = true
+            self.queryAccess.endWrite()
             buffer.deallocate()
             if status == kIOReturnSuccess {
                 continuation.resume()
@@ -329,6 +369,7 @@ public final class IOBluetoothTimeboxTransport: TimeboxTransport, TimeboxTranspo
         let beginResult = channel.writeAsync(buffer, length: length, refcon: nil)
         if beginResult != kIOReturnSuccess, !flag.isDone {
             flag.isDone = true
+            self.queryAccess.endWrite()
             buffer.deallocate()
             continuation.resume(throwing: TimeboxTransportError.writeFailed(
                 code: Int32(beginResult),
@@ -340,6 +381,7 @@ public final class IOBluetoothTimeboxTransport: TimeboxTransport, TimeboxTranspo
         DispatchQueue.main.asyncAfter(deadline: .now() + writeTimeout) {
             guard !flag.isDone else { return }
             flag.isDone = true
+            self.queryAccess.endWrite()
             buffer.deallocate()
             continuation.resume(throwing: TimeboxTransportError.writeFailed(
                 code: self.timeoutCode,

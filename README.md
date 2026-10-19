@@ -162,3 +162,25 @@ TimeboxStudioTests/  packet + image encoding tests
 
 Native macOS Swift only; no Divoom app, Node, Electron/web, or ESP32/Pi in the control
 path; protocol encoding kept separate from transport; a raw-hex escape hatch is retained.
+
+### Evo display channels
+
+```sh
+timeboxctl display clock --style 0 --device desk
+timeboxctl display light --color FF0000 --brightness 50 --device desk
+timeboxctl display design --device desk
+timeboxctl display clock --device desk  # restore stored clock profile
+timeboxctl design 1 --device desk       # requires fresh three-tab capability
+```
+
+Equivalent REPL commands and `TimeboxClient.display(_:)` use the same typed
+encoder. Explicit clock styles apply a complete white/time-only profile; explicit
+light options apply a complete plain-light profile (missing color white, missing
+brightness 100, power on). They do not preserve unspecified stored settings.
+Clock styles0–5 were visually confirmed. Bare clock/light selection reads fresh
+settings and re-encodes the stored target profile; unknown layouts fail before
+control writes. Design tabs0–2 require a fresh positive device capability reply.
+All three tabs showed distinct existing artwork on the tested Evo; legacy VJ
+effects remain unverified. REPL/client live
+operations reconnect on success and remain disconnected on failure. Custom/design
+channel selection is distinct from stored-content enumeration. See [display evidence and acceptance](docs/validation/evo-display-channels.md).

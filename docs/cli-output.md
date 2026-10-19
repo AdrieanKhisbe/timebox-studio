@@ -1,6 +1,6 @@
 # CLI output
 
-`list`, `brightness`, `color`, `image`, `connect`, `send-hex` and alarm commands accept `--json`
+`list`, `brightness`, `color`, `image`, `connect`, `send-hex`, `status` and alarm commands accept `--json`
 or `--yaml` (`--yml` alias). Conflicting formats fail. Both encode the same
 one-result model; stdout contains that result only. Diagnostics, errors and
 `list --save` hints go to stderr. Human output remains the default; list names
@@ -23,6 +23,7 @@ the same path regardless of output format.
 | image | `path`, encoded `width`/`height` (16), `bytes` written |
 | send-hex | `bytes` written |
 | connect | selected RFCOMM `channel` (null if unavailable); connection is closed on exit |
+| status | live configured-channel `mode`/`mode_raw`, system `brightness`, `light_brightness`, full `raw_data`; see [status](status.md) |
 | alarm list | live `alarms` array of ten slot records; see [alarm schema](alarms.md) |
 | alarm set / alarm disable | `slot`, `bytes`, `alarm` from live readback, `readback_matches: true` |
 

@@ -13,20 +13,40 @@ final class RecordingCommandTransport: CommandTransport {
     var failOnWriteNumber: Int?
     var onData: ((Data) -> Void)?
     var replyChunks: [Data] = []
+    var disconnectOnQueryWait = false
     private var queryActive = false
+    private var ownsQuery = false
+    private var requestWritten = false
+    func beginQuery() throws {
+        guard !ownsQuery, onData == nil else { throw TimeboxQueryError.busy }
+        ownsQuery = true
+        requestWritten = false
+    }
+    func endQuery() { ownsQuery = false }
+    func writeQuery(_ packet: Data) throws {
+        guard ownsQuery, !requestWritten else { throw TimeboxQueryError.busy }
+        requestWritten = true
+        try recordWrite(packet)
+    }
     func connect(to device: TimeboxDevice, channel: UInt8?) throws {
         connections.append((device.address, channel))
+        self.channel = channel ?? 1
         if device.address == failingAddress { throw CommandFailure("connection_failed", "Device is offline") }
         isConnected = true
     }
     func write(_ packet: Data) throws {
+        guard !ownsQuery else { throw TimeboxQueryError.busy }
+        try recordWrite(packet)
+    }
+    private func recordWrite(_ packet: Data) throws {
         guard isConnected else { throw CommandFailure("write_failed", "Not connected") }
         if failWrites || failOnWriteNumber == packets.count + 1 { throw CommandFailure("write_failed", "Write rejected") }
         packets.append(packet)
-        if packet == Data([1, 3, 0, 0x42, 0x45, 0, 2]) { queryActive = true }
+        if [Data([1, 3, 0, 0x42, 0x45, 0, 2]), Data([1, 3, 0, 0x46, 0x49, 0, 2]), Data([1, 4, 0, 0xBD, 0x18, 0xD9, 0, 2])].contains(packet) { queryActive = true }
         writeTargets.append(connections.last!.0)
     }
     func wait(milliseconds: Int) {
+        if queryActive, disconnectOnQueryWait { isConnected = false; queryActive = false; return }
         if queryActive, !replyChunks.isEmpty {
             let reply = replyChunks.removeFirst()
             queryActive = false

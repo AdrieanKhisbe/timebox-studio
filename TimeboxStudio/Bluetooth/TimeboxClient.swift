@@ -27,12 +27,19 @@ import CoreGraphics
 public final class TimeboxClient {
     #if os(macOS)
     private let bluetooth = IOBluetoothTimeboxTransport()
-    private var transport: TimeboxTransport { bluetooth }
+    private var transport: TimeboxTransport { injectedTransport ?? bluetooth }
     #else
-    private let transport: TimeboxTransport = CoreBluetoothRCSPTransport()
+    private let bleTransport: TimeboxTransport = CoreBluetoothRCSPTransport()
+    private var transport: TimeboxTransport { injectedTransport ?? bleTransport }
     #endif
 
+    private var injectedTransport: TimeboxTransport?
+    private var connectedTarget: (device: TimeboxDevice, channel: UInt8?)?
+    private var displayTransportFactory: (() -> TimeboxDisplayTransport)?
     public init() {}
+    convenience init(transport: TimeboxTransport, displayTransportFactory: (() -> TimeboxDisplayTransport)? = nil) {
+        self.init(); injectedTransport = transport; self.displayTransportFactory = displayTransportFactory
+    }
 
     public var isConnected: Bool { transport.isConnected }
 
@@ -62,12 +69,14 @@ public final class TimeboxClient {
     /// from the device's SDP (pass `channel` only to force a specific one).
     public func connect(to device: TimeboxDevice, channel: UInt8? = nil) async throws {
         #if os(macOS)
-        if let channel {
+        if let channel, injectedTransport == nil {
             try await bluetooth.connect(to: device, channelID: channel)
+            connectedTarget = (device, channel)
             return
         }
         #endif
         try await transport.connect(to: device)
+        connectedTarget = (device, channel)
     }
 
     #if os(iOS)
@@ -94,10 +103,36 @@ public final class TimeboxClient {
     }
 
     public func disconnect() {
+        connectedTarget = nil
         transport.disconnect()
     }
 
     // MARK: - Sending (connection must be open)
+
+    /// Select an Evo display channel or apply a documented complete profile.
+    /// Live-preserving selections close this persistent link, use dedicated fresh
+    /// query/write links, then reconnect it. Failure leaves it disconnected.
+    /// Receive-capable Classic is required; custom/BLE write adapters are never
+    /// silently replaced with a native Classic transport.
+    public func display(_ selection: TimeboxDisplay) async throws {
+        try selection.validate()
+        if selection.requiresLivePreparation {
+            #if os(macOS)
+            guard let target = connectedTarget, transport.isConnected else { throw TimeboxTransportError.notConnected }
+            guard injectedTransport == nil || displayTransportFactory != nil else { throw TimeboxQueryError.unsupported }
+            transport.disconnect()
+            do {
+                _ = try await TimeboxDisplayWriter.send(selection, device: target.device, channel: target.channel,
+                                                       makeTransport: displayTransportFactory)
+                try await connect(to: target.device, channel: target.channel)
+            } catch { disconnect(); throw error }
+            return
+            #else
+            throw TimeboxQueryError.unsupported
+            #endif
+        }
+        try await transport.write(try TimeboxPacketEncoder.encode(.display(selection)))
+    }
 
     /// Display an arbitrary 16x16 image.
     public func send(image frame: PixelFrame) async throws {
