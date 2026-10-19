@@ -5,7 +5,9 @@ Research date: 2026-10-19. Scope: the existing Timebox Evo Classic/BLE consumer,
 not the manufacturer's Wi-Fi/cloud/gallery products.
 
 No storage command, display upload, delete, restart or device power cycle was
-performed during this investigation. Device content was not changed. The table
+performed during this source-only investigation. Stored content was not replaced.
+Separate parent-coordinated #8 tests selected existing tabs without uploads; see
+[display-channel evidence](evo-display-channels.md). The table
 separates source-established protocol candidates from actual Evo observations.
 Persistence and enumeration on the user's Evo remain unverified.
 
@@ -16,9 +18,9 @@ Persistence and enumeration on the user's Evo remain unverified.
 | Local SavedDesign | Repository `SavedDesign` / `DesignStore` are app-side JSON storage. | Not a device storage query. | Keep separate from device content IDs. |
 | Static display upload | Existing `0x44` image encoder; manufacturer page289 calls this picture display. | Existing project baseline shows an arbitrary image. | Supported display operation; restart persistence is unknown. |
 | Looping animation upload | Evo-specific implementation describes `0x49` frame chunks; manufacturer page290 gives total length and sequential chunks. | No restart comparison in this investigation. | Temporary playback is not evidence of a saved item. |
-| Select custom/design channel | `45 05` has an Evo-specific encoder and independent golden packet. | Current tab retention not physically rechecked. | Channel selection, not stored-file enumeration. |
-| Select design tab | hass-divoom sends custom channel then `BD 17 index`; actual Android app `CmdManager.q1(int)` emits the corresponding external command. | Evo-supported tab range, numbering and retention unknown. | Do not expose arbitrary byte IDs as verified Evo support. |
-| Numbered VJ effects | Evo-specific effect enum and `45 03 effect` fixtures. | No new physical observations. | Built-in display selection, not uploaded content IDs. |
+| Select custom/design channel | `45 05` has an Evo-specific encoder and independent golden packet. | Return from clock restored existing visible content in #8. | Channel selection, not stored-file enumeration or restart persistence. |
+| Select design tab | hass-divoom sends custom channel then `BD 17 index`; actual Android app `CmdManager.q1(int)` emits the corresponding external command. | #8 fresh capability gate and visual tests confirmed indices0–2 with distinct existing artwork. | Supported bounded selection; not content IDs or persistence proof. |
+| Numbered VJ effects | Evo-specific effect enum and `45 03 effect` fixtures. | Effect9 remained solid blue; effect0 had no positive validation in #8. | Typed VJ operations remain unsupported; these are not uploaded content IDs. |
 | Save user GIF | Manufacturer page294 describes `B1` start/data/end with acknowledgement; page296 describes indexed `8C` upload. | Compatibility and restart persistence unverified. | No production storage writes. |
 | Custom EQ/rhythm count | Manufacturer page295 and actual app request `B6 FF`; the app appends that many custom EQ entries after12 built-ins. Other B6 argument values delete an item. | No response captured from Evo. | EQ subset only; not general artwork/tab enumeration. Never scan parameters. |
 | Enumerate file IDs | Manufacturer page298 describes `8E user_index` and paginated ID replies for a 64-pixel custom-image function. | It is not an Evo listing fixture; device/firmware support unknown. | Do not port a generic 64-pixel interface as Evo support. |
