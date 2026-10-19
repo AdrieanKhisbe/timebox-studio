@@ -16,6 +16,8 @@ Divoom Android 3.8.40 (APK SHA256 `d7ae490205cf71cc37f74948bd1ca7f1b2a4460705652
 
 Implementation follows the official app, recording rather than hiding this documentation conflict. Stop sends `72 03 00 00 00` (the reference's zero fields). The supported range is the app's envelope, not a proven absolute Evo firmware maximum. Zero rejection matches the app and the issue's proposed policy; hours and values beyond the picker are rejected without truncation. No undocumented pause/resume/reset or sound controls are exposed.
 
-## Pending hardware acceptance
+## Hardware acceptance
 
-No Bluetooth connection or hardware write was made for this implementation. Verify 00:05 ticks and completes, a longer countdown stops, restart behavior, disconnect behavior, and switching display channels. Record completion sound/display behavior without assuming an alarm sound can be selected. Until then structured output reports `sent`, never visible ticking or completion verified.
+On 2026-10-19, the parent-owned hardware session validated `main-evo` on RFCOMM channel 1: a 00:05 countdown visibly reached zero and produced completion sound; a fresh 02:00 countdown visibly ticked, then `countdown stop` stopped it with an animation. This corroborates the app-derived control mapping over the conflicting manufacturer prose. See the [observation report](validation/evo-countdown.md).
+
+The earlier 00:30 start/stop attempt was ambiguous and is not counted as stop acceptance. The commands were standalone CLI sends, disconnecting after transmission; the later stop command therefore used a fresh connection. Restart, display-channel changes, long-term persistence, exact elapsed-time accuracy and the maximum duration remain untested. Sound selection and stop-animation customization are not exposed. Structured output continues to report `sent`; physical observations do not establish a response/readback protocol.
