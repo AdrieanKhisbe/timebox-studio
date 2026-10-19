@@ -44,6 +44,8 @@ final class CommandHarness {
     var configuration = DeviceConfiguration()
     let transport = RecordingCommandTransport()
     var environment: [String: String] = [:]
+    var clock: () -> Date = Date.init
+    var timeZone: () -> TimeZone = { .current }
     var interactive = false
     var stdoutIsTerminal = false
     func run(_ arguments: [String]) -> Int32 {
@@ -55,7 +57,7 @@ final class CommandHarness {
             output: { self.stdout.append($0) }, errorOutput: { self.stderr.append($0) },
             rawOutput: { self.rawStdout += $0 },
             readLine: { self.input.isEmpty ? nil : self.input.removeFirst() },
-            isInteractive: interactive, stdoutIsTerminal: stdoutIsTerminal, variables: environment)
+            isInteractive: interactive, stdoutIsTerminal: stdoutIsTerminal, variables: environment, clock: clock, timeZone: timeZone)
         return TimeboxCommandLine(environment: environment).run(arguments: arguments)
     }
 }

@@ -139,6 +139,12 @@ public final class TimeboxClient {
         try await transport.write(try TimeboxPacketEncoder.encode(.disableAlarm(current)))
     }
 
+    /// Send one local Gregorian wall-clock snapshot; no ongoing or DST maintenance.
+    public func synchronizeClock(at date: Date = Date(), timeZone: TimeZone = .current) async throws {
+        let snapshot = try TimeboxClockSnapshot(date: date, timeZone: timeZone)
+        try await transport.write(try TimeboxPacketEncoder.encode(.synchronizeClock(snapshot)))
+    }
+
     /// Send a raw, already-framed protocol packet (escape hatch).
     public func sendRaw(_ packet: Data) async throws {
         try await transport.write(packet)

@@ -13,7 +13,7 @@ public final class TimeboxCommandLine {
         guard let command = arguments.first else { return false }
         if arguments.contains(where: { ["--json", "--yaml", "--yml"].contains($0) }) { return true }
         if ["brightness", "color"].contains(command), arguments.contains("--uuid") { return false }
-        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "alarm"].contains(command)
+        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "alarm", "time"].contains(command)
     }
 
     @discardableResult
@@ -24,13 +24,14 @@ public final class TimeboxCommandLine {
             .map { $0 == "--json" ? .json : .yaml }
         let command = arguments.first ?? ""
         var resultCommand = command
+        if command == "time" { resultCommand = "time sync" }
         if command == "alarm", let subcommand = arguments.dropFirst().first, ["list", "set", "disable"].contains(subcommand) {
             resultCommand = "alarm " + subcommand
         }
         var target: ResolvedDevice?
         do {
             guard !command.isEmpty else { throw CommandFailure("invalid_arguments", "A command is required.") }
-            guard ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "alarm"].contains(command), !arguments.contains("--uuid") else {
+            guard ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "alarm", "time"].contains(command), !arguments.contains("--uuid") else {
                 throw CommandFailure("unsupported", "Structured output is not supported for this diagnostic command.")
             }
             let options = try CommandOptions(Array(arguments.dropFirst()))
@@ -69,6 +70,7 @@ public final class TimeboxCommandLine {
             try send(packet, to: resolved, options: options)
             var data: [String: Any] = ["bytes": packet.count]
             switch command {
+            case "time": data["operation"] = "sync"
             case "brightness": data["brightness"] = try CommandOptions.percent(options.positionals[0])
             case "color": data["color"] = options.positionals[0].replacingOccurrences(of: "#", with: "").uppercased(); data["brightness"] = options.brightness
             case "image": data["path"] = options.positionals[0]; data["width"] = 16; data["height"] = 16
@@ -169,6 +171,9 @@ public final class TimeboxCommandLine {
 
     func packet(_ command: String, options: CommandOptions) throws -> Data {
         switch command {
+        case "time":
+            guard options.positionals == ["sync"] else { throw CommandFailure("invalid_arguments", "Use time sync.") }
+            return try TimeboxPacketEncoder.encode(.synchronizeClock(TimeboxClockSnapshot(date: environment.clock(), timeZone: environment.timeZone())))
         case "brightness":
             guard options.positionals.count == 1 else { throw CommandFailure("invalid_arguments", "brightness requires one percentage.") }
             return try TimeboxPacketEncoder.encode(.setBrightness(CommandOptions.percent(options.positionals[0])))
@@ -199,7 +204,7 @@ public final class TimeboxCommandLine {
         defer { transport.disconnect() }
         try connect(transport, to: target, channel: options.channel)
         transport.wait(milliseconds: 150)
-        environment.output("Persistent connection open. Commands: target [NAME|current], alarm list/set/disable, color, brightness, image, hex, help, quit.")
+        environment.output("Persistent connection open. Commands: target [NAME|current], alarm list/set/disable, time sync, color, brightness, image, hex, help, quit.")
         while true {
             if environment.isInteractive { environment.rawOutput("timebox> ") }
             guard let line = environment.readLine() else { break }
@@ -207,7 +212,7 @@ public final class TimeboxCommandLine {
             guard let command = parts.first?.lowercased() else { continue }
             if ["quit", "exit", "q"].contains(command) { break }
             if ["help", "?"].contains(command) {
-                environment.output("target [NAME|current], alarm list, alarm set SLOT --time HH:MM [--days mon,tue] [--volume 0..100], alarm disable SLOT, color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit")
+                environment.output("target [NAME|current], time sync, alarm list, alarm set SLOT --time HH:MM [--days mon,tue] [--volume 0..100], alarm disable SLOT, color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit")
                 continue
             }
             do {
