@@ -139,6 +139,26 @@ public final class TimeboxClient {
         try await transport.write(try TimeboxPacketEncoder.encode(.disableAlarm(current)))
     }
 
+    /// Send one local Gregorian wall-clock snapshot; no ongoing or DST maintenance.
+    public func synchronizeClock(at date: Date = Date(), timeZone: TimeZone = .current) async throws {
+        let snapshot = try TimeboxClockSnapshot(date: date, timeZone: timeZone)
+        try await transport.write(try TimeboxPacketEncoder.encode(.synchronizeClock(snapshot)))
+    }
+
+    /// Start the device countdown in the official app's supported range.
+    public func startCountdown(_ duration: TimeboxCountdownDuration) async throws {
+        try await transport.write(try TimeboxPacketEncoder.encode(.startCountdown(duration)))
+    }
+
+    public func stopCountdown() async throws {
+        try await transport.write(try TimeboxPacketEncoder.encode(.stopCountdown))
+    }
+
+    /// Control the device stopwatch without a host timer or elapsed-time read claim.
+    public func stopwatch(_ action: TimeboxStopwatchAction) async throws {
+        try await transport.write(try TimeboxPacketEncoder.encode(.stopwatch(action)))
+    }
+
     /// Send a raw, already-framed protocol packet (escape hatch).
     public func sendRaw(_ packet: Data) async throws {
         try await transport.write(packet)
