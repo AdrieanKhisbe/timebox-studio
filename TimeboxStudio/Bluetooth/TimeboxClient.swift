@@ -149,6 +149,12 @@ public final class TimeboxClient {
         return upload
     }
 
+    /// Render system-font scrolling text and reuse the animation sender without lossy adaptation.
+    public func send(text: String) async throws -> TimeboxAnimationUpload {
+        let rendered = try TimeboxTextRenderer.render(text)
+        return try await send(animation: rendered.animation)
+    }
+
     /// Send a raw, already-framed protocol packet (escape hatch).
     public func sendRaw(_ packet: Data) async throws {
         try await transport.write(packet)

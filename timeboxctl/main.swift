@@ -967,6 +967,7 @@ enum TimeboxCLI {
               timeboxctl alarm list [--device NAME | --address MAC] [--config PATH] [--timeout 5] [--json|--yaml|--yml]
               timeboxctl alarm set SLOT --time HH:MM [--days mon,tue] [--volume 0..100] [--device NAME] [--json|--yaml|--yml]
               timeboxctl alarm disable SLOT [--device NAME] [--json|--yaml|--yml]
+              timeboxctl text "Hello" [--device NAME|--address MAC]
               timeboxctl animation FILE.gif [--resize fit|fill|stretch] [--adapt] [--device NAME|--address MAC]
               timeboxctl scan [--seconds 12] [--mock]
               timeboxctl scan-ble [--seconds 12]
