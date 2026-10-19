@@ -13,7 +13,7 @@ public final class TimeboxCommandLine {
         guard let command = arguments.first else { return false }
         if arguments.contains(where: { ["--json", "--yaml", "--yml"].contains($0) }) { return true }
         if ["brightness", "color"].contains(command), arguments.contains("--uuid") { return false }
-        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "alarm", "time", "countdown"].contains(command)
+        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "alarm", "time", "countdown", "stopwatch"].contains(command)
     }
 
     @discardableResult
@@ -31,7 +31,7 @@ public final class TimeboxCommandLine {
         var target: ResolvedDevice?
         do {
             guard !command.isEmpty else { throw CommandFailure("invalid_arguments", "A command is required.") }
-            guard ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "alarm", "time", "countdown"].contains(command), !arguments.contains("--uuid") else {
+            guard ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "alarm", "time", "countdown", "stopwatch"].contains(command), !arguments.contains("--uuid") else {
                 throw CommandFailure("unsupported", "Structured output is not supported for this diagnostic command.")
             }
             let options = try CommandOptions(Array(arguments.dropFirst()))
@@ -70,6 +70,7 @@ public final class TimeboxCommandLine {
             try send(packet, to: resolved, options: options)
             var data: [String: Any] = ["bytes": packet.count]
             switch command {
+            case "stopwatch": data["operation"] = options.positionals[0]
             case "countdown": data["operation"] = options.positionals[0]
             case "time": data["operation"] = "sync"
             case "brightness": data["brightness"] = try CommandOptions.percent(options.positionals[0])
@@ -172,6 +173,16 @@ public final class TimeboxCommandLine {
 
     func packet(_ command: String, options: CommandOptions) throws -> Data {
         switch command {
+        case "stopwatch":
+            guard options.positionals.count == 1 else { throw CommandFailure("invalid_arguments", "Use stopwatch start, stop or reset.") }
+            let action: TimeboxStopwatchAction
+            switch options.positionals[0] {
+            case "start": action = .start
+            case "stop": action = .stop
+            case "reset": action = .reset
+            default: throw CommandFailure("invalid_arguments", "Use stopwatch start, stop or reset.")
+            }
+            return try TimeboxPacketEncoder.encode(.stopwatch(action))
         case "countdown":
             if options.positionals == ["stop"] { return try TimeboxPacketEncoder.encode(.stopCountdown) }
             guard options.positionals.count == 2, options.positionals[0] == "start" else { throw CommandFailure("invalid_arguments", "Use countdown start MM:SS or countdown stop.") }
@@ -210,7 +221,7 @@ public final class TimeboxCommandLine {
         defer { transport.disconnect() }
         try connect(transport, to: target, channel: options.channel)
         transport.wait(milliseconds: 150)
-        environment.output("Persistent connection open. Commands: target [NAME|current], alarm list/set/disable, time sync, countdown start/stop, color, brightness, image, hex, help, quit.")
+        environment.output("Persistent connection open. Commands: target [NAME|current], alarm list/set/disable, time sync, countdown start/stop, stopwatch start/stop/reset, color, brightness, image, hex, help, quit.")
         while true {
             if environment.isInteractive { environment.rawOutput("timebox> ") }
             guard let line = environment.readLine() else { break }
@@ -218,7 +229,7 @@ public final class TimeboxCommandLine {
             guard let command = parts.first?.lowercased() else { continue }
             if ["quit", "exit", "q"].contains(command) { break }
             if ["help", "?"].contains(command) {
-                environment.output("target [NAME|current], time sync, countdown start MM:SS, countdown stop, alarm list, alarm set SLOT --time HH:MM [--days mon,tue] [--volume 0..100], alarm disable SLOT, color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit")
+                environment.output("target [NAME|current], time sync, countdown start MM:SS, countdown stop, stopwatch start/stop/reset, alarm list, alarm set SLOT --time HH:MM [--days mon,tue] [--volume 0..100], alarm disable SLOT, color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit")
                 continue
             }
             do {

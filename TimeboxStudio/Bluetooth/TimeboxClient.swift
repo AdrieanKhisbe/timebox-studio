@@ -154,6 +154,11 @@ public final class TimeboxClient {
         try await transport.write(try TimeboxPacketEncoder.encode(.stopCountdown))
     }
 
+    /// Control the device stopwatch without a host timer or elapsed-time read claim.
+    public func stopwatch(_ action: TimeboxStopwatchAction) async throws {
+        try await transport.write(try TimeboxPacketEncoder.encode(.stopwatch(action)))
+    }
+
     /// Send a raw, already-framed protocol packet (escape hatch).
     public func sendRaw(_ packet: Data) async throws {
         try await transport.write(packet)
