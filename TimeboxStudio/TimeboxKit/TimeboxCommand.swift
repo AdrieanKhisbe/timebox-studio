@@ -3,6 +3,7 @@ import Foundation
 public enum TimeboxCommand: Equatable, Sendable {
     case startCountdown(TimeboxCountdownDuration)
     case stopCountdown
+    case stopwatch(TimeboxStopwatchAction)
     case raw(Data)
     case synchronizeClock(TimeboxClockSnapshot)
     case setBrightness(Int)

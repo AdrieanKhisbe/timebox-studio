@@ -7,7 +7,7 @@ import TimeboxUtilities
 
 /// One CLI invocation. All ordinary device commands share selection and Classic routing.
 public final class TimeboxCommandLine {
-    static var replVocabulary: [String] { REPLSuggestions.commands + ["target", "target current", "status", "time", "time sync", "countdown", "countdown start", "countdown stop"] }
+    static var replVocabulary: [String] { REPLSuggestions.commands + ["target", "target current", "status", "time", "time sync", "countdown", "countdown start", "countdown stop", "stopwatch", "stopwatch start", "stopwatch stop", "stopwatch reset"] }
     var environment: CommandEnvironment
     var outputFormat: OutputFormat?
     public init(environment: CommandEnvironment) { self.environment = environment }
@@ -16,7 +16,7 @@ public final class TimeboxCommandLine {
         guard let command = arguments.first else { return false }
         if arguments.contains(where: { ["--json", "--yaml", "--yml"].contains($0) }) { return true }
         if ["brightness", "color"].contains(command), arguments.contains("--uuid") { return false }
-        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "status", "time", "countdown"].contains(command)
+        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "status", "time", "countdown", "stopwatch"].contains(command)
     }
 
     @discardableResult
@@ -31,10 +31,13 @@ public final class TimeboxCommandLine {
         var target: ResolvedDevice?
         do {
             guard !command.isEmpty else { throw CommandFailure("invalid_arguments", "A command is required.") }
-            guard ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "status", "time", "countdown"].contains(command), !arguments.contains("--uuid") else {
+            guard ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "status", "time", "countdown", "stopwatch"].contains(command), !arguments.contains("--uuid") else {
                 throw CommandFailure("unsupported", "Structured output is not supported for this diagnostic command.")
             }
             let options = try CommandOptions(Array(arguments.dropFirst()))
+            if ["countdown", "stopwatch"].contains(command), let operation = options.positionals.first {
+                resultCommand = command + " " + operation
+            }
             guard command == "repl" || !options.hasREPLInputOptions else {
                 throw CommandFailure("invalid_arguments", "Editor/history options are only valid when starting repl.")
             }
@@ -73,6 +76,7 @@ public final class TimeboxCommandLine {
             try send(packet, to: resolved, options: options)
             var data: [String: Any] = ["bytes": packet.count]
             switch command {
+            case "stopwatch": data["operation"] = options.positionals[0]
             case "countdown": data["operation"] = options.positionals[0]
             case "time": data["operation"] = "sync"
             case "brightness": data["brightness"] = try CommandOptions.percent(options.positionals[0])
@@ -174,6 +178,17 @@ public final class TimeboxCommandLine {
     }
 
     func packet(_ command: String, options: CommandOptions) throws -> Data {
+        if command == "stopwatch" {
+            guard options.positionals.count == 1 else { throw CommandFailure("invalid_arguments", "Use stopwatch start, stop or reset.") }
+            let action: TimeboxStopwatchAction
+            switch options.positionals[0] {
+            case "start": action = .start
+            case "stop": action = .stop
+            case "reset": action = .reset
+            default: throw CommandFailure("invalid_arguments", "Use stopwatch start, stop or reset.")
+            }
+            return try TimeboxPacketEncoder.encode(.stopwatch(action))
+        }
         if command == "countdown" {
             if options.positionals == ["stop"] { return try TimeboxPacketEncoder.encode(.stopCountdown) }
             guard options.positionals.count == 2, options.positionals[0] == "start" else { throw CommandFailure("invalid_arguments", "Use countdown start MM:SS or countdown stop.") }
@@ -201,12 +216,12 @@ public final class TimeboxCommandLine {
         defer { transport.disconnect() }
         try connect(transport, to: target, channel: options.channel)
         transport.wait(milliseconds: 150)
-        environment.output("Persistent connection open. Commands: target [NAME|current], status, time sync, countdown start MM:SS / stop, color, brightness, image, hex, help, quit.")
+        environment.output("Persistent connection open. Commands: target [NAME|current], status, time sync, countdown start MM:SS / stop, stopwatch start/stop/reset, color, brightness, image, hex, help, quit.")
         while let line = try input.readLine(prompt: REPLPrompt.text(interactive: environment.isInteractive, noColor: environment.variables["NO_COLOR"] != nil)) {
             let parts = line.split(whereSeparator: \.isWhitespace).map(String.init)
             guard let command = parts.first?.lowercased() else { continue }
             if ["quit", "exit", "q"].contains(command) { break }
-            if ["help", "?"].contains(command) { environment.output("target [NAME|current], status, time sync, countdown start MM:SS / stop, color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit"); continue }
+            if ["help", "?"].contains(command) { environment.output("target [NAME|current], status, time sync, countdown start MM:SS / stop, stopwatch start/stop/reset, color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit"); continue }
             do {
                 if command == "status" {
                     let statusOptions = try CommandOptions(Array(parts.dropFirst()))
