@@ -103,3 +103,13 @@ The live capture, user-confirmed official-app comparison and decoder tests estab
 enumeration. An external app edit followed by readback, and observation of
 recurrence behavior remains subject to manual acceptance. Finite weekday writes
 have no established wire encoding.
+
+## Original Mini
+
+With `--model mini` or a saved Mini override, alarm commands use slots0–2, the
+Mini OldMode escaped request/reply framing and exactly30data bytes. Fresh
+snapshot/write/readback verification preserves the other two slots and all raw
+sound settings. A failed write is not automatically replayed. Mini-specific
+prototype and production observations, including exact restoration, are recorded
+in [Mini validation](validation/mini-clock-stopwatch-alarms.md). Weekly repetition
+and alternate sound/trigger modes have not been independently exercised on Mini.

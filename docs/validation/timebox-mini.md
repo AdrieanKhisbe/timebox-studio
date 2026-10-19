@@ -7,11 +7,13 @@ Investigation and implementation date: 2026-10-19.
 
 The original Mini uses 11×11 pixels, high-four-bit RGB444 quantization and escaped
 interior bytes. Evo retains its 16×16 palette encoding and unescaped framing.
-Brightness, solid color and static files are integrated into the ordinary CLI,
-REPL and `TimeboxClient`. Raw already-framed packets remain an escape hatch.
-Mini alarms, other channels, animation, live queries, MiniToo and Mini BLE/iOS
-have no compatibility claim. Typed Mini alarm commands fail before device I/O;
-Mini library connections on iOS fail before BLE connection.
+Brightness, solid color, static files, clock display, native stopwatch and
+three-slot alarms are integrated into the ordinary CLI, REPL and `TimeboxClient`.
+See [clock/stopwatch/alarm validation](mini-clock-stopwatch-alarms.md) for the later
+promotion and exact hardware scope. Raw packets remain an escape hatch. Other
+channels, clock synchronization, native countdown, animation, status, MiniToo and
+Mini BLE/iOS have no compatibility claim. Mini library connections on iOS fail
+before BLE connection.
 
 ```sh
 timeboxctl color FF0000 --address "$MAC" --model mini --channel 4
@@ -122,8 +124,9 @@ address operation, model/source reporting, config edits/saves, unsupported alarm
 and REPL target switching without encoder leakage. Controlled transport tests run
 the actual library and CLI methods. Existing Evo protocol fixtures remain passing.
 
-Validation: 77 tests pass; the release CLI build passes. Integrated observations
-are recorded below; remaining hardware acceptance is still pending.
+The initial Mini integration passed77tests and its release build. The later
+clock/stopwatch/alarm promotion adds escaped-response and full-record alarm
+coverage; see its linked report. Historical integrated observations follow.
 
 ## Integrated hardware observations (2026-10-19)
 
@@ -173,8 +176,10 @@ observations alone.
 
 ## Manual acceptance still required
 
-The sequence above did not independently test solid green/blue fills, one-shot
-image-file rendering, or an Evo color/image regression in this session. Mini
+The initial sequence above did not independently test solid green/blue fills
+or one-shot image-file rendering. A subsequent merged-dev check confirmed red,
+green, blue, brightness, the orientation pattern and one-shot smiley upload. An
+additional Evo color/image regression was not performed in that check. Mini
 brightness after disconnect remains visually ambiguous; no settings-reset cause
 is established. Reliable automatic Mini/Evo identity remains unresolved even
 though per-target SDP control-channel resolution succeeded. Capture trustworthy

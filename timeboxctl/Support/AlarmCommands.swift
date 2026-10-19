@@ -4,6 +4,8 @@ import TimeboxBluetooth
 
 extension TimeboxCommandLine {
     func performAlarm(_ operation: AlarmOperation, target: ResolvedDevice, options: CommandOptions) throws -> CommandResult {
+        let model = target.modelResolution?.model ?? .evo
+        try operation.validate(model: model)
         let before = try readAlarms(target, options: options)
         let slot: Int
         let command: TimeboxCommand
@@ -18,11 +20,21 @@ extension TimeboxCommandLine {
             if outputFormat == nil { showAlarms(before) }
             return CommandResult(command: operation.command, status: "ok", device: target, data: ["alarms": before.map(Self.alarmData)])
         }
-        let packet = try TimeboxPacketEncoder.encode(command)
+        let packet = try TimeboxPacketEncoder.encode(command, model: model)
+        var expectedRecord = Array(try before[slot].recordBytes)
+        switch operation {
+        case .set(_, let schedule, let volume):
+            expectedRecord[1] = 1
+            expectedRecord[2] = UInt8(schedule.hour); expectedRecord[3] = UInt8(schedule.minute)
+            expectedRecord[4] = schedule.weekdayMask
+            expectedRecord[9] = UInt8(volume ?? before[slot].volume)
+        case .disable: expectedRecord[1] = 0
+        case .list: break
+        }
         // The snapshot reader closes its link. Give RFCOMM time to release it.
         let settle = environment.makeTransport(false)
         settle.wait(milliseconds: 500)
-        try send(packet, to: target, options: options)
+        try send(packet, to: target, options: options, maximumAttempts: 1)
         settle.wait(milliseconds: 500)
         let after: [TimeboxAlarm]
         do { after = try readAlarms(target, options: options) }
@@ -30,7 +42,6 @@ extension TimeboxCommandLine {
         // Compare the actual response with the exact ten bytes requested, rather
         // than displaying requested values as though they came from the device.
         let actual = after[slot]
-        let expectedRecord = Array(packet.dropFirst(4).prefix(10))
         let actualRecord: [UInt8] = [UInt8(actual.slot), actual.enabled ? 1 : 0, UInt8(actual.hour), UInt8(actual.minute),
             actual.weekdayMask, actual.soundMode, actual.triggerMode] + actual.frequencyBytes + [UInt8(actual.volume)]
         guard actualRecord == expectedRecord else { throw CommandFailure("invalid_response", "Alarm packet sent, but slot \(slot) readback differs; run alarm list to inspect device state.") }
@@ -48,7 +59,7 @@ extension TimeboxCommandLine {
         try connect(transport, to: target, channel: options.channel)
         transport.wait(milliseconds: 150)
         // No retry of a timed-out query on the same link: replies have no request ID.
-        do { return try TimeboxAlarmReader.read(from: transport, timeout: options.queryTimeout ?? 5) }
+        do { return try TimeboxAlarmReader.read(from: transport, model: target.modelResolution?.model ?? .evo, timeout: options.queryTimeout ?? 5) }
         catch let error as TimeboxQueryError { throw Self.failure(error) }
         catch { throw CommandFailure("write_failed", error.localizedDescription) }
     }
@@ -64,7 +75,7 @@ extension TimeboxCommandLine {
     }
 
     func showAlarms(_ alarms: [TimeboxAlarm]) {
-        environment.output("Live device alarms (10 slots; recurrence and sound/trigger mode meanings unverified):")
+        environment.output("Live device alarms (\(alarms.count) slots; recurrence and sound/trigger mode meanings unverified):")
         for alarm in alarms {
             let days = alarm.weekdays.isEmpty ? "no weekdays" : alarm.weekdays.joined(separator: ",")
             environment.output("\(alarm.slot): \(alarm.enabled ? "enabled" : "disabled") \(String(format: "%02d:%02d", alarm.hour, alarm.minute)) \(days) | volume \(alarm.volume) | sound mode \(alarm.soundMode), trigger mode \(alarm.triggerMode), weekday mask \(alarm.weekdayMask), frequency bytes \(alarm.frequencyBytes)")

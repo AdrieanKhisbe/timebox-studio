@@ -48,7 +48,7 @@ public enum TimeboxQueryReader {
         defer { transport.onData = nil; transport.disconnect(); transport.endQuery() }
         guard transport.isConnected else { throw TimeboxQueryError.disconnected }
         if isCancelled() { throw TimeboxQueryError.cancelled }
-        var decoder = TimeboxResponseDecoder()
+        var decoder = TimeboxResponseDecoder(model: query.model)
         var result: Result<Response, Error>?
         transport.onData = { data in
             guard result == nil else { return }

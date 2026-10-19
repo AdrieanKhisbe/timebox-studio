@@ -7,10 +7,9 @@ final class EvoCommandModelSafetyTests: XCTestCase {
     private let commands: [[String]] = [
         ["time", "sync"],
         ["countdown", "start", "00:05"], ["countdown", "stop"],
-        ["stopwatch", "start"], ["stopwatch", "stop"], ["stopwatch", "reset"],
         ["animation", "docs/validation/fixtures/animation-disposal.gif"], ["text", "Hello"],
-        ["status"], ["alarm", "list"], ["alarm", "set", "2", "--time", "07:30"], ["alarm", "disable", "2"],
-        ["display", "clock"], ["display", "clock", "--style", "0"],
+        ["status"],
+        ["display", "clock", "--style", "0"],
         ["display", "light"], ["display", "design"], ["design", "1"],
         ["effect", "0"], ["display", "effects"]
     ]
