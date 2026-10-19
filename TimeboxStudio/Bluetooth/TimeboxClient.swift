@@ -135,11 +135,13 @@ public final class TimeboxClient {
     /// silently replaced with a native Classic transport.
     public func display(_ selection: TimeboxDisplay) async throws {
         let selectedModel = try model
-        if selectedModel == .mini {
-            guard selection == .clock() else { throw TimeboxModelError.unsupported("display channels except bare clock") }
+        if selectedModel == .mini, selection == .clock() {
             let packet = try TimeboxPacketEncoder.encode(.display(selection), model: selectedModel)
             try await transport.write(packet)
             return
+        }
+        if selectedModel == .mini {
+            guard case .light = selection else { throw TimeboxModelError.unsupported("this display channel or Evo clock style") }
         }
         try selection.validate()
         if selection.requiresLivePreparation {

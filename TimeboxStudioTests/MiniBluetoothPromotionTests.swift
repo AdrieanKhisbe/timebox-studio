@@ -74,7 +74,7 @@ final class MiniBluetoothPromotionTests: XCTestCase {
 
     func testMiniUnsupportedDisplayProfilesRemainBlockedBeforeAnyTransport() throws {
         var factories = 0
-        for selection: TimeboxDisplay in [.clock(style: .fullScreen), .light(), .light(color: .init(red:255,green:0,blue:0)), .design(), .design(index:1), .effects()] {
+        for selection: TimeboxDisplay in [.clock(style: .fullScreen), .design(), .design(index:1), .effects()] {
             XCTAssertThrowsError(try TimeboxDisplayWriter.perform(selection, device: .mock, model: .mini,
                 makeTransport: { factories += 1; return MiniPromotionTransport() })) {
                 guard case .unsupported = $0 as? TimeboxModelError else { return XCTFail("\($0)") }

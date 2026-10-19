@@ -11,7 +11,7 @@ Brightness, solid color, static files, clock display and synchronization, native
 three-slot alarms are integrated into the ordinary CLI, REPL and `TimeboxClient`.
 See [clock/stopwatch/alarm validation](mini-clock-stopwatch-alarms.md) for the later
 promotion and exact hardware scope. Raw packets remain an escape hatch. Other
-channels, native countdown, MiniToo and
+channels except clock/light, native countdown, MiniToo and
 Mini BLE/iOS have no compatibility claim. Mini library connections on iOS fail
 before BLE connection.
 
@@ -19,9 +19,11 @@ Clock synchronization is described separately in the
 [Mini clock-sync report](mini-clock-sync.md).
 Scrolling text requires explicit [host streaming](mini-streaming-text.md), which
 keeps the Mac connected for one complete scroll. Remaining countdown and automatic
-identity evidence is recorded in [the capability follow-up](mini-remaining-capabilities.md).
+identity evidence is recorded in [the capability follow-up](https://github.com/AdrieanKhisbe/timebox-studio/issues/20#issuecomment-6558040141).
 Model-aware [live status](mini-status.md) reports fresh configured mode and
 brightness using the Mini-specific settings layout.
+Mini [light selection](mini-light.md) also supports a preserved stored profile
+or an explicit full plain-light profile.
 
 ```sh
 timeboxctl color FF0000 --address "$MAC" --model mini --channel 4

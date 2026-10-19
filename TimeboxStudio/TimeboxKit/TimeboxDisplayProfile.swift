@@ -26,10 +26,18 @@ extension TimeboxQuery where Response == TimeboxDesignCapabilities {
 /// unrecognized layouts and invalid boolean fields are rejected before writes.
 public struct TimeboxDisplayProfile: Equatable, Sendable {
     public enum Channel: Sendable { case clock, light }
+    public let model: TimeboxModel
     let payload: Data
     public init(channel: Channel, status: TimeboxStatus) throws {
-        guard status.model == .evo else { throw TimeboxModelError.unsupported("Evo display profile preservation") }
+        model = status.model
         let bytes = Array(status.rawData)
+        if model == .mini {
+            guard channel == .light else { throw TimeboxModelError.unsupported("clock profile preservation") }
+            guard bytes.count == 23 else { throw TimeboxModelError.unsupported("preservation of unknown Mini settings-layout extensions") }
+            guard bytes[22] <= 4 else { throw TimeboxModelError.unsupported("preservation of unknown light variant \(bytes[22])") }
+            payload = Data([0x45, 2] + Array(bytes[3...6]) + [bytes[22]])
+            return
+        }
         guard bytes.count == 20 else {
             throw TimeboxDisplayError.unverified("Preservation of unknown settings-layout extensions")
         }

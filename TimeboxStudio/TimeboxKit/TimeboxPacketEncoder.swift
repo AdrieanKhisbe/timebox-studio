@@ -26,7 +26,9 @@ public enum TimeboxPacketEncoder {
             return try encodePayload(Data([0x72, 3, 0, 0, 0]))
         case .stopwatch(let action):
             return try encodePayload(Data([0x72, 0, action.rawValue]))
-        case .displayProfile(let profile): return try encodePayload(profile.payload)
+        case .displayProfile(let profile):
+            guard profile.model == .evo else { throw TimeboxDisplayError.profileModelMismatch(expected: .evo, actual: profile.model) }
+            return try encodePayload(profile.payload)
         case .selectDesignTab(let index):
             guard (0...2).contains(index) else { throw TimeboxDisplayError.invalidDesignIndex(index) }
             return try encodePayload(Data([0xBD, 0x17, UInt8(index)]))

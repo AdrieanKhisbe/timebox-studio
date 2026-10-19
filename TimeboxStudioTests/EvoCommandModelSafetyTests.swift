@@ -8,7 +8,7 @@ final class EvoCommandModelSafetyTests: XCTestCase {
         ["countdown", "start", "00:05"], ["countdown", "stop"],
         ["text", "Hello"],
         ["display", "clock", "--style", "0"],
-        ["display", "light"], ["display", "design"], ["design", "1"],
+        ["display", "design"], ["design", "1"],
         ["effect", "0"], ["display", "effects"]
     ]
 

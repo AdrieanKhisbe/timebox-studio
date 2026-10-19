@@ -2,7 +2,7 @@ import Foundation
 import TimeboxKit
 
 /// Main-run-loop driven Classic display/query boundary, injectable without radios.
-/// Profile/capability preparation is Evo-only; Mini bare clock needs no query.
+/// Mini light and Evo channel profiles use model-specific fresh settings.
 public protocol TimeboxDisplayTransport: TimeboxQueryTransport {
     func connectForDisplay(to device: TimeboxDevice, channel: UInt8?) throws
     func writeDisplay(_ data: Data) throws
@@ -28,13 +28,16 @@ public enum TimeboxDisplayWriter {
               holdMilliseconds >= 0 else { throw TimeboxQueryError.invalidArguments }
         if isCancelled() { throw TimeboxQueryError.cancelled }
         var commands: [TimeboxCommand]
-        if model == .mini {
-            guard selection == .clock() else { throw TimeboxModelError.unsupported("display channels except bare clock") }
+        let miniClock = model == .mini && selection == .clock()
+        if miniClock {
             commands = [.display(selection)]
         } else {
+            if model == .mini {
+                guard case .light = selection else { throw TimeboxModelError.unsupported("this display channel or Evo clock style") }
+            }
             try selection.validate()
             if let preserved = selection.preservedChannel {
-                let snapshot = try read(.status, device: device, channel: channel,
+                let snapshot = try read(.status(model: model), device: device, channel: channel,
                                         timeout: timeout, isCancelled: isCancelled, makeTransport: makeTransport)
                 commands = [.displayProfile(try TimeboxDisplayProfile(channel: preserved, status: snapshot))]
             } else if case .design(let index?) = selection {
@@ -64,7 +67,7 @@ public enum TimeboxDisplayWriter {
         }
         transport.settleDisplay(milliseconds: holdMilliseconds)
         transport.disconnect()
-        if model == .evo, selection.requiresLivePreparation { transport.settleDisplay(milliseconds: 500) }
+        if !miniClock, selection.requiresLivePreparation { transport.settleDisplay(milliseconds: 500) }
         return TimeboxDisplayWriteResult(packetCount: packets.count, byteCount: packets.reduce(0) { $0 + $1.count })
     }
 

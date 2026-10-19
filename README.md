@@ -230,6 +230,7 @@ The CLI supports original Mini brightness, solid color, static 11×11 images, cl
 timeboxctl image art.png --address AA:BB:CC:DD:EE:FF --model mini --channel 4
 timeboxctl repl --device mini --model mini --channel 4
 timeboxctl display clock --device mini --model mini
+timeboxctl display light --device mini --model mini  # preserve the stored light profile
 timeboxctl time sync --device mini --model mini
 timeboxctl stopwatch start --device mini --model mini
 timeboxctl alarm list --device mini --model mini --json
@@ -259,3 +260,6 @@ see [Mini clock-sync evidence](docs/validation/mini-clock-sync.md) for its manua
 acceptance and protocol sources.
 Mini scrolling text requires explicit `--stream`, which holds the Mac connection
 for one full scroll; see [streaming behavior and validation](docs/validation/mini-streaming-text.md).
+Mini `display light` preserves stored RGB, light level and known variant through
+a fresh settings read. Explicit `--color` or `--brightness` applies a full plain
+light profile; see [Mini light-mode validation](docs/validation/mini-light.md).

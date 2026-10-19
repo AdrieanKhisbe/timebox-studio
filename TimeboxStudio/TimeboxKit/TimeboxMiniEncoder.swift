@@ -20,9 +20,18 @@ public enum TimeboxMiniEncoder {
             return escapeFrame(try TimeboxPacketEncoder.encode(command, model: .evo))
         case .stopwatch(let action): return try frame(Data([0x45, 6, action.rawValue]))
         case .display(.clock(style: nil)): return try frame(Data([0x45, 0, 1]))
+        case let .display(.light(color, percent)):
+            guard color != nil || percent != nil else { throw TimeboxDisplayError.livePreparationRequired("Bare Mini light selection") }
+            let rgb = color ?? PixelRGB(red: 255, green: 255, blue: 255)
+            let level = percent ?? 100
+            try validate(level)
+            return try frame(Data([0x45, 2, rgb.red, rgb.green, rgb.blue, UInt8(level), 0]))
+        case .displayProfile(let profile):
+            guard profile.model == .mini else { throw TimeboxDisplayError.profileModelMismatch(expected: .mini, actual: profile.model) }
+            return try frame(profile.payload)
         case .synchronizeClock(let snapshot): return try frame(snapshot.payload)
         case .startCountdown, .stopCountdown: throw TimeboxModelError.unsupported("timers")
-        case .display, .displayProfile, .selectDesignTab: throw TimeboxModelError.unsupported("display channels")
+        case .display, .selectDesignTab: throw TimeboxModelError.unsupported("display channels")
         }
     }
     /// Native RGB444 image payload, also reused by Mini animation frame packing.
