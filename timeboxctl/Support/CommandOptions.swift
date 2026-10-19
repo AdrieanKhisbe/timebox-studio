@@ -18,6 +18,8 @@ struct CommandOptions {
     var alarmDays: String?
     var alarmVolume: Int?
     var hasAlarmWriteOptions: Bool { alarmTime != nil || alarmDays != nil || alarmVolume != nil }
+    var resize: String?
+    var adapt = false
     var positionals: [String] = []
 
     init(_ arguments: [String]) throws {
@@ -42,6 +44,8 @@ struct CommandOptions {
                 let text = try value()
                 guard let number = Int(text), number >= 0 else { throw CommandFailure("invalid_arguments", "--hold-ms requires a non-negative integer.") }
                 holdMilliseconds = number
+            case "--resize": resize = try value()
+            case "--adapt": adapt = true
             case "--mock": mock = true
             case "--all": all = true
             case "--save": save = true
