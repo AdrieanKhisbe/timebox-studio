@@ -90,6 +90,90 @@ not zero. Do not issue another B6 argument, retry as a scan, or infer file IDs.
 The parent decided a physical count probe was unnecessary for this investigation;
 no request, delete or other storage command was sent.
 
+## Actual custom-tab save pipeline: destructive scope remains unverified
+
+Source-only follow-up, 2026-10-19. No save packet or capability negotiation was
+sent. Actual APK3.8.40 has a source-grounded selected-tab upload path, but it does
+not establish a safe single-item append or recoverable production save API.
+
+| Stage | Actual APK anchor | Established behavior |
+| --- | --- | --- |
+| Save button | `LightCustomFragment.onClick` / `Q2`, lines166–177,349–355 | `bt_make` passes the adapter’s entire list, `true`, and selected tab to `LightMakeNewModel.r`. |
+| Tab scope | `LightMakeNewModel.r`, lines336–370; `CmdManager.P2`,792–815 | Image/animation save starts an upload with that tab index; it does not call ordinary `BD17` selection as the upload protocol. |
+| Cache input | `LightMakeNewModel.o`,135–153; `p`,288–331; `u`,380–433 | Existing contents come from local `LightNewCustomBean` database rows keyed by Bluetooth address and tab, serialized as a JSON list of image blobs. A single new image may fill a vacant local list position; a full list defaults to position11. This is not device enumeration. |
+| Start response | `u.h`,575–578; `LightMakeNewModel.onMessageEvent(T1.n)`,530–550 | A successful B1 reply posts the event which starts the image/animation upload path. |
+| Upload | `LightMakeNewModel.v` / `y`,184–195,438–486 | Encode and concatenate valid cached items, send data chunks, send end, then update the local cache. |
+| Legacy chunks | `p051f3.h.f`,171–203; `h.p`,269–272; `r.K`,449–465 | Legacy save uses control1 plus chunk lengthLE16 and native encoded bytes, at most200 bytes per default chunk, with40ms between writes. |
+| End | `CmdManager.L0`,592–595 | End payload is exactly `B1 02` for legacy mode, or `8C 02` for newer mode; no appended tab or zero byte. |
+
+Original `TimeboxEvo` model initialization resets `NewAniSendMode2020` off, and
+its model branch does not directly enable it (`DeviceFunction`,738,836–884).
+Thus the source default path is B1. It is not a universal firmware classifier:
+`CmdManager.V`,948–950 sends external selector13, whose reply handler `u.i`,874–878
+can enable the newer upload mode and change pacing. No selector13 negotiation
+was performed here; unknown capability must not be silently treated as8C support.
+
+Source-established legacy payload sequence, not a captured successful Evo save:
+
+```text
+B1 00 00 TAB                    start normal image/animation, selected tab
+wait for checksum-valid 04 B1 55 success response
+B1 01 CHUNK_LENGTH_LE16 BYTES    repeated data segments
+B1 02                          end
+```
+
+For the newer path the start is `8C 00 TOTAL_LENGTH_LE32 TAB`. Its data segments
+are `8C 01 TOTAL_LENGTH_LE32 CHUNK_INDEX_LE16 BYTES`, at most256 bytes; the app
+calls this an index, increments by one, and uses that index to resend its cached
+packet array (`LightMakeNewModel.t`,373–379; `h.f`,171–203). This should not be
+silently reinterpreted as a byte offset. `u.h`,344–350 handles newer retransmit
+requests with control1 and a16-bit index. The inspected start-trigger path is
+still the successful B1 event above, so the complete8C handshake must be captured
+before assuming how each firmware starts it.
+
+The native image/animation container is produced by `h.g → h.h → h.c →
+NDKMain.pixelEncode`, using frame count, speed, dimensions and optional text.
+The app may adjust adjacent equal speeds before concatenation. Existing `0x44`
+static display encoding is not thereby proven to be a drop-in storage blob.
+[Manufacturer B1 documentation](https://docin.divoom-gz.com/web/#/5/294) says a data
+unit must hold complete frame data, while the inspected app fragments its native
+stream in200-byte segments. The [newer8C documentation](https://docin.divoom-gz.com/web/#/5/296)
+also differs in terminology. Resolve these differences with frozen app/capture
+fixtures, not speculative production code.
+
+A B1 success reply carries no echoed stage, tab, nonce or request ID. The app
+bulk-sends chunks/end and then saves its local database; that local success is
+not independent readback of device storage or persistence. Timeout, reconnect
+and partial-upload behavior are not established. A failed start/end cannot be
+safely retried as if idempotence were proven.
+
+**Bounded next step:** a reviewed throwaway prototype may investigate explicit
+whole-tab replacement, only after the user designates one disposable tab and
+backs up its original items in the official app. Treat the entire selected tab
+as replaceable: the app rebuilds a cached tab list and there is no verified safe
+append or device-side backup/readback. Confirm mode negotiation and native blob
+fixtures before any write; announce all packets; preserve the other tabs; use
+exclusive fresh connection ownership. Observe selected-tab contents before and
+after, then separately obtain restart approval to test persistence. No production
+`saveContent`, list, delete or overwrite API is implemented. These source facts
+justify proposing that constrained investigation for review, not marking save
+support verified or automatically publishing an implementation ticket.
+
+Reproduction: use JADX1.5.6 `--single-class` on the hash-verified APK stated above
+for `com.divoom.Divoom.view.fragment.light.common.LightCustomFragment`,
+`com.divoom.Divoom.view.fragment.light.model.LightMakeNewModel`,
+`com.divoom.Divoom.bluetooth.CmdManager`, `com.divoom.Divoom.bluetooth.u`,
+`com.divoom.Divoom.bluetooth.r`, and `p051f3.h`. Copyrighted source remains outside
+Git. Exact scratch-output SHA256 checksums (not upstream source-file hashes):
+
+| Class output | SHA256 |
+| --- | --- |
+| `LightCustomFragment` | `c4b6c218687c9b77dce808ba153224fa2f2d987108018195b2b3266561e77eec` |
+| `LightMakeNewModel` | `12348fca730356f6d21afd362e6b70c0af4e2d6c5c6bf1c1786eac8531d23f8d` |
+| `CmdManager` | `510037ffe270a6280d6f45837a242bf43f918262f261448f80e8843ffd9e9677` |
+| `u` | `fa067bf6598e06668a5abb74e1a7aeb5bce2f01b1a352f248e91e0957fa58c7c` |
+| `p051f3.h` | `83125170ef2dc60146e94f87a540c3acfb28f9b2623c0a2192d4f48d7a9ffba9` |
+
 ## Outstanding validation and proposed follow-ups
 
 There is no verified new capability ready for an implementation ticket yet.
