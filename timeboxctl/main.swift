@@ -900,7 +900,7 @@ enum TimeboxCLI {
               timeboxctl device select [NAME] [--config PATH]
               timeboxctl device rename [OLD [NEW]] [--config PATH]
               timeboxctl config [show] [--yaml|--yml|--json] [--config PATH]
-              timeboxctl text "Hello" [device options]
+              timeboxctl text "Hello" [--stream] [device options]
               timeboxctl animation FILE.gif [--resize fit|fill|stretch] [--adapt] [device options]
               timeboxctl alarm set SLOT --time HH:MM [--days mon,tue] [--volume 0..100] [device options]
               timeboxctl alarm disable SLOT [device options]

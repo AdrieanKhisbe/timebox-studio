@@ -238,6 +238,24 @@ public final class TimeboxClient {
         return try await send(animation: rendered.animation)
     }
 
+    /// Keep the current connection open for one host-driven scroll. Cancellation
+    /// and failed writes stop immediately; callers continue to own the connection.
+    /// Slow writes stretch playback rather than skipping frames or bursting.
+    public func stream(text: String) async throws -> TimeboxTextStream {
+        try Task.checkCancellation()
+        let stream = try TimeboxTextStream(text, model: model)
+        var deadline = ProcessInfo.processInfo.systemUptime
+        for packet in stream.packets {
+            try Task.checkCancellation()
+            deadline = max(deadline, ProcessInfo.processInfo.systemUptime) + Double(stream.frameMilliseconds) / 1000
+            try await transport.write(packet)
+            let remaining = deadline - ProcessInfo.processInfo.systemUptime
+            if remaining > 0 { try await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000)) }
+        }
+        try Task.checkCancellation()
+        return stream
+    }
+
     private func requireEvo(_ operation: String) throws {
         guard try model == .evo else { throw TimeboxModelError.unsupported(operation) }
     }
