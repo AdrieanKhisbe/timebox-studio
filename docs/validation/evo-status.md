@@ -14,7 +14,7 @@ The documented payload extends through index 19:
 
 | Data index | Documented field | Public implementation |
 | --- | --- | --- |
-| 0 | Display mode | Raw byte and conservative sourced name |
+| 0 | Configured display channel | Raw byte and conservative sourced name; not rendered pixels |
 | 1 | Temperature unit | Raw only |
 | 2 | VJ selection | Raw only |
 | 3–5 | Lighting RGB | Raw only |
@@ -132,12 +132,44 @@ read. This source does not explain why the user's app operation above left the
 settings response unchanged, and supplies no evidence that `0x46` reports cached
 defaults. No `0x31` probe was sent during this validation.
 
-Remaining acceptance: an independent physical/app mode change and fresh query;
-independent isolation of the two brightness fields if distinct meanings are
-claimed beyond their sourced names. Preserve the unsuccessful app observation
-and avoid marking those checks complete. Automated validation passes all 77 tests,
-including live payload and differential replays; the release binary used for the
-hardware reads already passed its build.
+### Configured channel versus visible overlay
+
+Subsequent parent-coordinated checks established this field's scope. While the
+previously user-confirmed scrolling Hello animation was playing, a fresh `0x46`
+query still returned channel 0 and the original clock-profile data. It did not
+identify the rendered text/animation. Manufacturer
+[page 290](https://docin.divoom-gz.com/web/#/5/290) separately documents `0x49` as
+an animation transfer command, without defining a rendered-overlay status flag.
+Do not infer such a flag or current content from the channel byte.
+
+The parent then explicitly selected blue light at 30% and queried again. Channel
+became 1, lighting RGB became `00 00 FF`, and both brightness bytes were 30. The
+user confirmed the actual display was dim blue. Selecting clock style 0 and then
+restoring system brightness 100 changed channel back to 0, with clock RGB
+`FF FF FF`, clock style 0 and both brightness fields at 100. The user confirmed
+the white clock. The lighting RGB remained blue in this clock reply: the response
+contains configured fields for inactive profiles, not only visible pixels.
+
+The [configured-channel fixture](fixtures/evo-status-configured-channel.json)
+records these exact redacted payloads and user observations, transcribed from
+parent tool outputs. Original frame chunks and exact timestamps were not saved;
+replay frames in tests are explicitly synthetic. The final complete clock
+profile intentionally replaced the earlier clock color/style; brightness returned
+to 100, but this was not an exact restoration of every profile field.
+
+Accordingly, human output says **configured channel**. Existing machine fields
+`mode` and `mode_raw` keep their names and values for compatibility, with that
+scope documented. These successful reads and physical observations verify clock
+and light channel selection; they do not identify a visible overlay, current
+design or rendered pixels. No new overlay boolean or guessed content model is
+introduced.
+
+Remaining acceptance: independent physical/app channel selection with fresh
+query, independent brightness-field isolation if stronger semantics are claimed,
+and other effects/styles. Preserve the unsuccessful app observation. The supported
+configured-channel interpretation is narrower than a claim to always know the
+visible display mode. Automated validation includes the captured channel sequence,
+physical brightness differential and source-derived/malformed fixtures.
 
 Coordinated validation must query `main-evo` without setters, record raw data and
 mode/brightness, then have the user change the relevant setting with physical

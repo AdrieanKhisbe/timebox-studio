@@ -23,7 +23,7 @@ the same path regardless of output format.
 | image | `path`, encoded `width`/`height` (16), `bytes` written |
 | send-hex | `bytes` written |
 | connect | selected RFCOMM `channel` (null if unavailable); connection is closed on exit |
-| status | live `mode`, `mode_raw`, system `brightness`, `light_brightness`, full `raw_data`; see [status](status.md) |
+| status | live configured-channel `mode`/`mode_raw`, system `brightness`, `light_brightness`, full `raw_data`; see [status](status.md) |
 | alarm list | live `alarms` array of ten slot records; see [alarm schema](alarms.md) |
 | alarm set / alarm disable | `slot`, `bytes`, `alarm` from live readback, `readback_matches: true` |
 

@@ -3,6 +3,8 @@ import Foundation
 /// Established fields of the manufacturer's 0x46 settings response.
 /// The lighting channel's brightness is distinct from system brightness.
 public struct TimeboxStatus: Equatable, Sendable {
+    /// Configured display channel; temporary media overlays may remain visible
+    /// without changing this byte. It is not a rendered-pixel/content query.
     public let modeRaw: UInt8
     public let brightness: Int
     public let lightBrightness: Int

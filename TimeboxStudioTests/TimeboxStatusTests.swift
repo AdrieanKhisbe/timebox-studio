@@ -52,6 +52,33 @@ final class TimeboxStatusTests: XCTestCase {
         XCTAssertEqual(changed, [6, 10])
     }
 
+    func testCapturedConfiguredChannelDoesNotClaimVisibleOverlay() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let object = try JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("docs/validation/fixtures/evo-status-configured-channel.json")))
+        let fixture = try XCTUnwrap(object as? [String: Any])
+        let captures = try XCTUnwrap(fixture["captures"] as? [[String: Any]])
+        var states: [TimeboxStatus] = []
+        for capture in captures {
+            let bytes = try XCTUnwrap(capture["raw_data"] as? [UInt8])
+            let response = try TimeboxPacketEncoder.encodePayload(Data([4, 0x46, 0x55] + bytes))
+            let cli = CommandHarness()
+            cli.configuration = .init(defaultName: "desk", devices: ["desk": .init(mac: "AA:BB:CC:DD:EE:01")])
+            cli.transport.replyChunks = [response]
+            XCTAssertEqual(cli.run(["status"]), 0, cli.stderr.joined())
+            XCTAssertTrue(cli.stdout.contains { $0.hasPrefix("Configured channel:") })
+            let connection = QueryConnection(); connection.chunks = [response]
+            states.append(try TimeboxStatusReader.read(from: connection))
+        }
+        // Clock remains configured while Hello is visibly overlaid, then explicit
+        // profile selections report light and clock. Preserve that real evidence.
+        XCTAssertEqual(states.map(\.modeRaw), [0, 1, 0])
+        XCTAssertEqual(states.map(\.mode), ["clock", "light", "clock"])
+        XCTAssertEqual(states.map(\.brightness), [100, 30, 100])
+        // Lighting RGB is still blue in the clock reply, while clock RGB is white.
+        XCTAssertEqual(Array(states[2].rawData[3...5]), [0, 0, 255])
+        XCTAssertEqual(Array(states[2].rawData[12...14]), [255, 255, 255])
+    }
+
     func testSourceDerivedSettingsDistinguishSystemAndLightBrightness() throws {
         let frame = try Self.sourcedFrame()
         let connection = QueryConnection()

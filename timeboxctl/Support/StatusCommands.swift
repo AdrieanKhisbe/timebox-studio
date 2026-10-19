@@ -15,7 +15,7 @@ extension TimeboxCommandLine {
         catch { throw CommandFailure("write_failed", error.localizedDescription) }
         if outputFormat == nil {
             let mode = status.mode.map { "\($0) (\(status.modeRaw))" } ?? "unknown (\(status.modeRaw))"
-            environment.output("Live mode: \(mode); system brightness: \(status.brightness)%; light brightness: \(status.lightBrightness)%.")
+            environment.output("Configured channel: \(mode); system brightness: \(status.brightness)%; light brightness: \(status.lightBrightness)%.")
         }
         return CommandResult(command: "status", status: "ok", device: target, data: [
             "mode": status.mode as Any? ?? NSNull(), "mode_raw": Int(status.modeRaw),
