@@ -7,7 +7,6 @@ final class EvoCommandModelSafetyTests: XCTestCase {
     private let commands: [[String]] = [
         ["countdown", "start", "00:05"], ["countdown", "stop"],
         ["text", "Hello"],
-        ["status"],
         ["display", "clock", "--style", "0"],
         ["display", "light"], ["display", "design"], ["design", "1"],
         ["effect", "0"], ["display", "effects"]

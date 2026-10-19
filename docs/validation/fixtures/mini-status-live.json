@@ -1,0 +1,182 @@
+{
+  "date": "2026-10-19",
+  "device": "AKTBR",
+  "model": "mini",
+  "channel": 4,
+  "provenance": "Exact decoded data transcribed from parent-owned release CLI JSON outputs. The query engine validated framing/checksum; original notification chunks and complete wire envelopes were not logged. Replay envelopes in tests are synthetic.",
+  "sequence": [
+    {
+      "stage": "Baseline",
+      "command": "status",
+      "data": {
+        "brightness": 20,
+        "light_brightness": 80,
+        "mode": "clock",
+        "mode_raw": 0,
+        "raw_data": [
+          0,
+          0,
+          5,
+          0,
+          0,
+          255,
+          80,
+          3,
+          20,
+          1,
+          75,
+          0,
+          0,
+          236,
+          184,
+          0,
+          255,
+          0,
+          0,
+          255,
+          255,
+          255,
+          0
+        ]
+      },
+      "device": {
+        "mac": "$MAC",
+        "model": "mini",
+        "model_source": "explicit",
+        "name": null
+      },
+      "status": "ok",
+      "human_observation": null
+    },
+    {
+      "stage": "Bright",
+      "command": "status",
+      "data": {
+        "brightness": 80,
+        "light_brightness": 80,
+        "mode": "clock",
+        "mode_raw": 0,
+        "raw_data": [
+          0,
+          0,
+          5,
+          0,
+          0,
+          255,
+          80,
+          3,
+          80,
+          1,
+          75,
+          0,
+          0,
+          236,
+          184,
+          0,
+          255,
+          0,
+          0,
+          255,
+          255,
+          255,
+          0
+        ]
+      },
+      "device": {
+        "mac": "$MAC",
+        "model": "mini",
+        "model_source": "explicit",
+        "name": null
+      },
+      "status": "ok",
+      "human_observation": "Clock noticeably brighter"
+    },
+    {
+      "stage": "Light",
+      "command": "status",
+      "data": {
+        "brightness": 20,
+        "light_brightness": 80,
+        "mode": "light",
+        "mode_raw": 2,
+        "raw_data": [
+          2,
+          0,
+          5,
+          0,
+          0,
+          255,
+          80,
+          3,
+          20,
+          1,
+          75,
+          0,
+          0,
+          236,
+          184,
+          0,
+          255,
+          0,
+          0,
+          255,
+          255,
+          255,
+          0
+        ]
+      },
+      "device": {
+        "mac": "$MAC",
+        "model": "mini",
+        "model_source": "explicit",
+        "name": null
+      },
+      "status": "ok",
+      "human_observation": "Solid blue"
+    },
+    {
+      "stage": "Final",
+      "command": "status",
+      "data": {
+        "brightness": 20,
+        "light_brightness": 80,
+        "mode": "clock",
+        "mode_raw": 0,
+        "raw_data": [
+          0,
+          0,
+          5,
+          0,
+          0,
+          255,
+          80,
+          3,
+          20,
+          1,
+          75,
+          0,
+          0,
+          236,
+          184,
+          0,
+          255,
+          0,
+          0,
+          255,
+          255,
+          255,
+          0
+        ]
+      },
+      "device": {
+        "mac": "$MAC",
+        "model": "mini",
+        "model_source": "explicit",
+        "name": null
+      },
+      "status": "ok",
+      "human_observation": null
+    }
+  ],
+  "all_settings_restored": true
+}

@@ -1,4 +1,4 @@
-# Live Evo status
+# Live device status
 
 ```sh
 timeboxctl status
@@ -22,8 +22,12 @@ return `command: status`, `status: ok`, `device` and:
 | `light_brightness` | Separate night-light brightness, 0 through 100 |
 | `raw_data` | All response data bytes, including unknown fields/extensions |
 
-Names are clock (0), light (1), divoom (2), vj (3), music (4), and custom (5).
-Mode 6 has conflicting source descriptions and is deliberately left unlabeled,
+Evo names are clock (0), light (1), divoom (2), vj (3), music (4), and custom (5).
+Mini names are clock (0), temperature (1), light (2), special_light (3),
+sound_light (4), and custom (5). The Mini-specific layout requires at least23
+data bytes, with system brightness at8; Evo requires20 with system brightness
+at10. Both use lighting level at6. Unknown trailing fields are preserved.
+Mode 6 is deliberately left unlabeled on both models,
 as are other unknown values; its raw number remains available. An unknown mode
 is a successful live read, not an invalid invented mode.
 
@@ -45,11 +49,14 @@ Inside the REPL, `status [--timeout SECONDS]` reads the current target. It close
 the persistent connection, performs the dedicated read and resumes the connection
 only on success. On failure the selected target remains disconnected; use
 `target NAME` to reconnect. REPL selectors/formats are rejected.
+The status read and resumption retain that target's selected control channel;
+switching targets still resolves the new device's channel independently.
 
 Swift apps use the shared typed query:
 
 ```swift
 let status = try await TimeboxStatusReader.read(device: device)
+let miniStatus = try await TimeboxStatusReader.read(device: miniDevice, model: .mini)
 // Or: TimeboxQueryReader.read(TimeboxQuery.status, device: device)
 print(status.modeRaw, status.brightness, status.lightBrightness)
 ```
@@ -58,4 +65,6 @@ print(status.modeRaw, status.brightness, status.lightBrightness)
 [query ownership and correlation contract](device-queries.md). BLE/RCSP settings
 receive decoding is not established. This operation does not enumerate alarms,
 read stored content, return current image pixels, synchronize the clock or change
-any settings. See the [field-map evidence and validation status](validation/evo-status.md).
+any settings. See the [Evo evidence](validation/evo-status.md) and
+[Mini field map and validation](validation/mini-status.md). Model-specific mode
+labels do not enable unverified channel setters or identify visible overlays.

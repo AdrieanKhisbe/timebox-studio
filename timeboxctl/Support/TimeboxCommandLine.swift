@@ -79,7 +79,7 @@ public final class TimeboxCommandLine {
             if !["send-hex", "connect"].contains(command) {
                 resolved.modelResolution = try resolveModel(options, target: resolved, configuration: configuration)
             }
-            if ["status", "design", "effect", "countdown"].contains(command), resolved.modelResolution?.model == .mini {
+            if ["design", "effect", "countdown"].contains(command), resolved.modelResolution?.model == .mini {
                 throw TimeboxModelError.unsupported(command)
             }
             if command == "text", resolved.modelResolution?.model == .mini, !options.stream {
@@ -316,7 +316,7 @@ public final class TimeboxCommandLine {
             }
             do {
                 guard command == "text" || !parts.dropFirst().contains("--stream") else { throw CommandFailure("invalid_arguments", "--stream applies only to text.") }
-                if ["status", "design", "effect", "countdown"].contains(command), target.modelResolution?.model == .mini {
+                if ["design", "effect", "countdown"].contains(command), target.modelResolution?.model == .mini {
                     throw TimeboxModelError.unsupported(command)
                 }
                 if command == "text" {
@@ -395,15 +395,16 @@ public final class TimeboxCommandLine {
                         throw CommandFailure("invalid_arguments", "Use status [--timeout SECONDS]; target NAME selects the REPL device.")
                     }
                     guard !options.mock else { throw CommandFailure("unsupported", "Mock mode has no live device status.") }
+                    let selectedChannel = transport.channel
                     transport.disconnect()
                     transport.wait(milliseconds: 500)
                     var queryOptions = options
                     queryOptions.queryTimeout = statusOptions.queryTimeout
-                    queryOptions.channel = nil
+                    queryOptions.channel = selectedChannel
                     _ = try performStatus(target: target, options: queryOptions)
                     transport.wait(milliseconds: 500)
                     transport = environment.makeTransport(false)
-                    do { try connect(transport, to: target, channel: nil) }
+                    do { try connect(transport, to: target, channel: selectedChannel) }
                     catch { transport.disconnect(); throw error }
                     transport.wait(milliseconds: 150)
                     continue
