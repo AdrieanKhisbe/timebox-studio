@@ -9,8 +9,9 @@ public struct TimeboxAnimationFrame: Equatable, Sendable {
     public let image: PixelFrame
     public let durationMilliseconds: Int
     public init(image: PixelFrame, durationMilliseconds: Int) throws {
-        guard image.pixels.count == 256, durationMilliseconds > 0 else {
-            throw TimeboxAnimationError.invalid("Animation frames require 256 pixels and a positive millisecond duration.")
+        guard image.width == image.height, [11, 16].contains(image.width),
+              image.pixels.count == image.width * image.height, durationMilliseconds > 0 else {
+            throw TimeboxAnimationError.invalid("Animation frames require valid 11×11 Mini or 16×16 Evo pixels and a positive millisecond duration.")
         }
         self.image = image; self.durationMilliseconds = durationMilliseconds
     }
@@ -22,6 +23,9 @@ public struct TimeboxAnimation: Equatable, Sendable {
     public init(frames: [TimeboxAnimationFrame]) throws {
         guard !frames.isEmpty, frames.count <= 2048 else {
             throw TimeboxAnimationError.invalid("Animation input must contain 1...2048 frames (host resource limit).")
+        }
+        guard frames.allSatisfy({ $0.image.width == frames[0].image.width }) else {
+            throw TimeboxAnimationError.invalid("Animation frames must all use the same model dimensions.")
         }
         guard frames.allSatisfy({ $0.durationMilliseconds <= 86_400_000 }) else {
             throw TimeboxAnimationError.invalid("A source frame exceeds the host duration limit of one day.")
@@ -38,7 +42,12 @@ public struct TimeboxAnimationUpload: Sendable {
     public let sourceMilliseconds: Int
     public let effectiveMilliseconds: Int
     public let paletteBits: Int
-    public var adapted: Bool { paletteBits < 8 || sourceFrames != effectiveFrames || sourceMilliseconds != effectiveMilliseconds }
+    public let model: TimeboxModel
+    public let isStatic: Bool
+    public let frameDurationMilliseconds: Int?
+    /// Lossy semantic changes; native RGB444 representation and lossless repeated holds are not adaptation.
+    public let adaptations: [String]
+    public var adapted: Bool { !adaptations.isEmpty }
 }
 
 public enum TimeboxAnimationEncoder {
@@ -46,7 +55,11 @@ public enum TimeboxAnimationEncoder {
     public static let maximumStreamBytes = 200 * 256
     public static let maximumFrameMilliseconds = 65535
 
-    public static func prepare(_ animation: TimeboxAnimation, adapt: Bool = false) throws -> TimeboxAnimationUpload {
+    public static func prepare(_ animation: TimeboxAnimation, model: TimeboxModel = .evo, adapt: Bool = false) throws -> TimeboxAnimationUpload {
+        guard animation.frames.allSatisfy({ $0.image.width == model.width && $0.image.height == model.height }) else {
+            throw TimeboxAnimationError.invalid("Animation frame dimensions do not match the selected \(model.rawValue) model.")
+        }
+        if model == .mini { return try TimeboxMiniAnimationEncoder.prepare(animation, adapt: adapt) }
         var candidates = animation.frames
         func framesData(_ frames: [TimeboxAnimationFrame], bits: Int) throws -> Data {
             var result = Data()
@@ -117,6 +130,9 @@ public enum TimeboxAnimationEncoder {
         }
         return TimeboxAnimationUpload(packets: packets, sourceFrames: animation.frames.count,
             effectiveFrames: candidates.count, sourceMilliseconds: animation.totalMilliseconds,
-            effectiveMilliseconds: candidates.reduce(0) { $0 + $1.durationMilliseconds }, paletteBits: bits)
+            effectiveMilliseconds: candidates.reduce(0) { $0 + $1.durationMilliseconds }, paletteBits: bits,
+            model: .evo, isStatic: false, frameDurationMilliseconds: nil,
+            adaptations: (bits < 8 ? ["palette_precision"] : []) +
+                (candidates.count != animation.frames.count ? ["frame_count"] : []))
     }
 }
