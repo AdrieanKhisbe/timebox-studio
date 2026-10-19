@@ -14,6 +14,7 @@ let package = Package(
         .iOS(.v15)
     ],
     products: [
+        .executable(name: "mini-timers-prototype", targets: ["MiniTimersPrototype"]),
         .executable(name: "TimeboxStudio", targets: ["TimeboxStudio"]),
         .executable(name: "timeboxctl", targets: ["timeboxctl"]),
         .library(name: "TimeboxKit", targets: ["TimeboxKit"]),
@@ -23,6 +24,12 @@ let package = Package(
         .package(url: "https://github.com/jpsim/Yams.git", from: "6.2.2")
     ],
     targets: [
+        .executableTarget(
+            name: "MiniTimersPrototype",
+            dependencies: ["TimeboxBluetooth", "TimeboxKit"],
+            path: "timeboxctl/MiniTimersPrototype",
+            exclude: ["README.md", "packet-demo.html", "observations.json", "sources.md"]
+        ),
         .target(
             name: "TimeboxCLIKit",
             dependencies: ["TimeboxBluetooth", "TimeboxKit", "TimeboxUtilities", .product(name: "Yams", package: "Yams")],
@@ -75,7 +82,7 @@ let package = Package(
                 "TimeboxUtilities"
             ],
             path: "timeboxctl",
-            exclude: ["Info.plist", "Support"],
+            exclude: ["Info.plist", "Support", "MiniTimersPrototype"],
             linkerSettings: [
                 .unsafeFlags(["-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist", "-Xlinker", cliInfoPlist])
             ]
