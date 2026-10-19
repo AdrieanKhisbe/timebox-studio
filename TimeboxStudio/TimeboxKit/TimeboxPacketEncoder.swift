@@ -15,7 +15,8 @@ public enum TimeboxPacketEncoderError: LocalizedError, Equatable {
 }
 
 public enum TimeboxPacketEncoder {
-    public static func encode(_ command: TimeboxCommand) throws -> Data {
+    public static func encode(_ command: TimeboxCommand, model: TimeboxModel = .evo) throws -> Data {
+        if model == .mini { return try TimeboxMiniEncoder.encode(command) }
         switch command {
         case .raw(let data):
             return data
@@ -24,6 +25,9 @@ public enum TimeboxPacketEncoder {
         case let .lightningPlainColor(color, percent):
             return try encodeLightningPlainColor(color: color, brightnessPercent: percent)
         case .image(let frame):
+            guard frame.width == 16, frame.height == 16, frame.pixels.count == 256 else {
+                throw PixelFrameError.invalidPixelCount(expected: 256, actual: frame.pixels.count)
+            }
             return try encodePayload(TimeboxImageEncoder.imagePayload(frame: frame))
         case let .setAlarm(current, schedule, volume):
             try validateAlarm(current)

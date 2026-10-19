@@ -7,7 +7,7 @@ public enum TimeboxCommand: Equatable, Sendable {
     /// display with one color. A much more visible effect than brightness,
     /// useful for confirming the device actually reacts to packets.
     case lightningPlainColor(color: PixelRGB, brightnessPercent: Int)
-    /// A 16x16 static image (`SPP_SET_BOX_COLOR`): the "show whatever we want" command.
+    /// A static image at the selected model’s size (`SPP_SET_BOX_COLOR`).
     case image(PixelFrame)
     /// Update one slot, retaining the supplied live record's sound settings.
     case setAlarm(TimeboxAlarm, schedule: TimeboxAlarmSchedule, volume: Int? = nil)

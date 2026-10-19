@@ -996,6 +996,8 @@ enum TimeboxCLI {
               scan-ble actively scans Bluetooth LE advertisements and prints UUIDs/service data.
               inspect-ble connects over BLE and discovers services/characteristics.
               send-ble-hex writes raw bytes to a BLE characteristic, auto-selecting a writable one if --characteristic is omitted.
+              --model auto|evo|mini selects device encoding (default auto; requires verified identity or a saved model override).
+              Original Mini: use --model mini [--channel 4] for brightness/color/static 11x11 images; alarms and BLE are unverified.
               brightness/color with --address use Classic SPP; --uuid selects legacy raw-BLE diagnostics, not the RCSP transport used by the iOS library.
               --hold-ms keeps a one-shot connection open after writing; a completed write does not confirm a visible display change.
               listen-ble connects, subscribes to every notify characteristic, optionally sends one packet after subscribing (raw hex, or --request-settings), and streams back any value the device reports. This proves whether the BLE pipe actually feeds the Timebox protocol parser.

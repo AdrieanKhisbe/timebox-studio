@@ -162,3 +162,26 @@ TimeboxStudioTests/  packet + image encoding tests
 
 Native macOS Swift only; no Divoom app, Node, Electron/web, or ESP32/Pi in the control
 path; protocol encoding kept separate from transport; a raw-hex escape hatch is retained.
+
+### Original Timebox Mini and model selection
+
+The CLI supports original Mini brightness, solid color and static 11×11 images:
+
+```sh
+timeboxctl image art.png --address AA:BB:CC:DD:EE:FF --model mini --channel 4
+timeboxctl repl --device mini --model mini --channel 4
+```
+
+Use `--model evo` for Evo, or save `model: evo` / `model: mini` in that device's
+config entry. CLI `--model auto` bypasses the saved override. Reliable automatic
+hardware identification has not been established, so an unknown model fails
+before display writes and asks for an explicit choice. Bluetooth names and RFCOMM
+channels alone are not identity evidence. REPL target changes resolve the new
+model independently; startup overrides do not carry across targets.
+
+`TimeboxClient(model: .mini)` enables the library Mini profile. Existing
+`TimeboxClient()` callers retain Evo behavior; pass `model: nil` to request
+conservative automatic identification. Mini BLE/iOS, alarms, animation and stored
+content are unverified and unsupported. See the [integration and validation
+report](docs/validation/timebox-mini.md) for protocol sources, image conversion,
+detection limitations and pending hardware acceptance.

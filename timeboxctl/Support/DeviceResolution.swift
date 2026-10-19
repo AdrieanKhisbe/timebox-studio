@@ -1,5 +1,6 @@
 import Foundation
 import TimeboxBluetooth
+import TimeboxKit
 
 public struct CommandFailure: LocalizedError {
     public let kind: String
@@ -12,8 +13,9 @@ public struct CommandFailure: LocalizedError {
 public struct ConfiguredDevice: Equatable {
     public var mac: String
     public var bluetoothName: String?
-    public init(mac: String, bluetoothName: String? = nil) {
-        self.mac = mac; self.bluetoothName = bluetoothName
+    public var model: TimeboxModel?
+    public init(mac: String, bluetoothName: String? = nil, model: TimeboxModel? = nil) {
+        self.mac = mac; self.bluetoothName = bluetoothName; self.model = model
     }
 }
 
@@ -31,6 +33,7 @@ public struct DeviceConfiguration: Equatable {
 public struct ResolvedDevice {
     public let logicalName: String?
     public let device: TimeboxDevice
+    public var modelResolution: TimeboxModelResolution?
     public init(logicalName: String?, device: TimeboxDevice) {
         self.logicalName = logicalName; self.device = device
     }
