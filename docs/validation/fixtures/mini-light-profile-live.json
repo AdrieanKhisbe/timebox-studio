@@ -1,0 +1,138 @@
+{
+  "date": "2026-10-19",
+  "device": "AKTBR",
+  "channel": 4,
+  "model": "mini",
+  "operation": "Release REPL bare display light with no color/brightness flags, followed by clock restoration",
+  "observation": "User confirmed solid blue after bare display light",
+  "provenance": "Exact decoded payloads transcribed from parent-owned CLI JSON output. Original radio notification chunks and complete envelopes were not captured.",
+  "sequence": [
+    {
+      "stage": "Baseline",
+      "command": "status",
+      "data": {
+        "brightness": 20,
+        "light_brightness": 80,
+        "mode": "clock",
+        "mode_raw": 0,
+        "raw_data": [
+          0,
+          0,
+          5,
+          0,
+          0,
+          255,
+          80,
+          3,
+          20,
+          1,
+          75,
+          0,
+          0,
+          236,
+          184,
+          0,
+          255,
+          0,
+          0,
+          255,
+          255,
+          255,
+          0
+        ]
+      },
+      "device": {
+        "mac": "$MAC",
+        "model": "mini",
+        "model_source": "explicit",
+        "name": null
+      },
+      "status": "ok"
+    },
+    {
+      "stage": "Selected",
+      "command": "status",
+      "data": {
+        "brightness": 20,
+        "light_brightness": 80,
+        "mode": "light",
+        "mode_raw": 2,
+        "raw_data": [
+          2,
+          0,
+          5,
+          0,
+          0,
+          255,
+          80,
+          3,
+          20,
+          1,
+          75,
+          0,
+          0,
+          236,
+          184,
+          0,
+          255,
+          0,
+          0,
+          255,
+          255,
+          255,
+          0
+        ]
+      },
+      "device": {
+        "mac": "$MAC",
+        "model": "mini",
+        "model_source": "explicit",
+        "name": null
+      },
+      "status": "ok"
+    },
+    {
+      "stage": "Restored",
+      "command": "status",
+      "data": {
+        "brightness": 20,
+        "light_brightness": 80,
+        "mode": "clock",
+        "mode_raw": 0,
+        "raw_data": [
+          0,
+          0,
+          5,
+          0,
+          0,
+          255,
+          80,
+          3,
+          20,
+          1,
+          75,
+          0,
+          0,
+          236,
+          184,
+          0,
+          255,
+          0,
+          0,
+          255,
+          255,
+          255,
+          0
+        ]
+      },
+      "device": {
+        "mac": "$MAC",
+        "model": "mini",
+        "model_source": "explicit",
+        "name": null
+      },
+      "status": "ok"
+    }
+  ],
+  "all_settings_restored": true
+}
