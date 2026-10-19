@@ -83,6 +83,7 @@ separates settings readback and user observations. No experimental alarm remains
 enabled. No automatic detection, RTC readback or post-power-cycle persistence
 claim follows from these checks.
 
-Native countdown, clock synchronization, other display channels/styles, status,
+Clock synchronization was added afterward; see the separate
+[clock-sync report](mini-clock-sync.md). Native countdown, other display channels/styles, status,
 animation and text retain their Mini unsupported guards. The prototype’s image
 countdown is explicitly host-driven and is not promoted by this change.

@@ -31,7 +31,7 @@ public enum TimeboxMiniEncoder {
             return escapeFrame(try TimeboxPacketEncoder.encode(command, model: .evo))
         case .stopwatch(let action): return try frame(Data([0x45, 6, action.rawValue]))
         case .display(.clock(style: nil)): return try frame(Data([0x45, 0, 1]))
-        case .synchronizeClock: throw TimeboxModelError.unsupported("clock synchronization")
+        case .synchronizeClock(let snapshot): return try frame(snapshot.payload)
         case .startCountdown, .stopCountdown: throw TimeboxModelError.unsupported("timers")
         case .display, .displayProfile, .selectDesignTab: throw TimeboxModelError.unsupported("display channels")
         }

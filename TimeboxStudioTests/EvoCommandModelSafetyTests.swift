@@ -5,7 +5,6 @@ import TimeboxKit
 final class EvoCommandModelSafetyTests: XCTestCase {
     private let address = "AA:BB:CC:DD:EE:01"
     private let commands: [[String]] = [
-        ["time", "sync"],
         ["countdown", "start", "00:05"], ["countdown", "stop"],
         ["animation", "docs/validation/fixtures/animation-disposal.gif"], ["text", "Hello"],
         ["status"],

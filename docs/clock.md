@@ -6,8 +6,12 @@ The packet contains `18 year%100 year/100 month day hour minute second weekday`,
 
 The application accepts Gregorian years 1–9999 CE as an explicit representational policy, not a verified firmware date range. There is no timezone identifier on the wire, ongoing synchronization, future DST maintenance, or modification of the Mac's clock. Structured success says `sent`, not clock readback verified. The parent-owned 2026-10-19 `main-evo` test sent the 15-byte sync command and the user confirmed the visible clock matched Mac local time around 20:04 CEST. Date and weekday were hidden by that display style and remain unverified physically. Only an after-send host snapshot was retained; it is not an exact payload capture or a before/after bracket. See [clock observations](validation/evo-clock-sync.md).
 
-## Original Mini clock display
+## Original Mini clock display and synchronization
 
 `display clock` works on Mini and selects its24-hour clock without changing the
-device time. Evo `--style` options and `time sync` remain unsupported for Mini.
-See [Mini validation](validation/mini-clock-stopwatch-alarms.md).
+device time. `time sync` explicitly sets its local calendar using the same eight
+fields as Evo, with Mini OldMode escaping. The CLI captures the clock once even
+when model resolution requires different framing. Evo `--style` options remain
+unsupported for Mini. There is no supported Mini RTC getter; successful output
+reports transmission and requires a visual time check. See
+[Mini clock-sync sources and validation](validation/mini-clock-sync.md).

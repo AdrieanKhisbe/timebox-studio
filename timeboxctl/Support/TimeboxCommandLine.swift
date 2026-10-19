@@ -69,15 +69,17 @@ public final class TimeboxCommandLine {
                 guard options.positionals.count == 1 else { throw CommandFailure("invalid_arguments", "brightness requires one percentage.") }
                 _ = try CommandOptions.percent(options.positionals[0])
             }
+            let capturedClock = command == "time" && options.positionals == ["sync"]
+                ? try TimeboxClockSnapshot(date: environment.clock(), timeZone: environment.timeZone()) : nil
             let preparedPacket = ["time", "countdown", "stopwatch", "color", "brightness", "send-hex"].contains(command)
-                ? try packet(command, options: options) : nil
+                ? try packet(command, options: options, clockSnapshot: capturedClock) : nil
             let configuration = try environment.configuration(options.configPath)
             var resolved = try resolve(options, configuration: configuration)
             target = resolved
             if !["send-hex", "connect"].contains(command) {
                 resolved.modelResolution = try resolveModel(options, target: resolved, configuration: configuration)
             }
-            if ["status", "design", "effect", "animation", "text", "time", "countdown"].contains(command), resolved.modelResolution?.model == .mini {
+            if ["status", "design", "effect", "animation", "text", "countdown"].contains(command), resolved.modelResolution?.model == .mini {
                 throw TimeboxModelError.unsupported(command)
             }
             let packet: Data?
@@ -86,7 +88,7 @@ public final class TimeboxCommandLine {
             } else if let preparedPacket, resolved.modelResolution?.model != .mini {
                 packet = preparedPacket
             } else {
-                packet = try self.packet(command, options: options, model: resolved.modelResolution?.model ?? .evo)
+                packet = try self.packet(command, options: options, model: resolved.modelResolution?.model ?? .evo, clockSnapshot: capturedClock)
             }
             target = resolved
             try alarmOperation?.validate(model: resolved.modelResolution?.model ?? .evo)
@@ -234,7 +236,7 @@ public final class TimeboxCommandLine {
         throw lastError ?? CommandFailure("connection_failed", "Connection failed.")
     }
 
-    func packet(_ command: String, options: CommandOptions, model: TimeboxModel = .evo) throws -> Data {
+    func packet(_ command: String, options: CommandOptions, model: TimeboxModel = .evo, clockSnapshot: TimeboxClockSnapshot? = nil) throws -> Data {
         switch command {
         case "stopwatch":
             guard options.positionals.count == 1 else { throw CommandFailure("invalid_arguments", "Use stopwatch start, stop or reset.") }
@@ -253,7 +255,8 @@ public final class TimeboxCommandLine {
             catch { throw CommandFailure("invalid_arguments", error.localizedDescription) }
         case "time":
             guard options.positionals == ["sync"] else { throw CommandFailure("invalid_arguments", "Use time sync.") }
-            return try TimeboxPacketEncoder.encode(.synchronizeClock(TimeboxClockSnapshot(date: environment.clock(), timeZone: environment.timeZone())), model: model)
+            let snapshot = try clockSnapshot ?? TimeboxClockSnapshot(date: environment.clock(), timeZone: environment.timeZone())
+            return try TimeboxPacketEncoder.encode(.synchronizeClock(snapshot), model: model)
         case "display", "design", "effect":
             return try TimeboxPacketEncoder.encode(.display(DisplayOperation(command: command, options: options).selection), model: model)
         case "brightness":
@@ -298,7 +301,7 @@ public final class TimeboxCommandLine {
                 continue
             }
             do {
-                if ["status", "design", "effect", "animation", "text", "time", "countdown"].contains(command), target.modelResolution?.model == .mini {
+                if ["status", "design", "effect", "animation", "text", "countdown"].contains(command), target.modelResolution?.model == .mini {
                     throw TimeboxModelError.unsupported(command)
                 }
                 if command == "text" {

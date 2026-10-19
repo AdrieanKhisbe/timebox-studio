@@ -187,12 +187,13 @@ channel selection is distinct from stored-content enumeration. See [display evid
 
 ### Original Timebox Mini and model selection
 
-The CLI supports original Mini brightness, solid color, static11×11 images, clock display, native stopwatch, and three-slot alarms:
+The CLI supports original Mini brightness, solid color, static11×11 images, clock display and synchronization, native stopwatch, and three-slot alarms:
 
 ```sh
 timeboxctl image art.png --address AA:BB:CC:DD:EE:FF --model mini --channel 4
 timeboxctl repl --device mini --model mini --channel 4
 timeboxctl display clock --device mini --model mini
+timeboxctl time sync --device mini --model mini
 timeboxctl stopwatch start --device mini --model mini
 timeboxctl alarm list --device mini --model mini --json
 ```
@@ -206,8 +207,11 @@ model independently; startup overrides do not carry across targets.
 
 `TimeboxClient(model: .mini)` enables the library Mini profile. Existing
 `TimeboxClient()` callers retain Evo behavior; pass `model: nil` to request
-conservative automatic identification. Mini BLE/iOS, clock synchronization, native countdown, animation and stored
+conservative automatic identification. Mini BLE/iOS, native countdown, animation and stored
 content remain unverified and unsupported. Native clock, stopwatch and alarm
 evidence is recorded in the [production validation report](docs/validation/mini-clock-stopwatch-alarms.md). See the [integration and validation
 report](docs/validation/timebox-mini.md) for protocol sources, image conversion,
 detection limitations and pending hardware acceptance.
+Clock synchronization uses one local Gregorian snapshot and reports transmission;
+see [Mini clock-sync evidence](docs/validation/mini-clock-sync.md) for its manual
+acceptance and protocol sources.
