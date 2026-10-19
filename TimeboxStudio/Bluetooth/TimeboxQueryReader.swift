@@ -53,7 +53,7 @@ public enum TimeboxQueryReader {
         transport.onData = { data in
             guard result == nil else { return }
             do {
-                for frame in try decoder.append(data) where frame.command == query.responseCommand {
+                for frame in try decoder.append(data) where frame.command == query.responseCommand && query.matchesResponseData(frame.data) {
                     result = .success(try query.decode(frame.data))
                     break
                 }

@@ -30,6 +30,7 @@ final class RecordingCommandTransport: CommandTransport {
     }
     func connect(to device: TimeboxDevice, channel: UInt8?) throws {
         connections.append((device.address, channel))
+        self.channel = channel ?? 1
         if device.address == failingAddress { throw CommandFailure("connection_failed", "Device is offline") }
         isConnected = true
     }

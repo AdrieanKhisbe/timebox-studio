@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-19",
+  "source": "Parent approved helper outputs, exact JSON values transcribed; no exact timestamps captured",
+  "mac": "$MAC",
+  "evo_design_capability": {
+    "request_payload": [
+      189,
+      24
+    ],
+    "response_data": [
+      24,
+      1
+    ],
+    "capability_raw": 1,
+    "official_app_three_tab_condition": true
+  },
+  "limits": "No DeviceID manufacturer/product mapping established. Positive app condition alone does not prove visible tab selection, content retention, persistent storage, or model identity. No setters were sent by these helpers."
+}

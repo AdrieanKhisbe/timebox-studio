@@ -10,10 +10,7 @@ final class DisplayCommandTests: XCTestCase {
                        Data([1, 4, 0, 0x45, 5, 0x4E, 0, 2]))
         XCTAssertEqual(try TimeboxPacketEncoder.encode(.display(.clock(style: .fullScreen))),
                        Data([1, 13, 0, 0x45, 0, 1, 0, 1, 0, 0, 0, 255, 255, 255, 0x51, 3, 2]))
-        XCTAssertEqual(try TimeboxPacketEncoder.encode(.display(.effects(effect: .sparkles))),
-                       Data([1, 5, 0, 0x45, 3, 0, 0x4D, 0, 2]))
-        XCTAssertEqual(try TimeboxPacketEncoder.encode(.display(.effects(effect: .countdown))),
-                       Data([1, 5, 0, 0x45, 3, 10, 0x57, 0, 2]))
+
     }
 
     func testLightProfileEqualsEstablishedPlainColorEncodingAndValidatesBrightness() throws {
@@ -41,11 +38,12 @@ final class DisplayCommandTests: XCTestCase {
         let client = TimeboxClient(transport: transport)
         try await client.connect(to: .mock)
         try await client.display(.design())
-        try await client.display(.effects(effect: .countdown))
-        XCTAssertEqual(transport.packets, [Data([1, 4, 0, 0x45, 5, 0x4E, 0, 2]), Data([1, 5, 0, 0x45, 3, 10, 0x57, 0, 2])])
-        do { try await client.display(.clock()); XCTFail("Expected preservation gate") }
+        do { try await client.display(.effects(effect: .countdown)); XCTFail("Expected VJ gate") }
         catch { XCTAssertTrue(error is TimeboxDisplayError) }
-        XCTAssertEqual(transport.packets.count, 2)
+        XCTAssertEqual(transport.packets, [Data([1, 4, 0, 0x45, 5, 0x4E, 0, 2])])
+        do { try await client.display(.clock()); XCTFail("Expected preservation gate") }
+        catch { XCTAssertEqual(error as? TimeboxQueryError, .unsupported) }
+        XCTAssertEqual(transport.packets.count, 1)
         client.disconnect()
     }
 
@@ -53,8 +51,7 @@ final class DisplayCommandTests: XCTestCase {
         let arguments: [([String], TimeboxDisplay)] = [
             (["display", "clock", "--style", "5"], .clock(style: .analogRound)),
             (["display", "light", "--color", "123456", "--brightness", "25"], .light(color: .init(red: 0x12, green: 0x34, blue: 0x56), brightnessPercent: 25)),
-            (["display", "design"], .design()),
-            (["effect", "10"], .effects(effect: .countdown))
+            (["display", "design"], .design())
         ]
         for (args, selection) in arguments {
             let expected = try TimeboxPacketEncoder.encode(.display(selection))
@@ -74,7 +71,7 @@ final class DisplayCommandTests: XCTestCase {
             ["display", "light", "--color", "ZZZZZZ"], ["display", "light", "--brightness", "101"],
             ["effect", "16"], ["effect", "-1"], ["effect", "10", "--color", "FF0000"],
             ["design", "-1"], ["display", "clock", "--color", "FF0000"], ["color", "FF0000", "--style", "1"]]
-        let unsupported = [["display", "clock"], ["display", "light"], ["display", "effects"], ["design", "0"]]
+        let unsupported = [["effect", "0"], ["effect", "9"], ["effect", "15"], ["display", "effects"]]
         for (commands, expected) in [(invalid, Int32(2)), (unsupported, Int32(1))] {
             for args in commands {
                 let harness = CommandHarness()

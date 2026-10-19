@@ -85,7 +85,110 @@
       ],
       "user": "yes whiteclock",
       "interpretation": "clockchannel0 whiteprofile and restored100 visuallyconfirmed"
+    },
+    {
+      "operation": "displayclockstyle1",
+      "user": "yep it is stylish, rainbowclockconfirmed",
+      "outcome": "style1visuallyconfirmed"
+    },
+    {
+      "operation": "displaydesign channel45 05 noindex",
+      "transport": "8bytes",
+      "user": "differentanimatedscenes",
+      "outcome": "existingcontentvisible;notstorageproof"
+    },
+    {
+      "operation": "BD1700 tab0 viarawdiagnostic afterBD18flag1",
+      "transport": "9bytes",
+      "user": "animatedcontentrotatingscenes"
+    },
+    {
+      "operation": "BD1701 tab1 viarawdiagnostic",
+      "transport": "9bytes",
+      "user": "visiblydifferentcontentfromtab0",
+      "outcome": "tabs0and1visiblydistinct"
+    },
+    {
+      "operation": "BD1702 tab2 viarawdiagnostic",
+      "transport": "9bytes",
+      "user": "samecontentas1",
+      "outcome": "ambiguous: duplicatecontentorignoredselection;notindependenttab2validation"
+    },
+    {
+      "operation": "clockstyle1hold5seconds then displaydesign45 05noindex",
+      "user": "yes backtothesamecontent",
+      "outcome": "channelreturnvisiblecontentretentionconfirmed, exactselectedtabnumbernotreadback"
+    },
+    {
+      "operation": "displayclockstyle2",
+      "user": "boxedclock",
+      "outcome": "style2visuallyconfirmed"
+    },
+    {
+      "operation": "displayclockstyle3",
+      "user": "yes after squareanalog announcement/send",
+      "outcome": "style3visuallyconfirmed"
+    },
+    {
+      "operation": "displayclockstyle4",
+      "user": "yes after inverseclock announcement/send",
+      "outcome": "style4visuallyconfirmed"
+    },
+    {
+      "operation": "displayclockstyle5",
+      "user": "yes after roundanalog announcement/send",
+      "outcome": "style5visuallyconfirmed"
+    },
+    {
+      "operation": "Legacy effect 0, attempted from clock and then explicit blue light",
+      "user": "No effect activation confirmed; prompted retry from another channel",
+      "outcome": "Unvalidated; configured-channel query remained at preceding channel"
+    },
+    {
+      "operation": "Legacy effect 9 (fire), attempted from explicit solid blue light at brightness 100",
+      "user": "Still solid blue",
+      "outcome": "Effect 9 did not visibly activate; query remained configured light channel 1",
+      "raw_status_after": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        255,
+        100,
+        0,
+        1,
+        0,
+        100,
+        1,
+        255,
+        255,
+        255,
+        5,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "operation": "Integrated capability writer: display clock (bare)",
+      "transport": "17 bytes, 1 packet, preserved_profile true",
+      "user": "Yes, round analogue clock",
+      "outcome": "Existing clock style 5 restored from fresh profile"
+    },
+    {
+      "operation": "Integrated capability writer: display light (bare)",
+      "transport": "17 bytes, 1 packet, preserved_profile true",
+      "user": "Yes, solid blue at full brightness",
+      "outcome": "Existing blue light profile restored"
+    },
+    {
+      "operation": "Integrated capability writer: design 0",
+      "transport": "Fresh capability read then 17 bytes across 2 control packets",
+      "user": "Yes, animated content",
+      "outcome": "Existing tab 0 animated content visible through production command"
     }
   ],
-  "limits": "No per-fieldbrightnessisolation;bothfieldsco-vary. Only clockstyle0 checked;otherstyles/effects/customretention/designIDs pending. Beforewhiteprofile originalclockcolor/style replaced intentionally per announced completeprofile test."
+  "limits": "Clock styles 0 through 5 visually confirmed. Bare design return and distinct tabs 0/1 confirmed; tab 2 not independently distinguished. Legacy mode-3 effect 9 did not activate from blue light; effect 0 has no positive validation. No general effects-support claim. No storage writes, persistence, power-cycle or exact selected-tab readback tested. Both brightness fields co-vary."
 }
