@@ -53,7 +53,7 @@ read-only request bytes, mock rejection and REPL target/resume behavior. The
 shared query suite additionally covers cancellation, duplicates, unrelated
 responses, stale callbacks and competing writes. These tests need no Bluetooth.
 
-## Hardware acceptance still pending
+## Hardware observations and remaining acceptance
 
 A coordinated read-only attempt on 2026-10-19 targeted `main-evo` (`$MAC`):
 
@@ -69,11 +69,75 @@ and no mode, brightness, alarm or clock settings changed. No retries or alternat
 channel probes were performed. The existing macOS speaker/SPP ownership issue
 may explain this failure, but was not established by this attempt.
 
-Manufacturer and reference field maps establish the candidate decoder; issue
-acceptance still needs a captured response from this Evo and an independently
-observed physical/app mode/brightness change followed by a fresh read. Do not
-mark the issue complete based on derived fixtures. Automated validation passes
-all 75 tests; the release CLI build is recorded with the implementation commit.
+After the user confirmed the Evo had reconnected, exactly one authorized
+read-only retry succeeded on RFCOMM channel 1. Recorded at
+**2026-10-19T15:38:28Z**, the query returned these 20 settings data bytes:
+
+```text
+00 00 00 34 12 40 64 00 01 00 64 01 FF 00 00 02 01 00 00 00
+```
+
+The [live settings fixture](fixtures/evo-status-live.json) preserves these actual
+data and the redacted structured result. The generic reader verified the incoming
+frame's success prefix, length, checksum and end marker. The fixture's complete
+frame is canonically reconstructed from that validated captured payload; original
+notification boundaries were not logged. This is distinguished from the separate
+source-derived fixture.
+
+The observed payload length exactly matches the manufacturer's documented
+20-byte minimum. Source-defined mode byte 0 decodes as clock; both the lighting
+brightness byte at index 6 and system byte at index 10 are `64` (100 decimal).
+These values came from the device, not outgoing control history. Because both
+brightness bytes have the same value, this capture alone cannot independently
+distinguish their meaning. The source-derived fixture tests distinct offsets.
+No setting, alarm, display content or clock writes were sent in this retry.
+
+### Brightness differential and restoration
+
+The user then reported selecting clock mode at 30% in the official app and
+closing its connection. A fresh query returned **the identical 100/100 baseline**.
+No visible dimming was established for that app operation. Its delivery, selected
+device/control and cause remain unknown. This mismatch must not be relabeled as
+a successful independent-app test or silently discarded.
+
+The user explicitly authorized Timebox Studio to set the brightness. The parent
+agent sent `brightness 30`, then performed a fresh `status`. Both index 6 and
+index 10 changed from 100 to 30; every other settings byte stayed identical.
+The user independently confirmed that the real display was dim. The parent
+then restored `brightness 100`; a final fresh status matched the complete
+20-byte baseline, including both brightness bytes at 100. No clock or alarm
+writes were involved.
+
+The [differential fixture](fixtures/evo-status-differential.json) contains exact
+redacted data-array transcriptions from the parent's tool outputs, with the date
+and provenance stated. Original output streams, exact timestamps and notification
+chunks were not saved; the fixture does not claim a captured raw envelope.
+A regression replays those captured payloads inside explicitly synthetic frames
+through fresh readers and verifies the 100 → 30 → 100 sequence and restoration.
+
+This demonstrates that the queried brightness values respond to actual device
+changes and is consistent with the user-observed dimming. It is not evidence
+that the response is merely a last-requested cache: the read engine creates a new
+connection and obtains new device bytes each time. However, **both brightness
+fields co-vary under this setting**, so this experiment cannot independently
+isolate their meanings. Their names still come from the manufacturer field map.
+Mode remained 0 throughout; no independent mode change was validated.
+
+As a bounded cross-check, the same hash-verified official app 3.8.40 examined in
+[the earlier app investigation](evo-finite-weekday-follow-up.md) routes
+`LightSettingServer.j(value)` through `CmdManager.z2(value)` to
+`SPP_SET_SYSTEM_BRIGHT` (`0x74`). Its `LightSettingServer.a()` instead calls
+`CmdManager.M()` / `SPP_LIGHT_CURRENT_LEVEL` (`0x31`) for a separate brightness
+read. This source does not explain why the user's app operation above left the
+settings response unchanged, and supplies no evidence that `0x46` reports cached
+defaults. No `0x31` probe was sent during this validation.
+
+Remaining acceptance: an independent physical/app mode change and fresh query;
+independent isolation of the two brightness fields if distinct meanings are
+claimed beyond their sourced names. Preserve the unsuccessful app observation
+and avoid marking those checks complete. Automated validation passes all 77 tests,
+including live payload and differential replays; the release binary used for the
+hardware reads already passed its build.
 
 Coordinated validation must query `main-evo` without setters, record raw data and
 mode/brightness, then have the user change the relevant setting with physical

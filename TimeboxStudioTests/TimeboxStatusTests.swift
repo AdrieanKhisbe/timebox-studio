@@ -12,6 +12,46 @@ final class TimeboxStatusTests: XCTestCase {
         return try HexStringParser.data(from: XCTUnwrap(fixture["response"] as? String))
     }
 
+    func testCapturedEvoSettingsReturnDocumentedTwentyBytePayload() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let object = try JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("docs/validation/fixtures/evo-status-live.json")))
+        let fixture = try XCTUnwrap(object as? [String: Any])
+        let frame = try HexStringParser.data(from: XCTUnwrap(fixture["response"] as? String))
+        let connection = QueryConnection()
+        connection.chunks = [Data(frame.prefix(4)), Data(frame.dropFirst(4).prefix(11)), Data(frame.dropFirst(15))]
+        let status = try TimeboxStatusReader.read(from: connection)
+        XCTAssertEqual(status.rawData, Data([0, 0, 0, 52, 18, 64, 100, 0, 1, 0, 100, 1, 255, 0, 0, 2, 1, 0, 0, 0]))
+        XCTAssertEqual(status.rawData.count, 20)
+        XCTAssertEqual(status.modeRaw, 0)
+        XCTAssertEqual(status.brightness, 100)
+        XCTAssertEqual(status.lightBrightness, 100)
+        XCTAssertFalse(connection.isConnected)
+    }
+
+    func testCapturedBrightnessDifferentialAndRestorationDoNotReusePreviousState() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let object = try JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("docs/validation/fixtures/evo-status-differential.json")))
+        let fixture = try XCTUnwrap(object as? [String: Any])
+        let sequence = try XCTUnwrap(fixture["sequence"] as? [[String: Any]])
+        var results: [TimeboxStatus] = []
+        for step in sequence {
+            let bytes = try XCTUnwrap(step["status_raw_data"] as? [UInt8])
+            // Payloads are actual transcribed data; framing here is synthetic,
+            // not an assertion that original notification chunks were saved.
+            let response = try TimeboxPacketEncoder.encodePayload(Data([4, 0x46, 0x55] + bytes))
+            let connection = QueryConnection(); connection.chunks = [response]
+            results.append(try TimeboxStatusReader.read(from: connection))
+        }
+        XCTAssertEqual(results.map(\.brightness), [100, 30, 100])
+        XCTAssertEqual(results.map(\.lightBrightness), [100, 30, 100])
+        XCTAssertEqual(results.map(\.modeRaw), [0, 0, 0])
+        XCTAssertEqual(results[0].rawData, results[2].rawData)
+        let changed = zip(results[0].rawData, results[1].rawData).enumerated().compactMap { index, pair in
+            pair.0 == pair.1 ? nil : index
+        }
+        XCTAssertEqual(changed, [6, 10])
+    }
+
     func testSourceDerivedSettingsDistinguishSystemAndLightBrightness() throws {
         let frame = try Self.sourcedFrame()
         let connection = QueryConnection()

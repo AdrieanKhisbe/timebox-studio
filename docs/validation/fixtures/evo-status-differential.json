@@ -1,0 +1,88 @@
+{
+  "source": "Parent thread tool outputs, transcribed immediately after hardware sequence; original CLI output was not redirected to a file.",
+  "date": "2026-10-19",
+  "device": "main-evo",
+  "mac": "$MAC",
+  "channel": 1,
+  "sequence": [
+    {
+      "step": "user-reported app brightness30, clock, app disconnected",
+      "status_raw_data": [
+        0,
+        0,
+        0,
+        52,
+        18,
+        64,
+        100,
+        0,
+        1,
+        0,
+        100,
+        1,
+        255,
+        0,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0
+      ],
+      "outcome": "Unchanged; app delivery/target/control cause unknown"
+    },
+    {
+      "step": "CLI brightness30 then fresh status",
+      "status_raw_data": [
+        0,
+        0,
+        0,
+        52,
+        18,
+        64,
+        30,
+        0,
+        1,
+        0,
+        30,
+        1,
+        255,
+        0,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0
+      ],
+      "observation": "User confirmed: it is dim"
+    },
+    {
+      "step": "CLI restore100 then fresh status",
+      "status_raw_data": [
+        0,
+        0,
+        0,
+        52,
+        18,
+        64,
+        100,
+        0,
+        1,
+        0,
+        100,
+        1,
+        255,
+        0,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0
+      ],
+      "outcome": "Readback equals baseline"
+    }
+  ],
+  "limits": "20-byte data arrays only; original notification chunk boundaries not saved. Both brightness fields co-vary; no independent mode-change validation."
+}

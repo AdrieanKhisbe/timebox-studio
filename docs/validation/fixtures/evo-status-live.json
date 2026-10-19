@@ -1,0 +1,46 @@
+{
+  "kind": "captured device settings data; canonical validated response reconstructed",
+  "recorded_at": "2026-10-19T15:38:28Z",
+  "device": "main-evo",
+  "mac": "$MAC",
+  "transport": "Classic RFCOMM channel 1",
+  "request": "01 03 00 46 49 00 02",
+  "response": "01 19 00 04 46 55 00 00 00 34 12 40 64 00 01 00 64 01 ff 00 00 02 01 00 00 00 0a 03 02",
+  "response_note": "Full raw_data captured from successful status query. The generic reader validated the incoming 04 46 55 envelope, length, end byte and checksum. Canonical frame is reconstructed from those captured data bytes; original notification chunk boundaries were not saved.",
+  "result": {
+    "command": "status",
+    "data": {
+      "brightness": 100,
+      "light_brightness": 100,
+      "mode": "clock",
+      "mode_raw": 0,
+      "raw_data": [
+        0,
+        0,
+        0,
+        52,
+        18,
+        64,
+        100,
+        0,
+        1,
+        0,
+        100,
+        1,
+        255,
+        0,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    "device": {
+      "mac": "$MAC",
+      "name": "main-evo"
+    },
+    "status": "ok"
+  }
+}

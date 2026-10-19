@@ -82,7 +82,8 @@ real adapter contract through simulated transport; they do not claim hardware.
 BLE/RCSP writes remain supported and unchanged. The observed RCSP write ACK is
 not evidence for an application settings/alarm reply decoder: no RCSP query
 support is claimed. Mini OldMode framing is likewise outside this Evo decoder.
-The settings model exposes only the sourced mode/brightness subset;
+The settings model exposes only the sourced mode/brightness subset, with a
+captured Evo response;
 [AdrieanKhisbe/timebox-studio#13](https://github.com/AdrieanKhisbe/timebox-studio/issues/13)
 tracks its independent Evo hardware validation. Multiplexing, automatic retries and receive-history emulation
 are not provided.
