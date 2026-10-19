@@ -29,6 +29,7 @@ final class RecordingCommandTransport: CommandTransport {
     }
     func connect(to device: TimeboxDevice, channel: UInt8?) throws {
         connections.append((device.address, channel))
+        self.channel = channel ?? 1
         if device.address == failingAddress { throw CommandFailure("connection_failed", "Device is offline") }
         isConnected = true
     }
@@ -40,7 +41,7 @@ final class RecordingCommandTransport: CommandTransport {
         guard isConnected else { throw CommandFailure("write_failed", "Not connected") }
         if failWrites { throw CommandFailure("write_failed", "Write rejected") }
         packets.append(packet)
-        if [Data([1, 3, 0, 0x42, 0x45, 0, 2]), Data([1, 3, 0, 0x46, 0x49, 0, 2])].contains(packet) { queryActive = true }
+        if [Data([1, 3, 0, 0x42, 0x45, 0, 2]), Data([1, 3, 0, 0x46, 0x49, 0, 2]), Data([1, 4, 0, 0xBD, 0x18, 0xD9, 0, 2])].contains(packet) { queryActive = true }
         writeTargets.append(connections.last!.0)
     }
     func wait(milliseconds: Int) {

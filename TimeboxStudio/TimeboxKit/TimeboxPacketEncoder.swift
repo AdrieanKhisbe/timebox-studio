@@ -17,6 +17,10 @@ public enum TimeboxPacketEncoderError: LocalizedError, Equatable {
 public enum TimeboxPacketEncoder {
     public static func encode(_ command: TimeboxCommand) throws -> Data {
         switch command {
+        case .displayProfile(let profile): return try encodePayload(profile.payload)
+        case .selectDesignTab(let index):
+            guard (0...2).contains(index) else { throw TimeboxDisplayError.invalidDesignIndex(index) }
+            return try encodePayload(Data([0xBD, 0x17, UInt8(index)]))
         case .display(let display):
             return try encodePayload(display.payload())
         case .raw(let data):

@@ -13,9 +13,9 @@ interfaces and physical acceptance are settled.
 | `display light --color RGB [--brightness N]` | Complete plain-light profile: supplied color, brightness 100 if omitted, power on. |
 | `display light --brightness N` | Complete plain-light profile with white RGB, not preservation of the existing color. |
 | `display design` | Select the custom channel with `45 05`; does not choose a tab or enumerate stored content. |
-| `effect 0..15` | Select the VJ channel with an identifier from the Evo-specific named effect catalogue. |
-| Bare `display clock`, `display light`, `display effects` | Unsupported before connection/write while omitted-field retention is unverified. |
-| `design ID` | Unsupported before connection/write: no verified Evo tab range or numbering is established. |
+| Bare `display clock`, `display light` | Fresh settings read followed by complete re-encoding of the target channel’s stored profile. Unknown layouts/flags fail before control writes. |
+| `design ID` | IDs0–2, gated by a fresh exact `BD18 → 18 01` capability response, then custom channel plus `BD17 ID`. |
+| `effect ID`, bare `display effects` | Historical VJ interface under investigation: effect9 stayed solid blue on this Evo; effect0 attempts had no positive confirmation; no supported substitute or offset is established. |
 
 Normal target/config selectors and JSON/YAML output apply. REPL accepts the same
 syntax using its selected target. Existing `color` and `brightness` are unchanged.
@@ -31,11 +31,11 @@ options. It must not be described as a style-only patch preserving unread state.
 Light defaults reproduce the established plain-color packet shape and explicit
 reference defaults; they are not inferred from a live settings query.
 
-The reference catalogues define six clock styles and sixteen named effects.
-Their bounds are evidence from that Evo-specific implementation, not universal
-firmware limits or a claim that this user's Evo has visually validated every ID.
-Arbitrary additional byte values are rejected. Effect10 is a built-in VJ effect;
-it does not start the device's countdown timer.
+The reference catalogues define six clock styles and sixteen named legacy VJ
+effects. All six clock styles were visually confirmed on this Evo. The legacy
+effect fixtures are source evidence only: effect9 stayed solid blue; effect0 attempts did not yield positive confirmation.
+Mode3 VJ must not be silently remapped to mode4 audio equalizer, and historical
+effect10 must not be described as the countdown timer.
 
 ## Sources and independent fixtures
 
@@ -71,9 +71,10 @@ VJ effect 0:    01 05 00 45 03 00 4D 00 02
 VJ effect10:   01 05 00 45 03 0A 57 00 02
 ```
 
-Tests exercise those fixtures, meaningful invalid IDs and percentages,
-unsupported preservation/index requests before device I/O, the actual library
-transport boundary, and ordinary CLI/REPL equivalence. Tests run without hardware.
+Tests exercise clock/custom golden fixtures, invalid IDs and percentages, fresh
+capability gates and profile mapping, fragmented/coalesced selector noise, malformed
+matching replies, cancellation, partial writes, connection lifecycle and CLI/REPL
+equivalence. Legacy VJ requests are tested for rejection before I/O. Tests run without hardware.
 The release build and full suite are recorded with the implementation commit.
 
 ## Integrated light/clock observations (2026-10-19)
@@ -96,8 +97,7 @@ of the currently rendered overlay/pixels. Both brightness fields co-varied;
 this sequence does not establish independent brightness-field semantics.
 The [redacted observation record](fixtures/evo-display-integrated-observations.json)
 retains the raw data arrays and user confirmations. Exact notification chunks and
-timestamps were not captured. Styles 1–5, VJ effects, custom retention and design
-indices remain unverified by this session.
+timestamps were not captured. The additional parent-coordinated observations below extend this initial sequence.
 
 ## Actual app selector and tab evidence
 
@@ -115,8 +115,8 @@ TiVi architecture. `LightCommonMainFragment.H2` switches channels through
 
 This source supports explicit full-profile re-encoding, but it does not prove
 that short clock/light/effect selectors preserve settings. Fresh read/complete
-write is a possible future preservation contract only after field/firmware
-behavior is verified; no guessed defaults implement preservation here.
+write implements the explicit preservation contract below; it does not assume
+that a bare short selector retains omitted fields.
 
 `LightCustomFragment` has exactly three page buttons, calling its selection
 handler with indices 0,1,2; that handler calls `CmdManager.q1(index)` which emits
@@ -130,29 +130,79 @@ The source-established read-only capability request candidate is
 `01 04 00 BD 18 D9 00 02`. Capture commandBD's response and validate that its
 payload begins 18 before interpreting the flag. A timeout, unsupported reply or
 unknown value is unknown capability, not a reason to try arbitrary indices.
-Only after positive capability evidence should parent-coordinated non-writing
-selection tests consider indices 0–2, preserving existing custom artwork. This
-investigating agent sent no capability query or tab-selection packet.
+Parent-coordinated selection tests then exercised indices0–2 without replacing
+existing artwork; results appear below. This investigating agent sent no
+capability query or tab-selection packet.
 
-## Manual acceptance / remaining work
+## Fresh-read preservation and capability contract
 
-Only after coordinating access to main-evo:
+Bare clock/light selection reads a fresh exclusive `0x46` snapshot. Exactly the
+verified20-byte layout is accepted; extra fields are retained by status reporting
+but rejected for re-encoding rather than dropped. Clock setters copy format11,
+style15, checkboxes16–19 and RGB12–14 into the source-established setter order.
+Light setters copy RGB3–5, level6, effect7 and power8, followed by the established
+three reserved zero bytes. Unknown stored style/light-effect bytes are copied;
+invalid boolean fields are rejected. An unknown currently configured channel does
+not invalidate a separately readable target profile. No device clock is set.
 
-1. Record existing visible state and live settings/app profile. Do not change
-   device time, alarms or stored custom artwork.
-2. Apply an explicit clock profile for each proposed style; record what actually
-   appears and which firmware accepted it. Compare returned settings if available.
-3. Apply explicit plain-light RGB/brightness profiles; observe visible effects and
-   record that full profiles replace the documented omitted options.
-4. Select custom channel and verify existing content and tab retention, without
-   uploading/replacing a custom item. Verify each proposed numbered VJ effect.
-5. Resolve short clock/light/effect behavior using source-backed app captures and
-   current settings before/after; only then remove the corresponding unsupported
-   gate or revise the contract with the user. Do not guess complete packets to
-   simulate preservation. Establish actual design-tab IDs separately before
-   enabling `design ID`.
-6. Repeat through CLI and persistent REPL, switching channels in both directions;
-   distinguish visible confirmation from completed RFCOMM writes.
+The read connection closes before a separate control connection writes a fully
+encoded packet. Indexed design selection similarly reads fresh capability and
+sends no channel/tab packet unless the exact flag is1. Timeout, malformed replies,
+unknown flags and other BD subcommands cannot enable selection. Other selectors
+are ignored while waiting; malformed matching replies fail. The app supplies the
+bounded0–2 range, not a claim of universal firmware support or unique content.
+
+CLI/REPL use the same writer as the library. The persistent REPL temporarily
+releases its connection for the read/write sequence and resumes the same target
+and channel only after success. A failure leaves it disconnected. Connected Swift
+clients follow the same lifecycle; injected/custom transports need an explicit
+query/display adapter, and unavailable platform adapters fail explicitly. These
+fresh Classic query semantics are not claimed for BLE or Mini. Explicit clock/
+light profiles continue using the existing transport without a live read.
+Cancellation and read failures send no control packets. A failure after the first
+of two design writes reports partial completion; no rollback is invented.
+
+## Additional physical observations and remaining acceptance
+
+The parent confirmed clock styles0–5: white, rainbow, boxed, square analog,
+inverse and round analog. Returning from a rainbow clock after five seconds to
+`45 05` restored the same visible custom content. This verifies visible retention,
+not an independently read current tab index or persistence after restart.
+
+The source-backed capability request returned `18 01`. Parent diagnostic tab0
+showed rotating scenes; tab1 showed visibly different content. Tab2 looked the
+same as tab1, so duplicate content and ignored selection remain indistinguishable.
+No upload, save, delete, enumeration, restart or artwork replacement occurred.
+
+`45 03 00` was sent twice from clock and again from blue light;
+`45 03 09` also left the display solid blue. Effect0 attempts had no positive visible confirmation and status remained the
+previous configured channel; effect9 was explicitly confirmed still solid blue. APK3.8.40
+`LightVJFragment` maps its sixteen buttons directly to indices0–15, then
+`LightViewModel.y → CmdManager.G2`; the setter is exactly `45 03 index`.
+There is no evidence for +1 numbering or missing padding. More significantly,
+`LightCommonMainFragment.standardLoad` does not add that VJ fragment/tab.
+`LightConfigFragment.B2` omits VJ from visible choices while retaining slot3 in
+its separate protocol-index map. This supports treating the retained VJ path as
+legacy, not claiming that all IDs work on this firmware. It does not prove every
+ID fails. No speculative replacement packet is implemented. Both explicit and bare typed
+effects operations return unsupported before any query, connection or control
+write; the raw diagnostic escape hatch remains available for deliberate research.
+
+The production CLI fresh-read writer restored the existing round analog clock
+(style5, 17 bytes, preserved_profile true), then the existing solid blue/full
+brightness light (17 bytes). Both were visually confirmed. Production `design 0`
+read capability and sent two control packets totaling17 bytes; animated content
+was confirmed. A typed `effect 9` request returned unsupported locally without
+control output.
+
+Remaining physical acceptance: exercise these live operations in a persistent
+REPL to confirm reconnection on this device and compare complete stored profile
+readbacks. The controlled transport tests cover those lifecycle paths.
+Tab2’s distinct behavior and VJ support remain unresolved. Transport completion
+is not visible validation. The parent retains the exclusive hardware lease;
+this investigating agent performed no device access.
 
 No persistence/enumeration support is inferred. That separate investigation is
 [AdrieanKhisbe/timebox-studio#19](https://github.com/AdrieanKhisbe/timebox-studio/issues/19).
+
+Automated validation for this follow-up: 94 tests passed; release build passed.

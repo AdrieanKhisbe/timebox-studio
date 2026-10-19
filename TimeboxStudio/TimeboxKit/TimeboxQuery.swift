@@ -8,20 +8,26 @@ public struct TimeboxQuery<Response> {
     public let request: Data
     public let responseCommand: UInt8
     public let decode: (Data) throws -> Response
+    /// Select an external subcommand before decoding. Other well-framed replies
+    /// are ignored; this does not replace fresh-link ownership or strict framing.
+    public let matchesResponseData: (Data) -> Bool
 
     init(request: Data, responseCommand: UInt8, decode: @escaping (Data) throws -> Response) {
         self.request = request
         self.responseCommand = responseCommand
         self.decode = decode
+        self.matchesResponseData = { _ in true }
     }
 
     /// `payload` includes the documented request opcode, without a frame envelope.
     public init(payload: Data, responseCommand: UInt8,
+                matchingResponse: @escaping (Data) -> Bool = { _ in true },
                 decode: @escaping (Data) throws -> Response) throws {
         guard !payload.isEmpty else { throw TimeboxResponseError.malformed("empty query payload") }
         self.request = try TimeboxPacketEncoder.encodePayload(payload)
         self.responseCommand = responseCommand
         self.decode = decode
+        self.matchesResponseData = matchingResponse
     }
 }
 

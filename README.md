@@ -169,15 +169,17 @@ path; protocol encoding kept separate from transport; a raw-hex escape hatch is 
 timeboxctl display clock --style 0 --device desk
 timeboxctl display light --color FF0000 --brightness 50 --device desk
 timeboxctl display design --device desk
-timeboxctl effect 10 --device desk
+timeboxctl display clock --device desk  # restore stored clock profile
+timeboxctl design 1 --device desk       # requires fresh three-tab capability
 ```
 
 Equivalent REPL commands and `TimeboxClient.display(_:)` use the same typed
 encoder. Explicit clock styles apply a complete white/time-only profile; explicit
 light options apply a complete plain-light profile (missing color white, missing
 brightness 100, power on). They do not preserve unspecified stored settings.
-Supported reference catalogues are clock styles 0–5 and VJ effects 0–15; physical
-acceptance is pending. Bare clock/light/effects selection and numbered design-tab
-selection return unsupported before any packet until their preservation/index
-semantics are established. Custom/design channel selection is distinct from
-stored-content enumeration. See [display evidence and acceptance](docs/validation/evo-display-channels.md).
+Clock styles0–5 were visually confirmed. Bare clock/light selection reads fresh
+settings and re-encodes the stored target profile; unknown layouts fail before
+control writes. Design tabs0–2 require a fresh positive device capability reply.
+Tab2 distinct content and legacy VJ effects remain unverified. REPL/client live
+operations reconnect on success and remain disconnected on failure. Custom/design
+channel selection is distinct from stored-content enumeration. See [display evidence and acceptance](docs/validation/evo-display-channels.md).

@@ -2,7 +2,7 @@ import Foundation
 import TimeboxBluetooth
 
 /// Synchronous CLI boundary; the production adapter services IOBluetooth's main run loop.
-public protocol CommandTransport: TimeboxQueryTransport {
+public protocol CommandTransport: TimeboxDisplayTransport {
     var isConnected: Bool { get }
     var channel: UInt8? { get }
     func connect(to device: TimeboxDevice, channel: UInt8?) throws
@@ -12,6 +12,9 @@ public protocol CommandTransport: TimeboxQueryTransport {
 }
 
 public extension CommandTransport {
+    func connectForDisplay(to device: TimeboxDevice, channel: UInt8?) throws { try connect(to: device, channel: channel) }
+    func writeDisplay(_ data: Data) throws { try write(data) }
+    func settleDisplay(milliseconds: Int) { wait(milliseconds: milliseconds) }
     func waitForQuery(milliseconds: Int) { wait(milliseconds: milliseconds) }
 }
 
