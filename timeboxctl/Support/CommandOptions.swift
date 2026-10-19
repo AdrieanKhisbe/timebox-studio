@@ -7,6 +7,9 @@ struct CommandOptions {
     var address: String?
     var channel: UInt8?
     var brightness = 100
+    var hasBrightnessOption = false
+    var displayStyle: Int?
+    var displayColor: String?
     var holdMilliseconds = 500
     var mock = false
     var all = false
@@ -37,7 +40,12 @@ struct CommandOptions {
                 let text = try value()
                 guard let number = UInt8(text), number > 0 else { throw CommandFailure("invalid_arguments", "Channel must be 1...255.") }
                 channel = number
-            case "--brightness": brightness = try Self.percent(value())
+            case "--brightness": brightness = try Self.percent(value()); hasBrightnessOption = true
+            case "--color": displayColor = try value()
+            case "--style":
+                let text = try value()
+                guard let id = Int(text) else { throw CommandFailure("invalid_arguments", "--style requires an integer ID.") }
+                displayStyle = id
             case "--hold-ms":
                 let text = try value()
                 guard let number = Int(text), number >= 0 else { throw CommandFailure("invalid_arguments", "--hold-ms requires a non-negative integer.") }

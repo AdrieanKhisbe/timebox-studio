@@ -17,6 +17,8 @@ public enum TimeboxPacketEncoderError: LocalizedError, Equatable {
 public enum TimeboxPacketEncoder {
     public static func encode(_ command: TimeboxCommand) throws -> Data {
         switch command {
+        case .display(let display):
+            return try encodePayload(display.payload())
         case .raw(let data):
             return data
         case .setBrightness(let percent):

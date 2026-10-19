@@ -971,6 +971,10 @@ enum TimeboxCLI {
               timeboxctl scan-ble [--seconds 12]
               timeboxctl inspect-ble --uuid "BE32D255-6999-AE59-4577-4F5BDA0458D3" [--service AF30]
               timeboxctl send-ble-hex --uuid "BE32D255-6999-AE59-4577-4F5BDA0458D3" [--characteristic UUID] [--with-response | --without-response] "AA BB CC"
+              timeboxctl display clock --style 0..5 [device options]                (complete white/time-only Evo profile)
+              timeboxctl display light --color RRGGBB [--brightness 0..100]         (complete plain-light Evo profile)
+              timeboxctl display design [device options]                          (custom channel; no tab selection)
+              timeboxctl effect 0..15 [device options]                            (Evo reference effects)
               timeboxctl brightness 50 --address AA-BB-CC-DD-EE-FF [--channel 1]        (Classic SPP, verified Timebox Evo path)
               timeboxctl color FF0000 --address AA-BB-CC-DD-EE-FF [--channel 1] [--brightness 100]   (Classic SPP)
               timeboxctl image test.png --address AA-BB-CC-DD-EE-FF [--channel 1]    (PNG/JPG -> 16x16 picture on the display)

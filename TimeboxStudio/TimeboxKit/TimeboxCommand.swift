@@ -2,6 +2,7 @@ import Foundation
 
 public enum TimeboxCommand: Equatable, Sendable {
     case raw(Data)
+    case display(TimeboxDisplay)
     case setBrightness(Int)
     /// PROTOCOL.md "Lightning channel" plain single color: fills the whole
     /// display with one color. A much more visible effect than brightness,
