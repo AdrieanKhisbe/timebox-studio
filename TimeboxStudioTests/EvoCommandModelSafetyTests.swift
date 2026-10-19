@@ -35,7 +35,7 @@ final class EvoCommandModelSafetyTests: XCTestCase {
         XCTAssertEqual(harness.transport.connections.count, 1)
         XCTAssertTrue(harness.transport.packets.isEmpty)
         XCTAssertEqual(harness.stderr.count, commands.count, harness.stderr.joined(separator: "\n"))
-        XCTAssertTrue(harness.stderr.allSatisfy { $0.contains("Mini does not yet support") },
+        XCTAssertTrue(harness.stderr.allSatisfy { $0.contains("Mini does not yet support") || $0.contains("Mini scrolling text requires explicit --stream") },
                       harness.stderr.joined(separator: "\n"))
     }
 }

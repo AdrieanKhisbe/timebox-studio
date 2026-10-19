@@ -197,6 +197,7 @@ timeboxctl time sync --device mini --model mini
 timeboxctl stopwatch start --device mini --model mini
 timeboxctl alarm list --device mini --model mini --json
 timeboxctl animation art.gif --device mini --model mini [--adapt]
+timeboxctl text "Hello Mini" --stream --device mini --model mini
 ```
 
 Use `--model evo` for Evo, or save `model: evo` / `model: mini` in that device's
@@ -208,7 +209,7 @@ model independently; startup overrides do not carry across targets.
 
 `TimeboxClient(model: .mini)` enables the library Mini profile. Existing
 `TimeboxClient()` callers retain Evo behavior; pass `model: nil` to request
-conservative automatic identification. Mini BLE/iOS, native countdown, scrolling text and stored
+conservative automatic identification. Mini BLE/iOS, native countdown and stored
 content remain unverified and unsupported. Mini GIF uploads use a conservative
 12-frame/common-delay policy; see [format and physical validation](docs/validation/mini-animation.md).
 Native clock, stopwatch and alarm
@@ -218,3 +219,5 @@ detection limitations and pending hardware acceptance.
 Clock synchronization uses one local Gregorian snapshot and reports transmission;
 see [Mini clock-sync evidence](docs/validation/mini-clock-sync.md) for its manual
 acceptance and protocol sources.
+Mini scrolling text requires explicit `--stream`, which holds the Mac connection
+for one full scroll; see [streaming behavior and validation](docs/validation/mini-streaming-text.md).

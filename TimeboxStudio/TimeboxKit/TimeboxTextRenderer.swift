@@ -10,14 +10,25 @@ public struct TimeboxRenderedText: Sendable {
     public let rasterWidth: Int
 }
 
-/// System fixed-pitch font, 12px white on black; one pixel leftward every 100ms.
+/// System fixed-pitch font, white on black; one pixel leftward every 100ms.
+/// Evo uses 12px and Mini uses 9px, with model-sized blank entry/exit viewports.
 public enum TimeboxTextRenderer {
     public static func render(_ text: String) throws -> TimeboxRenderedText {
+        let rendered = try render(text, model: .evo)
+        _ = try TimeboxAnimationEncoder.prepare(rendered.animation)
+        return rendered
+    }
+
+    /// Model-sized rasterization; Mini frames require host streaming rather than
+    /// the bounded native animation buffer. No positions or glyphs are dropped.
+    public static func render(_ text: String, model: TimeboxModel) throws -> TimeboxRenderedText {
         #if canImport(CoreText)
+        let side = model.width
+        let fontSize: CGFloat = model == .mini ? 9 : 12
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, text.utf16.count <= 1024 else {
             throw TimeboxAnimationError.invalid("Text must be nonempty and at most 1024 UTF-16 units (host input limit).")
         }
-        guard let font = CTFontCreateUIFontForLanguage(.userFixedPitch, 12, nil) else {
+        guard let font = CTFontCreateUIFontForLanguage(.userFixedPitch, fontSize, nil) else {
             throw TimeboxAnimationError.invalid("No system fixed-pitch font is available.")
         }
         var unsupported: [String] = []
@@ -41,35 +52,35 @@ public enum TimeboxTextRenderer {
         let advance = CTLineGetTypographicBounds(line, nil, nil, nil)
         let left = min(0, floor(bounds.minX))
         let widthValue = ceil(max(advance, bounds.maxX) - left)
-        guard widthValue.isFinite, widthValue > 0, widthValue <= 2016, bounds.height <= 16 else {
+        guard widthValue.isFinite, widthValue > 0, widthValue <= 2016, bounds.height <= CGFloat(side) else {
             throw TimeboxAnimationError.invalid("Text exceeds the raster/frame envelope; shorten it. Text is never truncated or adapted.")
         }
         let width = Int(widthValue)
-        var rgba = [UInt8](repeating: 0, count: width * 16 * 4)
-        guard let context = CGContext(data: &rgba, width: width, height: 16, bitsPerComponent: 8,
+        var rgba = [UInt8](repeating: 0, count: width * side * 4)
+        guard let context = CGContext(data: &rgba, width: width, height: side, bitsPerComponent: 8,
             bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
             throw TimeboxAnimationError.invalid("Cannot rasterize text.")
         }
         context.setShouldAntialias(false)
         context.setShouldSmoothFonts(false)
-        context.textPosition = CGPoint(x: -left, y: floor((16 - bounds.height) / 2) - bounds.minY)
+        context.textPosition = CGPoint(x: -left, y: floor((CGFloat(side) - bounds.height) / 2) - bounds.minY)
         CTLineDraw(line, context)
         // Bitmap rows already match the top-left pixel order used by the image encoder.
         var frames: [TimeboxAnimationFrame] = []
-        for offset in 0...(width + 16) {
-            var image = PixelFrame()
-            for y in 0..<16 { for x in 0..<16 {
-                let sourceX = x + offset - 16
+        for offset in 0...(width + side) {
+            var image = PixelFrame(model: model)
+            for y in 0..<side { for x in 0..<side {
+                let sourceX = x + offset - side
                 guard sourceX >= 0, sourceX < width else { continue }
                 let source = (y * width + sourceX) * 4
-                image.pixels[y * 16 + x] = PixelRGB(red: rgba[source], green: rgba[source + 1], blue: rgba[source + 2])
+                image.pixels[y * side + x] = PixelRGB(red: rgba[source], green: rgba[source + 1], blue: rgba[source + 2])
             } }
             frames.append(try TimeboxAnimationFrame(image: image, durationMilliseconds: 100))
         }
         let animation = try TimeboxAnimation(frames: frames)
-        // Text has no lossy adaptation contract: fail before sending if it cannot fit.
-        _ = try TimeboxAnimationEncoder.prepare(animation)
+        // Native upload and host streaming apply their own transport envelope;
+        // rasterization itself never removes content to fit a device buffer.
         return TimeboxRenderedText(animation: animation, fontName: CTFontCopyPostScriptName(font) as String, rasterWidth: width)
         #else
         throw TimeboxAnimationError.invalid("Text rasterization requires CoreText and CoreGraphics.")

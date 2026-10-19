@@ -971,7 +971,7 @@ enum TimeboxCLI {
               timeboxctl stopwatch start|stop|reset [--device NAME|--address MAC]
               timeboxctl countdown start MM:SS | countdown stop [--device NAME|--address MAC]
               timeboxctl time sync [--device NAME|--address MAC] [--json|--yaml]
-              timeboxctl text "Hello" [--device NAME|--address MAC]
+              timeboxctl text "Hello" [--stream] [--device NAME|--address MAC]
               timeboxctl animation FILE.gif [--resize fit|fill|stretch] [--adapt] [--device NAME|--address MAC]
               timeboxctl scan [--seconds 12] [--mock]
               timeboxctl scan-ble [--seconds 12]
