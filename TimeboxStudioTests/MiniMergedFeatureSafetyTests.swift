@@ -27,7 +27,6 @@ final class MiniMergedFeatureSafetyTests: XCTestCase {
         let operations: [() async throws -> Void] = [
             { try await client.display(.clock(style: .rainbow)) },
             { try await client.display(.design(index: 1)) },
-            { try await client.synchronizeClock() },
             { try await client.startCountdown(TimeboxCountdownDuration("00:01")) },
             { try await client.stopCountdown() },
             { _ = try await client.send(animation: animation) },
