@@ -9,15 +9,15 @@ public enum TimeboxResizePolicy: String, CaseIterable, Sendable { case fit, fill
 /// Parses GIF container/disposal explicitly; ImageIO only decodes each standalone patch.
 /// Host limits prevent a small compressed input from causing unbounded allocation.
 public enum GIFAnimationLoader {
-    public static func load(path: String, resize: TimeboxResizePolicy = .fit) throws -> TimeboxAnimation {
+    public static func load(path: String, resize: TimeboxResizePolicy = .fit, model: TimeboxModel = .evo) throws -> TimeboxAnimation {
         let url = URL(fileURLWithPath: path)
         guard let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= 16 * 1024 * 1024 else {
             throw TimeboxAnimationError.invalid("GIF input exceeds the 16 MiB host file limit.")
         }
-        return try decode(Data(contentsOf: url), resize: resize)
+        return try decode(Data(contentsOf: url), resize: resize, model: model)
     }
 
-    public static func decode(_ data: Data, resize: TimeboxResizePolicy = .fit) throws -> TimeboxAnimation {
+    public static func decode(_ data: Data, resize: TimeboxResizePolicy = .fit, model: TimeboxModel = .evo) throws -> TimeboxAnimation {
         #if canImport(CoreGraphics)
         guard data.count <= 16 * 1024 * 1024 else { throw TimeboxAnimationError.invalid("GIF exceeds the 16 MiB host file limit.") }
         var parser = GIFParser(data)
@@ -103,7 +103,7 @@ public enum GIFAnimationLoader {
                 }
             }
             let delay = (Int(control[1]) | Int(control[2]) << 8) * 10
-            frames.append(try TimeboxAnimationFrame(image: resizeRGBA(canvas, width: width, height: height, policy: resize), durationMilliseconds: delay == 0 ? 100 : delay))
+            frames.append(try TimeboxAnimationFrame(image: resizeRGBA(canvas, width: width, height: height, policy: resize, model: model), durationMilliseconds: delay == 0 ? 100 : delay))
             let disposal = (control[0] >> 2) & 7
             if disposal == 2 {
                 // Restore logical-screen background; a transparent background is composited onto black.
@@ -125,20 +125,21 @@ public enum GIFAnimationLoader {
         #endif
     }
 
-    static func resizeRGBA(_ rgba: [UInt8], width: Int, height: Int, policy: TimeboxResizePolicy) throws -> PixelFrame {
-        var result = PixelFrame()
-        let scale = policy == .fill ? max(16.0 / Double(width), 16.0 / Double(height)) : min(16.0 / Double(width), 16.0 / Double(height))
-        let outW = policy == .stretch ? 16 : max(1, Int((Double(width) * scale).rounded()))
-        let outH = policy == .stretch ? 16 : max(1, Int((Double(height) * scale).rounded()))
-        let left = outW <= 16 ? (16 - outW) / 2 : -((outW - 16) / 2)
-        let top = outH <= 16 ? (16 - outH) / 2 : -((outH - 16) / 2)
-        for y in 0..<16 { for x in 0..<16 {
+    static func resizeRGBA(_ rgba: [UInt8], width: Int, height: Int, policy: TimeboxResizePolicy, model: TimeboxModel = .evo) throws -> PixelFrame {
+        let target = model.width
+        var result = PixelFrame(model: model)
+        let scale = policy == .fill ? max(Double(target) / Double(width), Double(target) / Double(height)) : min(Double(target) / Double(width), Double(target) / Double(height))
+        let outW = policy == .stretch ? target : max(1, Int((Double(width) * scale).rounded()))
+        let outH = policy == .stretch ? target : max(1, Int((Double(height) * scale).rounded()))
+        let left = outW <= target ? (target - outW) / 2 : -((outW - target) / 2)
+        let top = outH <= target ? (target - outH) / 2 : -((outH - target) / 2)
+        for y in 0..<target { for x in 0..<target {
             let ox = x - left, oy = y - top
             guard ox >= 0, oy >= 0, ox < outW, oy < outH else { continue }
             let sx = min(width - 1, ox * width / outW), sy = min(height - 1, oy * height / outH)
             let offset = (sy * width + sx) * 4
             // Premultiplied RGB already composites transparency against black.
-            result.pixels[y * 16 + x] = PixelRGB(red: rgba[offset], green: rgba[offset + 1], blue: rgba[offset + 2])
+            result.pixels[y * target + x] = PixelRGB(red: rgba[offset], green: rgba[offset + 1], blue: rgba[offset + 2])
         } }
         return result
     }

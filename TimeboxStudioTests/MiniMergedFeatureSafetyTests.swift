@@ -23,13 +23,11 @@ final class MiniMergedFeatureSafetyTests: XCTestCase {
         let client = TimeboxClient(model: .mini, transport: transport,
             displayTransportFactory: { factories += 1; return transport })
         try await client.connect(to: .mock)
-        let animation = try TimeboxAnimation(frames: [TimeboxAnimationFrame(image: PixelFrame(), durationMilliseconds: 500)])
         let operations: [() async throws -> Void] = [
             { try await client.display(.clock(style: .rainbow)) },
             { try await client.display(.design(index: 1)) },
             { try await client.startCountdown(TimeboxCountdownDuration("00:01")) },
             { try await client.stopCountdown() },
-            { _ = try await client.send(animation: animation) },
             { _ = try await client.send(text: "test") }
         ]
         for operation in operations {

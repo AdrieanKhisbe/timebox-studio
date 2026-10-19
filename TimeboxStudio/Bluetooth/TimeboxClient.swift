@@ -223,8 +223,7 @@ public final class TimeboxClient {
 
     /// Prepare the complete upload before writing any bytes; never auto-retry a partial upload.
     public func send(animation: TimeboxAnimation, adapt: Bool = false) async throws -> TimeboxAnimationUpload {
-        try requireEvo("animation")
-        let upload = try TimeboxAnimationEncoder.prepare(animation, adapt: adapt)
+        let upload = try TimeboxAnimationEncoder.prepare(animation, model: model, adapt: adapt)
         for packet in upload.packets {
             try await transport.write(packet)
             try await Task.sleep(nanoseconds: 20_000_000)

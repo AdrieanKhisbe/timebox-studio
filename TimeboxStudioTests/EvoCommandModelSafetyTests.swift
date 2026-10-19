@@ -6,7 +6,7 @@ final class EvoCommandModelSafetyTests: XCTestCase {
     private let address = "AA:BB:CC:DD:EE:01"
     private let commands: [[String]] = [
         ["countdown", "start", "00:05"], ["countdown", "stop"],
-        ["animation", "docs/validation/fixtures/animation-disposal.gif"], ["text", "Hello"],
+        ["text", "Hello"],
         ["status"],
         ["display", "clock", "--style", "0"],
         ["display", "light"], ["display", "design"], ["design", "1"],

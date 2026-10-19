@@ -9,9 +9,10 @@ The original Mini uses 11×11 pixels, high-four-bit RGB444 quantization and esca
 interior bytes. Evo retains its 16×16 palette encoding and unescaped framing.
 Brightness, solid color, static files, clock display and synchronization, native stopwatch and
 three-slot alarms are integrated into the ordinary CLI, REPL and `TimeboxClient`.
+Native GIF upload is also supported; see [animation limits and validation](mini-animation.md).
 See [clock/stopwatch/alarm validation](mini-clock-stopwatch-alarms.md) for the later
 promotion and exact hardware scope. Raw packets remain an escape hatch. Other
-channels, native countdown, animation, status, MiniToo and
+channels, native countdown, scrolling text, status, MiniToo and
 Mini BLE/iOS have no compatibility claim. Mini library connections on iOS fail
 before BLE connection.
 
