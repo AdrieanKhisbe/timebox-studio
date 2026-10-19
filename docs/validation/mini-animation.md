@@ -30,9 +30,19 @@ With `--adapt`, candidates are common delays from 200 through 25500ms in 100ms s
 
 Tests cover exact fixtures, GIF dimensions, unchanged Evo output, mixed-model rejection, the 12-frame boundary, lossless repeated holds, static-single-frame reporting, explicit sampling/timing changes, saved/current model routing, failed preflight without connection, partial write failure, library sends and continued Mini text rejection. No hardware access was performed by the implementing agent.
 
-## Physical validation pending
+## Physical validation
 
-First parent-owned test: `timeboxctl animation docs/validation/fixtures/mini-red-green-500ms.gif --device mini --model mini --json` (or a paired address with explicit Mini model). The controller should observe red then green for approximately 500ms each and determine repetition and disconnect behavior. A persistent REPL comparison is useful because the Mini can show a Bluetooth status symbol after connection loss. No timing accuracy, 12-frame capacity, persistence, frame replacement, unequal-delay behavior or 100ms minimum is claimed before physical evidence.
+On2026-10-19 the parent used the release CLI on AKTBR (`$MAC`), explicit Mini
+model, and SDP-resolved Classic channel4. In a persistent REPL,
+`animation docs/validation/fixtures/mini-red-green-500ms.gif` completed its two
+native frame writes. The user confirmed repeated full red/green alternation at
+roughly half a second per color while the connection stayed open. The clock was
+selected afterward and the connection closed. No alarm settings changed.
+
+This confirms native two-frame playback with repetition, not measured timing
+accuracy, 12-frame capacity, power-cycle/disconnect persistence, frame replacement,
+unequal-delay behavior, adaptation variants or a100ms minimum. Those remain
+unverified. The158-test suite and release build passed before this hardware check.
 
 ## Mini scrolling-text follow-up
 
