@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-19",
+  "device": "main-evo",
+  "mac": "$MAC",
+  "channel": 1,
+  "observations": [
+    {
+      "operation": "status while prior user-confirmed Hello overlay was playing",
+      "raw_data": [
+        0,
+        0,
+        0,
+        52,
+        18,
+        64,
+        100,
+        0,
+        1,
+        0,
+        100,
+        1,
+        255,
+        0,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0
+      ],
+      "interpretation": "getter mode0 describes configuredchannel; doesnotestablishcurrentrenderedoverlay"
+    },
+    {
+      "operation": "display light --color0000FF --brightness30",
+      "transport": "17bytes",
+      "raw_status_after": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        255,
+        30,
+        0,
+        1,
+        0,
+        30,
+        1,
+        255,
+        0,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0
+      ],
+      "user": "yes dimblue",
+      "interpretation": "explicitlightchannel1/RGBblue visible and querychanged"
+    },
+    {
+      "operation": "display clock --style0; brightness100",
+      "transport": "17bytes then8bytes, operations completed serially",
+      "raw_status_after": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        255,
+        100,
+        0,
+        1,
+        0,
+        100,
+        1,
+        255,
+        255,
+        255,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "user": "yes whiteclock",
+      "interpretation": "clockchannel0 whiteprofile and restored100 visuallyconfirmed"
+    }
+  ],
+  "limits": "No per-fieldbrightnessisolation;bothfieldsco-vary. Only clockstyle0 checked;otherstyles/effects/customretention/designIDs pending. Beforewhiteprofile originalclockcolor/style replaced intentionally per announced completeprofile test."
+}
