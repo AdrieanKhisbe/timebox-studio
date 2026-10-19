@@ -86,6 +86,14 @@ public enum GIFAnimationLoader {
             guard let context = CGContext(data: &patch, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
                 space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { throw GIFParser.error }
             context.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+            if frames.isEmpty {
+                let index = Int(header[11])
+                let transparent = control[0] & 1 != 0 && control[3] == header[11]
+                if !transparent, global.count >= index * 3 + 3 {
+                    let background = Array(global[index * 3..<(index * 3 + 3)]) + [UInt8(255)]
+                    for pixel in 0..<(width * height) { canvas.replaceSubrange((pixel * 4)..<(pixel * 4 + 4), with: background) }
+                }
+            }
             let before = canvas
             for py in 0..<h {
                 for px in 0..<w {

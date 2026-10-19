@@ -48,6 +48,14 @@ final class TimeboxAnimationTests: XCTestCase {
         XCTAssertThrowsError(try GIFAnimationLoader.decode(raw.dropLast()))
         XCTAssertThrowsError(try GIFAnimationLoader.decode(Data("not gif".utf8)))
     }
+    func testInitialPartialFrameUsesDeclaredOpaqueBackground() throws {
+        var bytes = Data("GIF89a".utf8)
+        bytes.append(contentsOf: [4,0,4,0,0x81,1,0, 0,0,0, 255,0,0, 0,255,0, 0,0,255])
+        bytes.append(contentsOf: [0x21,0xf9,4,4,10,0,0,0,0x2c,1,0,1,0,1,0,1,0,0,2,2,0x54,0x01,0,0x3b])
+        let animation = try GIFAnimationLoader.decode(bytes, resize: .stretch)
+        XCTAssertEqual(animation.frames[0].image.pixels[0], PixelRGB(red:255,green:0,blue:0))
+        XCTAssertEqual(animation.frames[0].image.pixels[5*16+5], PixelRGB(red:0,green:255,blue:0))
+    }
     func testResizePoliciesKeepNearestNeighborAndCenteredPadding() throws {
         let red = [UInt8](arrayLiteral:255,0,0,255), green = [UInt8](arrayLiteral:0,255,0,255)
         let pixels = red + green + red + green // 4x1
