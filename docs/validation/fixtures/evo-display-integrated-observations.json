@@ -212,7 +212,24 @@
       "operation": "Release REPL design 1 after tab 0",
       "user": "Yes, different content",
       "outcome": "Fresh capability read then 2 packets17bytes; distinct tab1content visually confirmed; reconnected"
+    },
+    {
+      "operation": "Release CLI design 2 follow-up",
+      "outcome": "Connection failed before capability query or display write; RFCOMM channel1 callback timeout 0xE00002D6",
+      "interpretation": "No visual behavior inferred; app connection ownership not yet confirmed"
+    },
+    {
+      "operation": "Release CLI design1 retry following repeated connection timeouts",
+      "transport": "Success; fresh capability read and2controlpackets17bytes",
+      "user": "good",
+      "outcome": "Second existing design tab visibly accepted; prior timeouts did not establish protocol failure"
+    },
+    {
+      "operation": "Release CLI design2 follow-up after successful design1",
+      "transport": "Success; fresh capability read and2controlpackets17bytes",
+      "user": "Yes, different artwork appeared",
+      "outcome": "Third tab visibly distinct from second; user explicitly confirmed different artwork"
     }
   ],
-  "limits": "Clock styles 0 through 5 visually confirmed. Bare design return and distinct tabs 0/1 confirmed; tab 2 not independently distinguished. Legacy mode-3 effect 9 did not activate from blue light; effect 0 has no positive validation. No general effects-support claim. No storage writes, persistence, power-cycle or exact selected-tab readback tested. Both brightness fields co-vary."
+  "limits": "Clock styles0..5, preserved clock/light profiles, CLI and persistent REPL reconnects, and all three design tab selections visually validated on main-evo. Legacy effect9 did not activate; effect0 had no positive validation. No general effects support, storage writes, persistence, power-cycle or selected-tab getter claims. Both brightness fields co-vary."
 }
