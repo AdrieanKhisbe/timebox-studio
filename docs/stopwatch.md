@@ -7,3 +7,10 @@ The [manufacturer Bluetooth tools page](https://docin.divoom-gz.com/web/#/5/265)
 Reset therefore has a distinct verified encoding, rather than being a no-op or a guessed stop/start sequence. Stop is documented as pause; the app's toggle implies subsequent start resumes. The 2026-10-19 parent-owned `main-evo` test confirmed progression after reset/start, pause with elapsed retained, resume from that paused value, and reset while running clearing/stopping at zero. The host sends each requested operation unchanged and does not infer or cache device state. No live elapsed-time read is exposed. Structured `sent` means transmission, not confirmation that the visible counter progressed or cleared.
 
 See the [hardware observation report](validation/evo-stopwatch.md). Every operation was a separate one-shot connection, supporting these immediate disconnect/reconnect transitions. Repeated start while active, repeated stop, reset while paused, power-cycle and display-channel persistence remain untested. No elapsed readback or precision measurement was performed. The final observed state was stopped at zero.
+
+## Original Mini
+
+The same commands and library API select Mini `45 06 ACTION` with OldMode escaping
+when the resolved model is Mini. Start/pause/resume/reset were visibly confirmed
+on AKTBR. See [Mini validation](validation/mini-clock-stopwatch-alarms.md). No native
+Mini countdown or elapsed-time readback is implied.

@@ -64,8 +64,8 @@ public enum TimeboxPacketEncoder {
         }
     }
 
-    private static func validateAlarm(_ current: TimeboxAlarm) throws {
-        guard (0...9).contains(current.slot) else { throw TimeboxAlarmWriteError.invalidSlot(current.slot) }
+    static func validateAlarm(_ current: TimeboxAlarm, model: TimeboxModel = .evo) throws {
+        guard (0..<model.alarmSlotCount).contains(current.slot) else { throw TimeboxAlarmWriteError.invalidSlot(current.slot) }
         guard (0...23).contains(current.hour) else { throw TimeboxAlarmWriteError.invalidHour(current.hour) }
         guard (0...59).contains(current.minute) else { throw TimeboxAlarmWriteError.invalidMinute(current.minute) }
         guard (0...100).contains(current.volume) else { throw TimeboxAlarmWriteError.invalidVolume(current.volume) }

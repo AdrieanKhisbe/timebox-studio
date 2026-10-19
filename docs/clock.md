@@ -5,3 +5,13 @@
 The packet contains `18 year%100 year/100 month day hour minute second weekday`, with Sunday zero. Year bytes are decimal parts, not a little-endian binary integer. Sources: [hass-divoom's own datetime encoder](https://github.com/d03n3rfr1tz3/hass-divoom/blob/main/custom_components/divoom/devices/divoom.py#L770-L786) and original Divoom Android 3.8.40 `CmdManager.X0()` (APK SHA256 `d7ae490205cf71cc37f74948bd1ca7f1b2a446070565294b3ae835c0a51fde81`; see the pinned provenance in [alarm investigation](validation/evo-finite-weekday-follow-up.md)). No decompiled source is distributed.
 
 The application accepts Gregorian years 1–9999 CE as an explicit representational policy, not a verified firmware date range. There is no timezone identifier on the wire, ongoing synchronization, future DST maintenance, or modification of the Mac's clock. Structured success says `sent`, not clock readback verified. The parent-owned 2026-10-19 `main-evo` test sent the 15-byte sync command and the user confirmed the visible clock matched Mac local time around 20:04 CEST. Date and weekday were hidden by that display style and remain unverified physically. Only an after-send host snapshot was retained; it is not an exact payload capture or a before/after bracket. See [clock observations](validation/evo-clock-sync.md).
+
+## Original Mini clock display and synchronization
+
+`display clock` works on Mini and selects its24-hour clock without changing the
+device time. `time sync` explicitly sets its local calendar using the same eight
+fields as Evo, with Mini OldMode escaping. The CLI captures the clock once even
+when model resolution requires different framing. Evo `--style` options remain
+unsupported for Mini. There is no supported Mini RTC getter; successful output
+reports transmission and requires a visual time check. See
+[Mini clock-sync sources and validation](validation/mini-clock-sync.md).

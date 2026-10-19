@@ -69,15 +69,17 @@ public final class TimeboxCommandLine {
                 guard options.positionals.count == 1 else { throw CommandFailure("invalid_arguments", "brightness requires one percentage.") }
                 _ = try CommandOptions.percent(options.positionals[0])
             }
+            let capturedClock = command == "time" && options.positionals == ["sync"]
+                ? try TimeboxClockSnapshot(date: environment.clock(), timeZone: environment.timeZone()) : nil
             let preparedPacket = ["time", "countdown", "stopwatch", "color", "brightness", "send-hex"].contains(command)
-                ? try packet(command, options: options) : nil
+                ? try packet(command, options: options, clockSnapshot: capturedClock) : nil
             let configuration = try environment.configuration(options.configPath)
             var resolved = try resolve(options, configuration: configuration)
             target = resolved
             if !["send-hex", "connect"].contains(command) {
                 resolved.modelResolution = try resolveModel(options, target: resolved, configuration: configuration)
             }
-            if ["alarm", "status", "display", "design", "effect", "animation", "text", "time", "countdown", "stopwatch"].contains(command), resolved.modelResolution?.model == .mini {
+            if ["status", "design", "effect", "animation", "text", "countdown"].contains(command), resolved.modelResolution?.model == .mini {
                 throw TimeboxModelError.unsupported(command)
             }
             let packet: Data?
@@ -86,9 +88,10 @@ public final class TimeboxCommandLine {
             } else if let preparedPacket, resolved.modelResolution?.model != .mini {
                 packet = preparedPacket
             } else {
-                packet = try self.packet(command, options: options, model: resolved.modelResolution?.model ?? .evo)
+                packet = try self.packet(command, options: options, model: resolved.modelResolution?.model ?? .evo, clockSnapshot: capturedClock)
             }
             target = resolved
+            try alarmOperation?.validate(model: resolved.modelResolution?.model ?? .evo)
             if let animation {
                 try sendAnimation(animation, to: resolved, options: options)
                 try emit(CommandResult(command: command, status: options.mock ? "simulated" : "sent", device: resolved, data: animationData(animation).merging(renderedText.map { ["font": $0.fontName] } ?? [:]) { _, new in new }))
@@ -211,9 +214,9 @@ public final class TimeboxCommandLine {
         diagnostic("Connected on RFCOMM channel \(transport.channel.map(String.init) ?? "unknown").")
     }
 
-    func send(_ packet: Data, to target: ResolvedDevice, options: CommandOptions) throws {
+    func send(_ packet: Data, to target: ResolvedDevice, options: CommandOptions, maximumAttempts: Int = 3) throws {
         var lastError: Error?
-        for attempt in 1...3 {
+        for attempt in 1...maximumAttempts {
             let transport = environment.makeTransport(options.mock)
             do {
                 try connect(transport, to: target, channel: options.channel)
@@ -227,13 +230,13 @@ public final class TimeboxCommandLine {
             } catch {
                 transport.disconnect()
                 lastError = error
-                if attempt < 3 { transport.wait(milliseconds: 400) }
+                if attempt < maximumAttempts { transport.wait(milliseconds: 400) }
             }
         }
         throw lastError ?? CommandFailure("connection_failed", "Connection failed.")
     }
 
-    func packet(_ command: String, options: CommandOptions, model: TimeboxModel = .evo) throws -> Data {
+    func packet(_ command: String, options: CommandOptions, model: TimeboxModel = .evo, clockSnapshot: TimeboxClockSnapshot? = nil) throws -> Data {
         switch command {
         case "stopwatch":
             guard options.positionals.count == 1 else { throw CommandFailure("invalid_arguments", "Use stopwatch start, stop or reset.") }
@@ -252,7 +255,8 @@ public final class TimeboxCommandLine {
             catch { throw CommandFailure("invalid_arguments", error.localizedDescription) }
         case "time":
             guard options.positionals == ["sync"] else { throw CommandFailure("invalid_arguments", "Use time sync.") }
-            return try TimeboxPacketEncoder.encode(.synchronizeClock(TimeboxClockSnapshot(date: environment.clock(), timeZone: environment.timeZone())), model: model)
+            let snapshot = try clockSnapshot ?? TimeboxClockSnapshot(date: environment.clock(), timeZone: environment.timeZone())
+            return try TimeboxPacketEncoder.encode(.synchronizeClock(snapshot), model: model)
         case "display", "design", "effect":
             return try TimeboxPacketEncoder.encode(.display(DisplayOperation(command: command, options: options).selection), model: model)
         case "brightness":
@@ -297,7 +301,7 @@ public final class TimeboxCommandLine {
                 continue
             }
             do {
-                if ["alarm", "status", "display", "design", "effect", "animation", "text", "time", "countdown", "stopwatch"].contains(command), target.modelResolution?.model == .mini {
+                if ["status", "design", "effect", "animation", "text", "countdown"].contains(command), target.modelResolution?.model == .mini {
                     throw TimeboxModelError.unsupported(command)
                 }
                 if command == "text" {
@@ -332,8 +336,11 @@ public final class TimeboxCommandLine {
                         throw CommandFailure("invalid_arguments", "Use target NAME to choose the REPL device; display options configure only the selected display.")
                     }
                     let selection = try DisplayOperation(command: command, options: displayOptions).selection
+                    let model = target.modelResolution?.model ?? .evo
+                    let miniClock = model == .mini && selection == .clock()
+                    if model == .mini, !miniClock { throw TimeboxModelError.unsupported("this display channel or Evo clock style") }
                     try selection.validate()
-                    if selection.requiresLivePreparation {
+                    if selection.requiresLivePreparation && !miniClock {
                         guard !options.mock else { throw CommandFailure("unsupported", "Mock mode has no live display profile or capability state.") }
                         let selectedChannel = transport.channel
                         transport.disconnect()
@@ -348,7 +355,7 @@ public final class TimeboxCommandLine {
                     } else {
                         guard displayOptions.queryTimeout == nil else { throw CommandFailure("invalid_arguments", "This explicit display profile does not perform a query.") }
                         guard transport.isConnected else { throw CommandFailure("connection_failed", "The selected target is disconnected.") }
-                        let packet = try TimeboxPacketEncoder.encode(.display(selection))
+                        let packet = try TimeboxPacketEncoder.encode(.display(selection), model: model)
                         try transport.write(packet)
                         transport.wait(milliseconds: 60)
                         environment.output(options.mock ? "simulated (\(packet.count) bytes)" : "sent (\(packet.count) bytes)")
@@ -379,7 +386,6 @@ public final class TimeboxCommandLine {
                     continue
                 }
                 if command == "alarm" {
-                    guard target.modelResolution?.model != .mini else { throw TimeboxModelError.unsupported("alarms") }
                     let alarmOptions = try CommandOptions(Array(parts.dropFirst()))
                     guard alarmOptions.name == nil,
                           alarmOptions.address == nil, alarmOptions.channel == nil,
@@ -388,18 +394,20 @@ public final class TimeboxCommandLine {
                         throw CommandFailure("invalid_arguments", "Use alarm list/set/disable; target NAME selects the REPL device.")
                     }
                     let operation = try AlarmOperation(alarmOptions)
+                    try operation.validate(model: target.modelResolution?.model ?? .evo)
                     guard !options.mock else { throw CommandFailure("unsupported", "Mock mode has no device alarm state.") }
                     // A fresh link excludes stale same-opcode replies; resume the
                     // persistent session only after a successful read.
+                    let selectedChannel = transport.channel
                     transport.disconnect()
                     transport.wait(milliseconds: 500)
                     var queryOptions = options
                     queryOptions.queryTimeout = alarmOptions.queryTimeout
-                    queryOptions.channel = nil
+                    queryOptions.channel = selectedChannel
                     _ = try performAlarm(operation, target: target, options: queryOptions)
                     transport.wait(milliseconds: 500)
                     transport = environment.makeTransport(options.mock)
-                    do { try connect(transport, to: target, channel: nil) }
+                    do { try connect(transport, to: target, channel: selectedChannel) }
                     catch { transport.disconnect(); throw error }
                     transport.wait(milliseconds: 150)
                     continue
