@@ -361,7 +361,9 @@ public final class TimeboxCommandLine {
                     let selection = try DisplayOperation(command: command, options: displayOptions).selection
                     let model = target.modelResolution?.model ?? .evo
                     let miniClock = model == .mini && selection == .clock()
-                    if model == .mini, !miniClock { throw TimeboxModelError.unsupported("this display channel or Evo clock style") }
+                    if model == .mini, !miniClock {
+                        guard case .light = selection else { throw TimeboxModelError.unsupported("this display channel or Evo clock style") }
+                    }
                     try selection.validate()
                     if selection.requiresLivePreparation && !miniClock {
                         guard !options.mock else { throw CommandFailure("unsupported", "Mock mode has no live display profile or capability state.") }

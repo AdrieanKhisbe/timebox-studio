@@ -30,6 +30,10 @@ the host connection and must not silently replace native `countdown` behavior.
 A Mini-specific duration capture or a verified primary implementation would
 justify reopening native support.
 
+On2026-10-19 the user chose to keep Mini countdown unsupported rather than add
+an explicit foreground `--host` countdown. The earlier image countdown remains
+a prototype, not a production fallback.
+
 ## Automatic model identification
 
 The actual app's `p166s1.a.c.accept()` issues firmware queries `97 00`, `36` and

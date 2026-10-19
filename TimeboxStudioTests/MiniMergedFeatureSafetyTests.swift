@@ -6,7 +6,7 @@ final class MiniMergedFeatureSafetyTests: XCTestCase {
     func testMiniWriterRejectsBeforeCreatingQueryOrControlTransport() {
         let transport = MiniSafetyTransport()
         var factories = 0
-        for selection: TimeboxDisplay in [.light(), .design(index: 1), .clock(style: .rainbow)] {
+        for selection: TimeboxDisplay in [.design(index: 1), .clock(style: .rainbow)] {
             XCTAssertThrowsError(try TimeboxDisplayWriter.perform(selection, device: .mock, model: .mini,
                 makeTransport: { factories += 1; return transport })) {
                 guard case .unsupported = $0 as? TimeboxModelError else { return XCTFail("\($0)") }

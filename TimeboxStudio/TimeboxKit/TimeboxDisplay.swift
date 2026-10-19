@@ -19,8 +19,10 @@ public enum TimeboxDisplayError: LocalizedError, Equatable {
     case invalidDesignIndex(Int)
     case designCapability(UInt8)
     case incompleteWrite(sent: Int, total: Int, reason: String)
+    case profileModelMismatch(expected: TimeboxModel, actual: TimeboxModel)
     public var errorDescription: String? {
         switch self {
+        case let .profileModelMismatch(expected, actual): return "A \(actual.rawValue) display profile cannot be encoded for \(expected.rawValue)."
         case .livePreparationRequired(let operation): return "\(operation) requires fresh device state/capability evidence. Use TimeboxDisplayWriter or the ordinary CLI/REPL command."
         case .invalidDesignIndex(let index): return "Design tab \(index) is outside the app-backed range 0 through 2."
         case .designCapability(let flag): return "Device did not advertise the app's three-tab capability (raw flag \(flag)); no tab packet was sent."
