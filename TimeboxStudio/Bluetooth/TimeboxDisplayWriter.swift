@@ -21,8 +21,10 @@ public enum TimeboxDisplayWriter {
     public static func perform(_ selection: TimeboxDisplay, device: TimeboxDevice,
                                channel: UInt8? = nil, timeout: TimeInterval = 5,
                                holdMilliseconds: Int = 500,
+                               model: TimeboxModel = .evo,
                                isCancelled: () -> Bool = { false },
                                makeTransport: () -> TimeboxDisplayTransport) throws -> TimeboxDisplayWriteResult {
+        guard model == .evo else { throw TimeboxModelError.unsupported("display channels and queries") }
         guard Thread.isMainThread, timeout.isFinite, timeout > 0, timeout <= 60,
               holdMilliseconds >= 0 else { throw TimeboxQueryError.invalidArguments }
         if isCancelled() { throw TimeboxQueryError.cancelled }
@@ -39,7 +41,7 @@ public enum TimeboxDisplayWriter {
             commands = [.display(.design()), .selectDesignTab(index)]
         } else { commands = [.display(selection)] }
         // Fully validate/encode every packet before the first control write.
-        let packets = try commands.map(TimeboxPacketEncoder.encode)
+        let packets = try commands.map { try TimeboxPacketEncoder.encode($0, model: model) }
         if isCancelled() { throw TimeboxQueryError.cancelled }
         let transport = makeTransport()
         defer { transport.disconnect() }
@@ -82,14 +84,15 @@ public enum TimeboxDisplayWriter {
     public static func send(_ selection: TimeboxDisplay, device: TimeboxDevice,
                             channel: UInt8? = nil, timeout: TimeInterval = 5,
                             holdMilliseconds: Int = 500,
+                            model: TimeboxModel = .evo,
                             makeTransport: (() -> TimeboxDisplayTransport)? = nil) async throws -> TimeboxDisplayWriteResult {
         if let makeTransport {
             return try perform(selection, device: device, channel: channel, timeout: timeout,
-                               holdMilliseconds: holdMilliseconds, isCancelled: { Task.isCancelled }, makeTransport: makeTransport)
+                               holdMilliseconds: holdMilliseconds, model: model, isCancelled: { Task.isCancelled }, makeTransport: makeTransport)
         }
         #if canImport(IOBluetooth)
         return try perform(selection, device: device, channel: channel, timeout: timeout,
-                           holdMilliseconds: holdMilliseconds, isCancelled: { Task.isCancelled }, makeTransport: { IOBluetoothTimeboxTransport() })
+                           holdMilliseconds: holdMilliseconds, model: model, isCancelled: { Task.isCancelled }, makeTransport: { IOBluetoothTimeboxTransport() })
         #else
         throw TimeboxQueryError.unsupported
         #endif

@@ -1,5 +1,6 @@
 import Foundation
 import TimeboxBluetooth
+import TimeboxKit
 
 /// Synchronous CLI boundary; the production adapter services IOBluetooth's main run loop.
 public protocol CommandTransport: TimeboxDisplayTransport {
@@ -21,6 +22,7 @@ public extension CommandTransport {
 public struct CommandEnvironment {
     public var discover: (Bool) throws -> [TimeboxDevice]
     public var configuration: (String?) throws -> DeviceConfiguration
+    public var detectModels: (TimeboxDevice) throws -> Set<TimeboxModel>
     public var makeTransport: (Bool) -> CommandTransport
     public var output: (String) -> Void
     public var errorOutput: (String) -> Void
@@ -35,6 +37,7 @@ public struct CommandEnvironment {
     public init(discover: @escaping (Bool) throws -> [TimeboxDevice],
                 configuration: @escaping (String?) throws -> DeviceConfiguration = { try DeviceConfigFile(path: $0).read().configuration },
                 makeTransport: @escaping (Bool) -> CommandTransport,
+                detectModels: @escaping (TimeboxDevice) throws -> Set<TimeboxModel> = { TimeboxModelResolver.detectedModels(for: $0) },
                 output: @escaping (String) -> Void = { print($0) },
                 errorOutput: @escaping (String) -> Void = { fputs($0 + "\n", stderr) },
                 rawOutput: @escaping (String) -> Void = { FileHandle.standardOutput.write(Data($0.utf8)) },
@@ -42,6 +45,8 @@ public struct CommandEnvironment {
                 isInteractive: Bool = false, stdoutIsTerminal: Bool = false, variables: [String: String] = [:],
                 clock: @escaping () -> Date = Date.init, timeZone: @escaping () -> TimeZone = { .current }) {
         self.clock = clock; self.timeZone = timeZone
+        self.detectModels = detectModels
+
         self.discover = discover; self.configuration = configuration; self.makeTransport = makeTransport
         self.output = output; self.errorOutput = errorOutput; self.readLine = readLine
         self.rawOutput = rawOutput

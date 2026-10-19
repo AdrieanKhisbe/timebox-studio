@@ -36,9 +36,23 @@ public final class TimeboxClient {
     private var injectedTransport: TimeboxTransport?
     private var connectedTarget: (device: TimeboxDevice, channel: UInt8?)?
     private var displayTransportFactory: (() -> TimeboxDisplayTransport)?
-    public init() {}
-    convenience init(transport: TimeboxTransport, displayTransportFactory: (() -> TimeboxDisplayTransport)? = nil) {
-        self.init(); injectedTransport = transport; self.displayTransportFactory = displayTransportFactory
+    public private(set) var modelResolution: TimeboxModelResolution?
+    private var requestedModel: TimeboxModel?
+    /// Existing callers retain Evo encoding. Pass nil for conservative automatic identification.
+    public init(model: TimeboxModel? = .evo) {
+        requestedModel = model
+        modelResolution = model.map { .init(model: $0, source: .explicit) }
+    }
+    /// Internal adapters exercise actual library operations without radios.
+    convenience init(model: TimeboxModel? = .evo, transport: TimeboxTransport,
+                     displayTransportFactory: (() -> TimeboxDisplayTransport)? = nil) {
+        self.init(model: model)
+        injectedTransport = transport
+        self.displayTransportFactory = displayTransportFactory
+    }
+    private var model: TimeboxModel {
+        get throws { guard let value = modelResolution?.model else { throw TimeboxModelError.unidentified }; return value }
+
     }
 
     public var isConnected: Bool { transport.isConnected }
@@ -68,6 +82,11 @@ public final class TimeboxClient {
     /// Connect to a discovered device. The SPP RFCOMM channel is auto-resolved
     /// from the device's SDP (pass `channel` only to force a specific one).
     public func connect(to device: TimeboxDevice, channel: UInt8? = nil) async throws {
+        let resolved = try TimeboxModelResolver.resolve(explicit: requestedModel, detected: TimeboxModelResolver.detectedModels(for: device))
+        #if !os(macOS)
+        guard resolved.model != .mini else { throw TimeboxModelError.unsupported("BLE/iOS transport") }
+        #endif
+        modelResolution = resolved
         #if os(macOS)
         if let channel, injectedTransport == nil {
             try await bluetooth.connect(to: device, channelID: channel)
@@ -84,7 +103,7 @@ public final class TimeboxClient {
     /// or prior discovery needed — CoreBluetooth finds it by name (or attaches if the
     /// system already holds it connected as a speaker).
     public func connect() async throws {
-        try await transport.connect(to: TimeboxDevice(
+        try await connect(to: TimeboxDevice(
             name: "Timebox", address: "", isPaired: false, isConnected: false, source: .bluetooth))
     }
     #endif
@@ -115,6 +134,7 @@ public final class TimeboxClient {
     /// Receive-capable Classic is required; custom/BLE write adapters are never
     /// silently replaced with a native Classic transport.
     public func display(_ selection: TimeboxDisplay) async throws {
+        try requireEvo("display channels")
         try selection.validate()
         if selection.requiresLivePreparation {
             #if os(macOS)
@@ -123,7 +143,7 @@ public final class TimeboxClient {
             transport.disconnect()
             do {
                 _ = try await TimeboxDisplayWriter.send(selection, device: target.device, channel: target.channel,
-                                                       makeTransport: displayTransportFactory)
+                                                       model: try model, makeTransport: displayTransportFactory)
                 try await connect(to: target.device, channel: target.channel)
             } catch { disconnect(); throw error }
             return
@@ -131,71 +151,73 @@ public final class TimeboxClient {
             throw TimeboxQueryError.unsupported
             #endif
         }
-        try await transport.write(try TimeboxPacketEncoder.encode(.display(selection)))
+        try await transport.write(try TimeboxPacketEncoder.encode(.display(selection), model: model))
     }
 
-    /// Display an arbitrary 16x16 image.
+    /// Display a static image at the selected model’s size.
+
     public func send(image frame: PixelFrame) async throws {
-        try await transport.write(try TimeboxPacketEncoder.encode(.image(frame)))
+        try await transport.write(try TimeboxPacketEncoder.encode(.image(frame), model: model))
     }
 
     #if canImport(CoreGraphics)
-    /// Load an image file (PNG/JPG/BMP/GIF), rasterize to 16x16, and display it.
+    /// Load frame zero, rasterize to the selected model’s size, and display it.
     public func send(imageAt path: String) async throws {
-        try await send(image: try ImageToPixelFrameConverter.loadPixelFrame(path: path))
+        try await send(image: try ImageToPixelFrameConverter.loadPixelFrame(path: path, model: model))
     }
 
-    /// Rasterize a `CGImage` to 16x16 and display it.
+    /// Rasterize a `CGImage` to the selected model’s size and display it.
     public func send(cgImage: CGImage) async throws {
-        try await send(image: try ImageToPixelFrameConverter.pixelFrame(from: cgImage))
+        try await send(image: try ImageToPixelFrameConverter.pixelFrame(from: cgImage, model: model))
     }
     #endif
 
     /// Fill the whole display with a single color.
     public func setColor(_ color: PixelRGB, brightnessPercent: Int = 100) async throws {
         try await transport.write(
-            try TimeboxPacketEncoder.encode(.lightningPlainColor(color: color, brightnessPercent: brightnessPercent))
+            try TimeboxPacketEncoder.encode(.lightningPlainColor(color: color, brightnessPercent: brightnessPercent), model: model)
         )
     }
 
     /// Set the display brightness (0...100).
     public func setBrightness(_ percent: Int) async throws {
-        try await transport.write(try TimeboxPacketEncoder.encode(.setBrightness(percent)))
+        try await transport.write(try TimeboxPacketEncoder.encode(.setBrightness(percent), model: model))
     }
 
     /// Configure one supplied live alarm slot without changing the device clock.
     /// Read the slot first; sound settings and unspecified volume are preserved.
     public func setAlarm(_ current: TimeboxAlarm, schedule: TimeboxAlarmSchedule, volume: Int? = nil) async throws {
-        try await transport.write(try TimeboxPacketEncoder.encode(.setAlarm(current, schedule: schedule, volume: volume)))
+        try await transport.write(try TimeboxPacketEncoder.encode(.setAlarm(current, schedule: schedule, volume: volume), model: model))
     }
 
     /// Disable one supplied live slot, retaining every other exposed field.
     public func disableAlarm(_ current: TimeboxAlarm) async throws {
-        try await transport.write(try TimeboxPacketEncoder.encode(.disableAlarm(current)))
+        try await transport.write(try TimeboxPacketEncoder.encode(.disableAlarm(current), model: model))
     }
 
     /// Send one local Gregorian wall-clock snapshot; no ongoing or DST maintenance.
     public func synchronizeClock(at date: Date = Date(), timeZone: TimeZone = .current) async throws {
         let snapshot = try TimeboxClockSnapshot(date: date, timeZone: timeZone)
-        try await transport.write(try TimeboxPacketEncoder.encode(.synchronizeClock(snapshot)))
+        try await transport.write(try TimeboxPacketEncoder.encode(.synchronizeClock(snapshot), model: model))
     }
 
     /// Start the device countdown in the official app's supported range.
     public func startCountdown(_ duration: TimeboxCountdownDuration) async throws {
-        try await transport.write(try TimeboxPacketEncoder.encode(.startCountdown(duration)))
+        try await transport.write(try TimeboxPacketEncoder.encode(.startCountdown(duration), model: model))
     }
 
     public func stopCountdown() async throws {
-        try await transport.write(try TimeboxPacketEncoder.encode(.stopCountdown))
+        try await transport.write(try TimeboxPacketEncoder.encode(.stopCountdown, model: model))
     }
 
     /// Control the device stopwatch without a host timer or elapsed-time read claim.
     public func stopwatch(_ action: TimeboxStopwatchAction) async throws {
-        try await transport.write(try TimeboxPacketEncoder.encode(.stopwatch(action)))
+        try await transport.write(try TimeboxPacketEncoder.encode(.stopwatch(action), model: model))
     }
 
     /// Prepare the complete upload before writing any bytes; never auto-retry a partial upload.
     public func send(animation: TimeboxAnimation, adapt: Bool = false) async throws -> TimeboxAnimationUpload {
+        try requireEvo("animation")
         let upload = try TimeboxAnimationEncoder.prepare(animation, adapt: adapt)
         for packet in upload.packets {
             try await transport.write(packet)
@@ -206,8 +228,13 @@ public final class TimeboxClient {
 
     /// Render system-font scrolling text and reuse the animation sender without lossy adaptation.
     public func send(text: String) async throws -> TimeboxAnimationUpload {
+        try requireEvo("scrolling text")
         let rendered = try TimeboxTextRenderer.render(text)
         return try await send(animation: rendered.animation)
+    }
+
+    private func requireEvo(_ operation: String) throws {
+        guard try model == .evo else { throw TimeboxModelError.unsupported(operation) }
     }
 
     /// Send a raw, already-framed protocol packet (escape hatch).

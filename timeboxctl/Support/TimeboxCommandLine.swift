@@ -64,10 +64,30 @@ public final class TimeboxCommandLine {
             }
             guard !options.all, !options.save else { throw CommandFailure("invalid_arguments", "--all and --save are only valid for list.") }
             if command == "repl", options.format != nil { throw CommandFailure("invalid_arguments", "The REPL is interactive; JSON/YAML streams are not supported.") }
-            let packet = ["repl", "connect", "alarm", "animation", "text", "status", "display", "design", "effect"].contains(command) ? nil : try packet(command, options: options)
             if command == "connect", !options.positionals.isEmpty { throw CommandFailure("invalid_arguments", "connect takes no positional arguments.") }
+            if command == "brightness" {
+                guard options.positionals.count == 1 else { throw CommandFailure("invalid_arguments", "brightness requires one percentage.") }
+                _ = try CommandOptions.percent(options.positionals[0])
+            }
+            let preparedPacket = ["time", "countdown", "stopwatch", "color", "brightness", "send-hex"].contains(command)
+                ? try packet(command, options: options) : nil
             let configuration = try environment.configuration(options.configPath)
-            let resolved = try resolve(options, configuration: configuration)
+            var resolved = try resolve(options, configuration: configuration)
+            target = resolved
+            if !["send-hex", "connect"].contains(command) {
+                resolved.modelResolution = try resolveModel(options, target: resolved, configuration: configuration)
+            }
+            if ["alarm", "status", "display", "design", "effect", "animation", "text", "time", "countdown", "stopwatch"].contains(command), resolved.modelResolution?.model == .mini {
+                throw TimeboxModelError.unsupported(command)
+            }
+            let packet: Data?
+            if ["repl", "connect", "alarm", "animation", "text", "status", "display", "design", "effect"].contains(command) {
+                packet = nil
+            } else if let preparedPacket, resolved.modelResolution?.model != .mini {
+                packet = preparedPacket
+            } else {
+                packet = try self.packet(command, options: options, model: resolved.modelResolution?.model ?? .evo)
+            }
             target = resolved
             if let animation {
                 try sendAnimation(animation, to: resolved, options: options)
@@ -104,7 +124,7 @@ public final class TimeboxCommandLine {
             case "time": data["operation"] = "sync"
             case "brightness": data["brightness"] = try CommandOptions.percent(options.positionals[0])
             case "color": data["color"] = options.positionals[0].replacingOccurrences(of: "#", with: "").uppercased(); data["brightness"] = options.brightness
-            case "image": data["path"] = options.positionals[0]; data["width"] = 16; data["height"] = 16
+            case "image": data["path"] = options.positionals[0]; data["width"] = resolved.modelResolution!.model.width; data["height"] = resolved.modelResolution!.model.height
             case "display": data["selection"] = options.positionals[0]
             case "effect": data["effect"] = Int(options.positionals[0])
             default: break
@@ -138,9 +158,20 @@ public final class TimeboxCommandLine {
         }
     }
 
+    func resolveModel(_ options: CommandOptions, target: ResolvedDevice, configuration: DeviceConfiguration) throws -> TimeboxModelResolution {
+        let saved = target.logicalName.flatMap { configuration.devices[$0]?.model }
+        // Overrides intentionally avoid identity I/O; automatic detection never selects a target.
+        let detected: Set<TimeboxModel>
+        if options.mock { detected = [.evo] }
+        else if options.model == nil && (options.explicitAutoModel || saved == nil) { detected = try environment.detectModels(target.device) }
+        else { detected = [] }
+        return try TimeboxModelResolver.resolve(explicit: options.model, saved: saved,
+            bypassSaved: options.explicitAutoModel, detected: detected)
+    }
+
     func list(_ options: CommandOptions) throws -> [[String: Any]] {
         guard options.name == nil, options.address == nil, options.positionals.isEmpty,
-              options.channel == nil else {
+              options.channel == nil, options.model == nil, !options.explicitAutoModel else {
             throw CommandFailure("invalid_arguments", "list does not take a device/name/address selector or channel.")
         }
         let discovered = try environment.discover(options.mock)
@@ -202,7 +233,7 @@ public final class TimeboxCommandLine {
         throw lastError ?? CommandFailure("connection_failed", "Connection failed.")
     }
 
-    func packet(_ command: String, options: CommandOptions) throws -> Data {
+    func packet(_ command: String, options: CommandOptions, model: TimeboxModel = .evo) throws -> Data {
         switch command {
         case "stopwatch":
             guard options.positionals.count == 1 else { throw CommandFailure("invalid_arguments", "Use stopwatch start, stop or reset.") }
@@ -213,31 +244,31 @@ public final class TimeboxCommandLine {
             case "reset": action = .reset
             default: throw CommandFailure("invalid_arguments", "Use stopwatch start, stop or reset.")
             }
-            return try TimeboxPacketEncoder.encode(.stopwatch(action))
+            return try TimeboxPacketEncoder.encode(.stopwatch(action), model: model)
         case "countdown":
-            if options.positionals == ["stop"] { return try TimeboxPacketEncoder.encode(.stopCountdown) }
+            if options.positionals == ["stop"] { return try TimeboxPacketEncoder.encode(.stopCountdown, model: model) }
             guard options.positionals.count == 2, options.positionals[0] == "start" else { throw CommandFailure("invalid_arguments", "Use countdown start MM:SS or countdown stop.") }
-            do { return try TimeboxPacketEncoder.encode(.startCountdown(TimeboxCountdownDuration(options.positionals[1]))) }
+            do { return try TimeboxPacketEncoder.encode(.startCountdown(TimeboxCountdownDuration(options.positionals[1])), model: model) }
             catch { throw CommandFailure("invalid_arguments", error.localizedDescription) }
         case "time":
             guard options.positionals == ["sync"] else { throw CommandFailure("invalid_arguments", "Use time sync.") }
-            return try TimeboxPacketEncoder.encode(.synchronizeClock(TimeboxClockSnapshot(date: environment.clock(), timeZone: environment.timeZone())))
+            return try TimeboxPacketEncoder.encode(.synchronizeClock(TimeboxClockSnapshot(date: environment.clock(), timeZone: environment.timeZone())), model: model)
         case "display", "design", "effect":
-            return try TimeboxPacketEncoder.encode(.display(DisplayOperation(command: command, options: options).selection))
+            return try TimeboxPacketEncoder.encode(.display(DisplayOperation(command: command, options: options).selection), model: model)
         case "brightness":
             guard options.positionals.count == 1 else { throw CommandFailure("invalid_arguments", "brightness requires one percentage.") }
-            return try TimeboxPacketEncoder.encode(.setBrightness(CommandOptions.percent(options.positionals[0])))
+            return try TimeboxPacketEncoder.encode(.setBrightness(CommandOptions.percent(options.positionals[0])), model: model)
         case "color":
             guard options.positionals.count == 1 else { throw CommandFailure("invalid_arguments", "color requires one RRGGBB value.") }
             let text = options.positionals[0].replacingOccurrences(of: "#", with: "")
             guard text.count == 6, let rgb = UInt32(text, radix: 16) else { throw CommandFailure("invalid_arguments", "Expected RRGGBB, for example FF0000.") }
             return try TimeboxPacketEncoder.encode(.lightningPlainColor(
                 color: PixelRGB(red: UInt8((rgb >> 16) & 255), green: UInt8((rgb >> 8) & 255), blue: UInt8(rgb & 255)),
-                brightnessPercent: options.brightness))
+                brightnessPercent: options.brightness), model: model)
         case "image":
             guard options.positionals.count == 1 else { throw CommandFailure("invalid_arguments", "image requires one path; quote paths containing spaces.") }
             do {
-                return try TimeboxPacketEncoder.encode(.image(ImageToPixelFrameConverter.loadPixelFrame(path: options.positionals[0])))
+                return try TimeboxPacketEncoder.encode(.image(ImageToPixelFrameConverter.loadPixelFrame(path: options.positionals[0], model: model)), model: model)
             } catch { throw CommandFailure("invalid_media", error.localizedDescription) }
         case "send-hex", "hex":
             guard !options.positionals.isEmpty else { throw CommandFailure("invalid_arguments", "Raw hex bytes are required.") }
@@ -266,6 +297,9 @@ public final class TimeboxCommandLine {
                 continue
             }
             do {
+                if ["alarm", "status", "display", "design", "effect", "animation", "text", "time", "countdown", "stopwatch"].contains(command), target.modelResolution?.model == .mini {
+                    throw TimeboxModelError.unsupported(command)
+                }
                 if command == "text" {
                     let text = try Self.replText(line)
                     let rendered = try TimeboxTextRenderer.render(text)
@@ -281,7 +315,7 @@ public final class TimeboxCommandLine {
                     guard animationOptions.name == nil, animationOptions.address == nil, animationOptions.channel == nil,
                           animationOptions.configPath == nil, animationOptions.format == nil, !animationOptions.mock,
                           !animationOptions.all, !animationOptions.save, !animationOptions.hasAlarmWriteOptions,
-                          animationOptions.queryTimeout == nil else { throw CommandFailure("invalid_arguments", "Use target NAME to select the REPL device.") }
+                          animationOptions.queryTimeout == nil, animationOptions.model == nil, !animationOptions.explicitAutoModel, animationOptions.displayStyle == nil, animationOptions.displayColor == nil else { throw CommandFailure("invalid_arguments", "Use target NAME to select the REPL device.") }
                     let upload = try prepareAnimation(animationOptions)
                     guard transport.isConnected else { throw CommandFailure("connection_failed", "The selected target is disconnected.") }
                     for data in upload.packets { try transport.write(data); transport.wait(milliseconds: 20) }
@@ -294,7 +328,7 @@ public final class TimeboxCommandLine {
                           displayOptions.name == nil, displayOptions.address == nil,
                           displayOptions.channel == nil, displayOptions.configPath == nil,
                           displayOptions.format == nil, !displayOptions.mock,
-                          !displayOptions.all, !displayOptions.save else {
+                          !displayOptions.all, !displayOptions.save, displayOptions.model == nil, !displayOptions.explicitAutoModel, displayOptions.resize == nil, !displayOptions.adapt else {
                         throw CommandFailure("invalid_arguments", "Use target NAME to choose the REPL device; display options configure only the selected display.")
                     }
                     let selection = try DisplayOperation(command: command, options: displayOptions).selection
@@ -327,7 +361,7 @@ public final class TimeboxCommandLine {
                           statusOptions.name == nil, statusOptions.address == nil,
                           statusOptions.channel == nil, statusOptions.configPath == nil,
                           statusOptions.format == nil, !statusOptions.mock,
-                          !statusOptions.all, !statusOptions.save else {
+                          !statusOptions.all, !statusOptions.save, statusOptions.model == nil, !statusOptions.explicitAutoModel, statusOptions.displayStyle == nil, statusOptions.displayColor == nil, statusOptions.resize == nil, !statusOptions.adapt else {
                         throw CommandFailure("invalid_arguments", "Use status [--timeout SECONDS]; target NAME selects the REPL device.")
                     }
                     guard !options.mock else { throw CommandFailure("unsupported", "Mock mode has no live device status.") }
@@ -345,11 +379,12 @@ public final class TimeboxCommandLine {
                     continue
                 }
                 if command == "alarm" {
+                    guard target.modelResolution?.model != .mini else { throw TimeboxModelError.unsupported("alarms") }
                     let alarmOptions = try CommandOptions(Array(parts.dropFirst()))
                     guard alarmOptions.name == nil,
                           alarmOptions.address == nil, alarmOptions.channel == nil,
                           alarmOptions.configPath == nil, alarmOptions.format == nil,
-                          !alarmOptions.mock, !alarmOptions.all, !alarmOptions.save, alarmOptions.displayStyle == nil, alarmOptions.displayColor == nil else {
+                          !alarmOptions.mock, !alarmOptions.all, !alarmOptions.save, alarmOptions.model == nil, !alarmOptions.explicitAutoModel, alarmOptions.displayStyle == nil, alarmOptions.displayColor == nil else {
                         throw CommandFailure("invalid_arguments", "Use alarm list/set/disable; target NAME selects the REPL device.")
                     }
                     let operation = try AlarmOperation(alarmOptions)
@@ -372,12 +407,16 @@ public final class TimeboxCommandLine {
                 if command == "target" {
                     let name = parts.dropFirst().joined(separator: " ")
                     if name.isEmpty || name.lowercased() == "current" {
-                        environment.output("Target: \(target.logicalName ?? "(unnamed)") | \(target.device.address) | \(transport.isConnected ? "connected" : "disconnected")")
+                        environment.output("Target: \(target.logicalName ?? "(unnamed)") | \(target.device.address) | \(transport.isConnected ? "connected" : "disconnected") | model: \(target.modelResolution!.model.rawValue) (\(target.modelResolution!.source.rawValue))")
                     } else {
                         // Resolve first: a typo must not tear down a working connection.
                         let configuration = try environment.configuration(options.configPath)
-                        let selected = try DeviceResolver.resolve(name: name, address: nil,
+                        var selected = try DeviceResolver.resolve(name: name, address: nil,
                             environmentAddress: nil, configuration: configuration, discover: { [] })
+                        // Startup --model/--channel applies to the startup target only.
+                        var modelOptions = try CommandOptions([])
+                        modelOptions.mock = options.mock
+                        selected.modelResolution = try resolveModel(modelOptions, target: selected, configuration: configuration)
                         transport.disconnect()
                         target = selected
                         transport = environment.makeTransport(options.mock)
@@ -392,7 +431,7 @@ public final class TimeboxCommandLine {
                     continue
                 }
                 var replOptions = try CommandOptions(Array(parts.dropFirst()))
-                guard !replOptions.hasAlarmWriteOptions, replOptions.queryTimeout == nil else {
+                guard !replOptions.hasAlarmWriteOptions, replOptions.queryTimeout == nil, replOptions.model == nil, !replOptions.explicitAutoModel else {
                     throw CommandFailure("invalid_arguments", "Schedule, volume and query timeout options apply only to alarm commands.")
                 }
                 guard replOptions.resize == nil, !replOptions.adapt else { throw CommandFailure("invalid_arguments", "--resize and --adapt apply only to animation.") }
@@ -402,7 +441,7 @@ public final class TimeboxCommandLine {
                 }
                 if command == "image" { replOptions.positionals = [parts.dropFirst().joined(separator: " ")] }
                 let data = try packet(command == "bright" ? "brightness" : command == "img" ? "image" : command,
-                                      options: replOptions)
+                                      options: replOptions, model: target.modelResolution!.model)
                 guard transport.isConnected else { throw CommandFailure("connection_failed", "The selected target is disconnected.") }
                 try transport.write(data)
                 transport.wait(milliseconds: 60)
@@ -410,7 +449,7 @@ public final class TimeboxCommandLine {
             } catch {
                 let failure = Self.failure(error)
                 environment.errorOutput("Error: \(failure.message)")
-                if command == "target", failure.kind == "device_not_found" {
+                if command == "target", ["device_not_found", "unknown_model", "conflicting_model"].contains(failure.kind) {
                     environment.errorOutput("Target unchanged: \(target.logicalName ?? target.device.address).")
                 }
             }
@@ -426,6 +465,11 @@ public final class TimeboxCommandLine {
             case .incompleteWrite: return CommandFailure("write_failed", display.localizedDescription)
             default: return CommandFailure("unsupported", display.localizedDescription)
             }
+        }
+        if let model = error as? TimeboxModelError {
+            let kind: String
+            switch model { case .unidentified: kind = "unknown_model"; case .conflicting: kind = "conflicting_model"; case .unsupported: kind = "unsupported" }
+            return CommandFailure(kind, model.localizedDescription)
         }
         if let alarm = error as? TimeboxAlarmWriteError {
             return CommandFailure("invalid_arguments", alarm.localizedDescription)
