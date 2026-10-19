@@ -19,6 +19,10 @@ public enum TimeboxPacketEncoder {
         switch command {
         case .synchronizeClock(let snapshot):
             return try encodePayload(snapshot.payload)
+        case .startCountdown(let duration):
+            return try encodePayload(Data([0x72, 3, 1, UInt8(duration.minutes), UInt8(duration.seconds)]))
+        case .stopCountdown:
+            return try encodePayload(Data([0x72, 3, 0, 0, 0]))
         case .raw(let data):
             return data
         case .setBrightness(let percent):

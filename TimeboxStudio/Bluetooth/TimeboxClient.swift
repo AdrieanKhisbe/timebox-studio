@@ -145,6 +145,15 @@ public final class TimeboxClient {
         try await transport.write(try TimeboxPacketEncoder.encode(.synchronizeClock(snapshot)))
     }
 
+    /// Start the device countdown in the official app's supported range.
+    public func startCountdown(_ duration: TimeboxCountdownDuration) async throws {
+        try await transport.write(try TimeboxPacketEncoder.encode(.startCountdown(duration)))
+    }
+
+    public func stopCountdown() async throws {
+        try await transport.write(try TimeboxPacketEncoder.encode(.stopCountdown))
+    }
+
     /// Send a raw, already-framed protocol packet (escape hatch).
     public func sendRaw(_ packet: Data) async throws {
         try await transport.write(packet)
