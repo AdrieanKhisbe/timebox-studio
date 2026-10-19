@@ -13,7 +13,7 @@ An initial apparent release-only failure was confounded by execution permissions
 | Execution context | Result |
 | --- | --- |
 | Tool's default sandbox (`use_default`) | RFCOMM open timeout after approximately 15 seconds; `-536870186`; no display payload sent |
-| Standard tool approval (`require_escalated`) | Success on channel 1 in 0.147 seconds; no display payload sent |
+| Standard tool approval (`require_escalated`) | Success on channel 1 in approximately 0.148 seconds; no display payload sent |
 
 The parent also ran five connection-only variants with identical approved execution permissions:
 
@@ -33,4 +33,4 @@ The execution sandbox blocked the failing attempts. The comparison does not impl
 
 No TCC reset, permission database edit, sandbox-profile bypass, transport modification or required signing script was introduced. The parent used the tool's ordinary approval mechanism. These findings concern this agent execution environment; they do not claim every user's terminal has the same restrictions. Compilation and mock sends alone cannot establish live Bluetooth access. If this environment reports a similar open timeout, use the standard approval path for the Bluetooth command before asking for further power cycles or inferring a protocol/build defect.
 
-Timing values above measure command duration, not Bluetooth packet timing or display precision. Scratch binaries, signing variants and the local comparison harness remain outside the repository. No MAC address is published.
+The underlying denied OS operation was not isolated, and no exact wall-clock timestamps or raw OS denial trace were retained. This controlled result does not establish that every Bluetooth timeout has the same cause. Timing values above measure command duration, not Bluetooth packet timing or display precision. Scratch binaries, signing variants and the local comparison harness remain outside the repository. No MAC address is published.
