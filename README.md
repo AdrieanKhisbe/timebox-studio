@@ -200,3 +200,21 @@ the bold blue `timebox` and bold red `>` prompt. History stays in memory unless
 .build/debug/timeboxctl repl --address "$MAC"
 .build/debug/timeboxctl repl --mock
 ```
+### Evo display channels
+
+```sh
+timeboxctl display clock --style 0 --device desk
+timeboxctl display light --color FF0000 --brightness 50 --device desk
+timeboxctl display design --device desk
+timeboxctl effect 10 --device desk
+```
+
+Equivalent REPL commands and `TimeboxClient.display(_:)` use the same typed
+encoder. Explicit clock styles apply a complete white/time-only profile; explicit
+light options apply a complete plain-light profile (missing color white, missing
+brightness 100, power on). They do not preserve unspecified stored settings.
+Supported reference catalogues are clock styles 0–5 and VJ effects 0–15; physical
+acceptance is pending. Bare clock/light/effects selection and numbered design-tab
+selection return unsupported before any packet until their preservation/index
+semantics are established. Custom/design channel selection is distinct from
+stored-content enumeration. See [display evidence and acceptance](docs/validation/evo-display-channels.md).

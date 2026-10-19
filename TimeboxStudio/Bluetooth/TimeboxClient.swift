@@ -27,12 +27,15 @@ import CoreGraphics
 public final class TimeboxClient {
     #if os(macOS)
     private let bluetooth = IOBluetoothTimeboxTransport()
-    private var transport: TimeboxTransport { bluetooth }
+    private var transport: TimeboxTransport { injectedTransport ?? bluetooth }
     #else
-    private let transport: TimeboxTransport = CoreBluetoothRCSPTransport()
+    private let bleTransport: TimeboxTransport = CoreBluetoothRCSPTransport()
+    private var transport: TimeboxTransport { injectedTransport ?? bleTransport }
     #endif
 
+    private var injectedTransport: TimeboxTransport?
     public init() {}
+    convenience init(transport: TimeboxTransport) { self.init(); injectedTransport = transport }
 
     public var isConnected: Bool { transport.isConnected }
 
@@ -62,7 +65,7 @@ public final class TimeboxClient {
     /// from the device's SDP (pass `channel` only to force a specific one).
     public func connect(to device: TimeboxDevice, channel: UInt8? = nil) async throws {
         #if os(macOS)
-        if let channel {
+        if let channel, injectedTransport == nil {
             try await bluetooth.connect(to: device, channelID: channel)
             return
         }
@@ -98,6 +101,11 @@ public final class TimeboxClient {
     }
 
     // MARK: - Sending (connection must be open)
+
+    /// Select an Evo display channel or apply a documented complete profile.
+    public func display(_ selection: TimeboxDisplay) async throws {
+        try await transport.write(try TimeboxPacketEncoder.encode(.display(selection)))
+    }
 
     /// Display an arbitrary 16x16 image.
     public func send(image frame: PixelFrame) async throws {

@@ -3,7 +3,7 @@ import Yams
 
 extension TimeboxCommandLine {
     func manage(_ command: String, options: CommandOptions) throws {
-        guard options.name == nil, options.address == nil, options.channel == nil, !options.all, !options.save, !options.mock else {
+        guard options.name == nil, options.address == nil, options.channel == nil, !options.all, !options.save, !options.mock, options.displayStyle == nil, options.displayColor == nil else {
             throw CommandFailure("invalid_arguments", "Configuration commands do not take device, transport or discovery options.")
         }
         let file = DeviceConfigFile(path: options.configPath)

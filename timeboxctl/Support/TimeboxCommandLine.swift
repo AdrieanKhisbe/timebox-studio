@@ -7,7 +7,7 @@ import TimeboxUtilities
 
 /// One CLI invocation. All ordinary device commands share selection and Classic routing.
 public final class TimeboxCommandLine {
-    static var replVocabulary: [String] { REPLSuggestions.commands + ["target", "target current", "status", "time", "time sync", "countdown", "countdown start", "countdown stop", "stopwatch", "stopwatch start", "stopwatch stop", "stopwatch reset"] }
+    static var replVocabulary: [String] { REPLSuggestions.commands + ["target", "target current", "status", "time", "time sync", "countdown", "countdown start", "countdown stop", "stopwatch", "stopwatch start", "stopwatch stop", "stopwatch reset", "display", "display clock", "display light", "display design", "design", "effect"] }
     var environment: CommandEnvironment
     var outputFormat: OutputFormat?
     public init(environment: CommandEnvironment) { self.environment = environment }
@@ -16,7 +16,7 @@ public final class TimeboxCommandLine {
         guard let command = arguments.first else { return false }
         if arguments.contains(where: { ["--json", "--yaml", "--yml"].contains($0) }) { return true }
         if ["brightness", "color"].contains(command), arguments.contains("--uuid") { return false }
-        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "status", "time", "countdown", "stopwatch"].contains(command)
+        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "status", "time", "countdown", "stopwatch", "display", "design", "effect"].contains(command)
     }
 
     @discardableResult
@@ -31,7 +31,7 @@ public final class TimeboxCommandLine {
         var target: ResolvedDevice?
         do {
             guard !command.isEmpty else { throw CommandFailure("invalid_arguments", "A command is required.") }
-            guard ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "status", "time", "countdown", "stopwatch"].contains(command), !arguments.contains("--uuid") else {
+            guard ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "status", "time", "countdown", "stopwatch", "display", "design", "effect"].contains(command), !arguments.contains("--uuid") else {
                 throw CommandFailure("unsupported", "Structured output is not supported for this diagnostic command.")
             }
             let options = try CommandOptions(Array(arguments.dropFirst()))
@@ -40,6 +40,9 @@ public final class TimeboxCommandLine {
             }
             guard command == "repl" || !options.hasREPLInputOptions else {
                 throw CommandFailure("invalid_arguments", "Editor/history options are only valid when starting repl.")
+            }
+            guard ["display", "design", "effect"].contains(command) || (options.displayStyle == nil && options.displayColor == nil) else {
+                throw CommandFailure("invalid_arguments", "--style and --color are display options.")
             }
             guard command == "status" || options.queryTimeout == nil else { throw CommandFailure("invalid_arguments", "Query timeout applies only to status commands.") }
             if command == "status" {
@@ -82,6 +85,8 @@ public final class TimeboxCommandLine {
             case "brightness": data["brightness"] = try CommandOptions.percent(options.positionals[0])
             case "color": data["color"] = options.positionals[0].replacingOccurrences(of: "#", with: "").uppercased(); data["brightness"] = options.brightness
             case "image": data["path"] = options.positionals[0]; data["width"] = 16; data["height"] = 16
+            case "display": data["selection"] = options.positionals[0]
+            case "effect": data["effect"] = Int(options.positionals[0])
             default: break
             }
             try emit(CommandResult(command: resultCommand, status: options.mock ? "simulated" : "sent", device: resolved, data: data))
@@ -178,6 +183,9 @@ public final class TimeboxCommandLine {
     }
 
     func packet(_ command: String, options: CommandOptions) throws -> Data {
+        if ["display", "design", "effect"].contains(command) {
+            return try TimeboxPacketEncoder.encode(.display(DisplayOperation(command: command, options: options).selection))
+        }
         if command == "stopwatch" {
             guard options.positionals.count == 1 else { throw CommandFailure("invalid_arguments", "Use stopwatch start, stop or reset.") }
             let action: TimeboxStopwatchAction
@@ -216,16 +224,16 @@ public final class TimeboxCommandLine {
         defer { transport.disconnect() }
         try connect(transport, to: target, channel: options.channel)
         transport.wait(milliseconds: 150)
-        environment.output("Persistent connection open. Commands: target [NAME|current], status, time sync, countdown start MM:SS / stop, stopwatch start/stop/reset, color, brightness, image, hex, help, quit.")
+        environment.output("Persistent connection open. Commands: target [NAME|current], status, time sync, countdown start MM:SS / stop, stopwatch start/stop/reset, display clock/light/design, effect ID, color, brightness, image, hex, help, quit.")
         while let line = try input.readLine(prompt: REPLPrompt.text(interactive: environment.isInteractive, noColor: environment.variables["NO_COLOR"] != nil)) {
             let parts = line.split(whereSeparator: \.isWhitespace).map(String.init)
             guard let command = parts.first?.lowercased() else { continue }
             if ["quit", "exit", "q"].contains(command) { break }
-            if ["help", "?"].contains(command) { environment.output("target [NAME|current], status, time sync, countdown start MM:SS / stop, stopwatch start/stop/reset, color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit"); continue }
+            if ["help", "?"].contains(command) { environment.output("target [NAME|current], status, time sync, countdown start MM:SS / stop, stopwatch start/stop/reset, display clock/light/design, effect ID, color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit"); continue }
             do {
                 if command == "status" {
                     let statusOptions = try CommandOptions(Array(parts.dropFirst()))
-                    guard statusOptions.positionals.isEmpty, !statusOptions.hasREPLInputOptions,
+                    guard statusOptions.positionals.isEmpty, !statusOptions.hasREPLInputOptions, statusOptions.displayStyle == nil, statusOptions.displayColor == nil,
                           statusOptions.name == nil, statusOptions.address == nil,
                           statusOptions.channel == nil, statusOptions.configPath == nil,
                           statusOptions.format == nil, !statusOptions.mock,
@@ -270,6 +278,8 @@ public final class TimeboxCommandLine {
                 }
                 var replOptions = try CommandOptions(Array(parts.dropFirst()))
                 guard !replOptions.hasREPLInputOptions else { throw CommandFailure("invalid_arguments", "Editor/history options are only valid when starting repl.") }
+                guard replOptions.queryTimeout == nil else { throw CommandFailure("invalid_arguments", "Query timeout applies only to status commands.") }
+                guard ["display", "design", "effect"].contains(command) || (replOptions.displayStyle == nil && replOptions.displayColor == nil) else { throw CommandFailure("invalid_arguments", "--style and --color are display options.") }
                 if command == "color", replOptions.positionals.count == 2 {
                     replOptions.brightness = try CommandOptions.percent(replOptions.positionals.removeLast())
                 }
@@ -294,6 +304,7 @@ public final class TimeboxCommandLine {
 
     static func failure(_ error: Error) -> CommandFailure {
         if let failure = error as? CommandFailure { return failure }
+        if let display = error as? TimeboxDisplayError { return CommandFailure("unsupported", display.localizedDescription) }
         if let query = error as? TimeboxQueryError {
             switch query {
             case .timeout: return CommandFailure("query_timeout", query.localizedDescription)

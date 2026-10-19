@@ -25,6 +25,8 @@ public enum TimeboxPacketEncoder {
             return try encodePayload(Data([0x72, 3, 0, 0, 0]))
         case .stopwatch(let action):
             return try encodePayload(Data([0x72, 0, action.rawValue]))
+        case .display(let display):
+            return try encodePayload(display.payload())
         case .raw(let data):
             return data
         case .setBrightness(let percent):
