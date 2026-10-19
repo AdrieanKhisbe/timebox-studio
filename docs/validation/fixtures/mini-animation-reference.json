@@ -1,0 +1,25 @@
+{
+  "reference_commit": "479d728d1a414a8a9e880bd801fe5c4a6956df53",
+  "mini_sha256": "e8cf404b66cb1692bbe774109cd61105e370c08aa3c6f7e4c1c11a77f666fd74",
+  "shared_sha256": "3ec17896fb782bb3978ef38df3a68773ef6db3fb5f490ea9f88672fadd2f2fc6",
+  "dimensions": [
+    11,
+    11
+  ],
+  "source_frames": 2,
+  "durations_ms": [
+    500,
+    500
+  ],
+  "packet_bytes": [
+    195,
+    196
+  ],
+  "reference_methods": [
+    "TimeboxMini.process_frame",
+    "TimeboxMini.make_framepart",
+    "Divoom.make_message",
+    "Divoom.escape_payload",
+    "Divoom.checksum"
+  ]
+}

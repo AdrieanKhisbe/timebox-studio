@@ -50,8 +50,7 @@ public final class TimeboxCommandLine {
                 throw CommandFailure("invalid_arguments", "This explicit display profile does not perform a query.")
             }
             guard command == "animation" || (options.resize == nil && !options.adapt) else { throw CommandFailure("invalid_arguments", "--resize and --adapt apply only to animation.") }
-            let renderedText = command == "text" ? try prepareText(options) : nil
-            let animation = command == "animation" ? try prepareAnimation(options) : renderedText?.upload
+            if command == "animation" { _ = try validateAnimationOptions(options) }
             let alarmOperation = command == "alarm" ? try AlarmOperation(options) : nil
             if command == "alarm" {
                 guard !options.mock else { throw CommandFailure("unsupported", "Mock mode has no device alarm state; alarm operations require live reads to preserve existing settings.") }
@@ -77,7 +76,7 @@ public final class TimeboxCommandLine {
             if !["send-hex", "connect"].contains(command) {
                 resolved.modelResolution = try resolveModel(options, target: resolved, configuration: configuration)
             }
-            if ["status", "design", "effect", "animation", "text", "time", "countdown"].contains(command), resolved.modelResolution?.model == .mini {
+            if ["status", "design", "effect", "text", "time", "countdown"].contains(command), resolved.modelResolution?.model == .mini {
                 throw TimeboxModelError.unsupported(command)
             }
             let packet: Data?
@@ -89,6 +88,9 @@ public final class TimeboxCommandLine {
                 packet = try self.packet(command, options: options, model: resolved.modelResolution?.model ?? .evo)
             }
             target = resolved
+            let selectedModel = resolved.modelResolution?.model ?? .evo
+            let renderedText = command == "text" ? try prepareText(options) : nil
+            let animation = command == "animation" ? try prepareAnimation(options, model: selectedModel) : renderedText?.upload
             try alarmOperation?.validate(model: resolved.modelResolution?.model ?? .evo)
             if let animation {
                 try sendAnimation(animation, to: resolved, options: options)
@@ -298,7 +300,7 @@ public final class TimeboxCommandLine {
                 continue
             }
             do {
-                if ["status", "design", "effect", "animation", "text", "time", "countdown"].contains(command), target.modelResolution?.model == .mini {
+                if ["status", "design", "effect", "text", "time", "countdown"].contains(command), target.modelResolution?.model == .mini {
                     throw TimeboxModelError.unsupported(command)
                 }
                 if command == "text" {
@@ -317,7 +319,7 @@ public final class TimeboxCommandLine {
                           animationOptions.configPath == nil, animationOptions.format == nil, !animationOptions.mock,
                           !animationOptions.all, !animationOptions.save, !animationOptions.hasAlarmWriteOptions,
                           animationOptions.queryTimeout == nil, animationOptions.model == nil, !animationOptions.explicitAutoModel, animationOptions.displayStyle == nil, animationOptions.displayColor == nil else { throw CommandFailure("invalid_arguments", "Use target NAME to select the REPL device.") }
-                    let upload = try prepareAnimation(animationOptions)
+                    let upload = try prepareAnimation(animationOptions, model: target.modelResolution!.model)
                     guard transport.isConnected else { throw CommandFailure("connection_failed", "The selected target is disconnected.") }
                     for data in upload.packets { try transport.write(data); transport.wait(milliseconds: 20) }
                     environment.output(options.mock ? "simulated animation" : "sent animation")
