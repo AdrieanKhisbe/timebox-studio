@@ -53,8 +53,15 @@ mock invocation for `Hello Mini` reports Menlo-Regular at 9px, 67 frames, a 6700
 target duration and 12940 encoded wire bytes. These are planned/simulated values,
 not radio observations.
 
-Two real connection attempts to AKTBR (`$MAC`) resolved channel4 but timed out
-waiting for the RFCOMM-open callback. No text frames were sent. Hardware
-readability and cadence acceptance is pending reconnection. No exact timing,
-Bluetooth throughput, repeated-stream, or persistence claim is made from
-transmission success alone. No clock or alarm settings changed.
+Two initial connection attempts to AKTBR (`$MAC`) resolved channel4 but timed out
+before writes; the user then confirmed the device had been off and powered it on.
+The next release-build REPL connected on SDP-resolved channel4, with explicit
+Mini model. After a five-second warning, `text --stream "Hello Mini"` completed
+one pass on that persistent link. The user confirmed the complete message moved
+right to left, upright and fully readable, then cleared. Its prepared plan was
+the same 67 frames / 12940 wire bytes reported above; no radio packet capture or
+measured timing was taken. No native repeat, exact cadence, throughput or
+persistence claim follows from this single pass.
+
+The Mini's clock display was selected afterward and the connection closed.
+No clock time or alarm settings changed.
