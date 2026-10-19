@@ -79,10 +79,12 @@ renamed discovery/save awaits verified passive identity evidence.
 ## Channel and image behavior
 
 The existing SDP resolver is reused, with an explicit `--channel` taking
-precedence. The prototype proved channel 4 on AKTBR; this investigation did not
-establish that Mini SDP chooses that endpoint automatically. Supply `--channel 4`
-for the previously validated device. No global or inferred channel-4 fallback is
-introduced, and Evo channel behavior is unchanged.
+precedence. The prototype proved channel 4 on AKTBR. The integrated REPL switch-back later
+resolved channel 4 from SDP automatically and displayed the smiley; switching to
+the Evo resolved channel 1, so the startup channel override did not leak to the
+new target. This verifies control-channel resolution on these two devices, not
+model identity. No global or inferred channel-4 fallback is introduced, and Evo
+channel behavior is unchanged.
 
 Static files use ImageIO frame zero, nearest-neighbor stretching to the model's
 size, DeviceRGB and premultiplied alpha over black. Mini channels are truncated to
@@ -114,16 +116,62 @@ address operation, model/source reporting, config edits/saves, unsupported alarm
 and REPL target switching without encoder leakage. Controlled transport tests run
 the actual library and CLI methods. Existing Evo protocol fixtures remain passing.
 
-Validation: 77 tests pass; the release CLI build passes. Production Mini hardware acceptance is still pending;
-prototype observations do not substitute for exercising the integrated path.
+Validation: 77 tests pass; the release CLI build passes. Integrated observations
+are recorded below; remaining hardware acceptance is still pending.
+
+## Integrated hardware observations (2026-10-19)
+
+Parent-coordinated testing used AKTBR (`$MAC`), explicit Mini encoding and Classic
+RFCOMM channel 4. One-shot `color FF0000 --brightness 80` transmitted 15 bytes; the
+user confirmed a solid red display. Separate one-shot `brightness 20` attempts
+transmitted 8 bytes each, but the user reported no sustained dimmer result and a
+Bluetooth icon around disconnect. These attempts are visually ambiguous, not
+standalone brightness-persistence acceptance.
+
+A single persistent REPL then sent `color FF0000 80`, `brightness 20`, and
+`brightness 80`, retaining the same connection (15/8/8 transmitted bytes). On the
+comparison after restoring 80, the user confirmed the previous display had been
+dimmer. This establishes visible brightness 20 versus 80 while the link remains
+open. No Mini brightness readback or post-disconnect persistence was established.
+
+The same REPL loaded native 11×11 `orientation.bmp` (193 bytes transmitted).
+The user confirmed white top-left, red top edge, green left edge, yellow diagonal
+and the blue bottom-right 121st pixel. Loading `smiley.bmp` also transmitted
+193 bytes; the user confirmed the yellow smiley. The [orientation](fixtures/mini-orientation.bmp)
+and [smiley](fixtures/mini-smiley.bmp) inputs are retained with this report.
+
+A temporary scratch config then supplied logical `main-evo` and `mini` entries
+with explicit saved model overrides. The user's real config was unchanged.
+Within the same REPL:
+
+- `target main-evo` reported model `evo` from config and resolved SDP channel 1.
+  `brightness 30` sent 8 bytes; the user confirmed the Evo dimmed.
+- `brightness 100` restored the Evo, then `target mini` reported model `mini`
+  from config and automatically resolved SDP channel 4. The smiley image sent
+  193 bytes; the user confirmed the smiley returned and the Evo was bright again.
+
+This establishes model/encoder/channel switching in both directions for the
+validated operations, with no startup-channel-4 leakage to Evo. Saved overrides
+are user choices, not automatic identity detection. At the observation cutoff,
+the parent-owned Mini REPL remained connected showing the smiley. The
+[redacted observation record](fixtures/mini-integrated-observations.json)
+separates transport results from the user's visual confirmation.
+
+The [original Mini integration’s documented limitation](https://github.com/mathoudebine/homeassistant-timebox-mini#limitations)
+reports a Bluetooth-status symbol after connection loss. That corroborates a
+possible status-screen interference; it does not prove the firmware restores a
+brightness setting. The CLI closes a one-shot connection after its post-write
+hold, whereas the REPL retains the connection. Its disconnect method sends no
+brightness/reset packet. No lifecycle or encoding change follows from these
+observations alone.
 
 ## Manual acceptance still required
 
-With user coordination, run one-shot CLI and REPL on AKTBR using the explicit
-Mini override and verified channel. Observe distinct brightness levels, red/green
-fills, native orientation including the bottom-right 121st pixel, and an image
-file. Switch REPL targets to a configured Evo and back; repeat Evo baseline
-brightness/color/image checks. Record the real endpoint/channel and human visual
-observations separately from transport success. Capture read-only identity/SDP
-metadata once the timeout is resolved before revisiting automatic detection.
-Do not send display-changing detection probes or experimental storage commands.
+The sequence above did not independently test solid green/blue fills, one-shot
+image-file rendering, or an Evo color/image regression in this session. Mini
+brightness after disconnect remains visually ambiguous; no settings-reset cause
+is established. Reliable automatic Mini/Evo identity remains unresolved even
+though per-target SDP control-channel resolution succeeded. Capture trustworthy
+identity evidence before revisiting the classifier. Additional tests require
+coordinated device access; do not send display-changing detection probes or
+experimental storage commands.
