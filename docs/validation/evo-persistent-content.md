@@ -176,6 +176,55 @@ Git. Exact scratch-output SHA256 checksums (not upstream source-file hashes):
 | `u` | `fa067bf6598e06668a5abb74e1a7aeb5bce2f01b1a352f248e91e0957fa58c7c` |
 | `p051f3.h` | `83125170ef2dc60146e94f87a540c3acfb28f9b2623c0a2192d4f48d7a9ffba9` |
 
+## Offline native record comparison
+
+The APK’s arm64 `libtimebox.so` has exported dynamic symbols despite stripped
+ordinary symbols. Extracted library SHA256:
+`b62ff2242b87ac799259b0eb3bca791fdd9add1c298213a32a67ff599a9292ef`.
+LLVM objdump/readobj inspect the ELF without executing Android or native code.
+JNI `NDKMain.pixelEncode` at `0x10F320` forwards RGB, frame count, speed, width and
+optional text to `divoom_image_encode_encode_mul_pic` at `0x1241B8`.
+For width16 it calls `divoom_image_encode_encode_one` at `0x122B18`.
+
+Concrete first-frame layout established from that encoder:
+
+- `0x122DD8–0x122DE8`: markerAA at0; speed low/high at3/4.
+- `0x122F5C–0x122F60`: reset/full-palette kind0 at5; color count at6;
+  first-seen RGB palette begins at7.
+- `0x123018–0x12306C`: LSB-first palette indices, omitted when color count<2.
+- `0x123074–0x123078`: total record lengthLE16 at1/2.
+- Dynamic relocation `0x349820` points to `gdivoom_image_bits_table`, address
+  `0x8C367`; initial values for counts0–9 are `0,0,1,2,2,3,3,3,3,4`.
+
+Consequently the source-derived solid-red save record at500ms is exactly
+`AA 0A 00 F4 01 00 01 FF 00 00`: ten bytes with no index stream. The app’s save
+wrapper normalizes a single frame below450ms to500ms (`h.c`,101–106). The Swift
+static encoder instead emits a42-byte record with zero timing and32 zero index
+bytes because it enforces at least one bit per pixel for a one-color palette.
+An offline Swift harness called the actual `TimeboxImageEncoder.imagePayload`
+and removed its five-byte display header to verify that42-byte comparison.
+For alternating red/green, both layouts have45 bytes, an RGB palette followed
+by32 bytesAA; save timing still differs. The [frozen comparison](fixtures/evo-storage-record-source-derived.json)
+labels native values as disassembly-derived, not executed/captured output.
+The animation branch reuses the static encoder’s record and replaces timing,
+so its one-color record also differs from this native save representation.
+This does not invalidate already observed display/animation acceptance; it
+prevents claiming byte-for-byte native storage compatibility by dropping `0x44`.
+Later-frame differential palettes, optional text and high-color quantization
+remain outside these fixtures. No native library or copyrighted disassembly is
+committed, and no speculative encoder is introduced.
+
+Parent independently traced transfer lifecycle: every successful B1 reply posts
+`T1.n`, while the model handler has no explicit waiting-for-start guard. Bulk
+sending queues end and immediately updates local cache without independent end
+ACK validation. `r.B` writes once with pacing and `r.K` does likewise; neither
+proves storage completion or safe automatic retry. A future prototype must
+complete the start phase once, prevent subsequent B1 acknowledgements from
+restarting bulk transfer, and report transmitted separately from persisted.
+Partial failures must not trigger blind replay. These gaps, runtimeBD13 mode
+negotiation and the native-record difference must be resolved before any
+explicitly authorized disposable-tab write. No implementation is Ready.
+
 ## Outstanding validation and proposed follow-ups
 
 There is no verified new capability ready for an implementation ticket yet.
