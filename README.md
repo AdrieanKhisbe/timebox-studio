@@ -224,7 +224,7 @@ channel selection is distinct from stored-content enumeration. See [display evid
 
 ### Original Timebox Mini and model selection
 
-The CLI supports original Mini brightness, solid color, static 11×11 images, clock display and synchronization, native stopwatch, three-slot alarms, and source-backed native GIF uploads:
+The CLI supports original Mini brightness, solid color, static 11×11 images, clock display and synchronization, native stopwatch, three-slot alarms, native GIF uploads, streamed text, and live status:
 
 ```sh
 timeboxctl image art.png --address AA:BB:CC:DD:EE:FF --model mini --channel 4
@@ -233,6 +233,7 @@ timeboxctl display clock --device mini --model mini
 timeboxctl time sync --device mini --model mini
 timeboxctl stopwatch start --device mini --model mini
 timeboxctl alarm list --device mini --model mini --json
+timeboxctl status --device mini --model mini --json
 timeboxctl animation art.gif --device mini --model mini [--adapt]
 timeboxctl text "Hello Mini" --stream --device mini --model mini
 ```

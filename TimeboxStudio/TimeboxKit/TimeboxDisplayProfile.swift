@@ -28,6 +28,7 @@ public struct TimeboxDisplayProfile: Equatable, Sendable {
     public enum Channel: Sendable { case clock, light }
     let payload: Data
     public init(channel: Channel, status: TimeboxStatus) throws {
+        guard status.model == .evo else { throw TimeboxModelError.unsupported("Evo display profile preservation") }
         let bytes = Array(status.rawData)
         guard bytes.count == 20 else {
             throw TimeboxDisplayError.unverified("Preservation of unknown settings-layout extensions")
