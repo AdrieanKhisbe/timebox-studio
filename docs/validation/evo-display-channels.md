@@ -195,9 +195,18 @@ read capability and sent two control packets totaling17 bytes; animated content
 was confirmed. A typed `effect 9` request returned unsupported locally without
 control output.
 
-Remaining physical acceptance: exercise these live operations in a persistent
-REPL to confirm reconnection on this device and compare complete stored profile
-readbacks. The controlled transport tests cover those lifecycle paths.
+The parent also exercised the production release binary in a persistent REPL.
+Bare clock restored the round analog style5; the user confirmed it. A subsequent
+status command reported configured clock0 and both brightness fields100. Bare
+light restored blue, confirmed by the user. The connection resumed after each
+live operation. `effect 9` returned unsupported before I/O and left the prompt
+usable. `design 0` displayed animated content; `design 1` displayed different content.
+Both were visually confirmed and the persistent connection resumed after each.
+The REPL then quit normally.
+
+Remaining physical acceptance: compare complete stored profile readbacks across
+additional channel options. The controlled transport tests cover rejection,
+partial transmission and reconnect failure paths.
 Tab2’s distinct behavior and VJ support remain unresolved. Transport completion
 is not visible validation. The parent retains the exclusive hardware lease;
 this investigating agent performed no device access.
@@ -206,3 +215,5 @@ No persistence/enumeration support is inferred. That separate investigation is
 [AdrieanKhisbe/timebox-studio#19](https://github.com/AdrieanKhisbe/timebox-studio/issues/19).
 
 Automated validation for this follow-up: 94 tests passed; release build passed.
+
+After the VJ diagnostic wording cleanup, 16 focused display tests passed.

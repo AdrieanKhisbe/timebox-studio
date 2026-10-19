@@ -188,6 +188,30 @@
       "transport": "Fresh capability read then 17 bytes across 2 control packets",
       "user": "Yes, animated content",
       "outcome": "Existing tab 0 animated content visible through production command"
+    },
+    {
+      "operation": "Release REPL display clock then status",
+      "user": "Yes, round analogue clock",
+      "outcome": "Fresh preserved clock profile visible; status clock0 brightness100/100; persistent link reconnected"
+    },
+    {
+      "operation": "Release REPL display light",
+      "user": "Yes, solid blue",
+      "outcome": "Preserved blue profile visible; persistent link reconnected"
+    },
+    {
+      "operation": "Release REPL effect 9",
+      "outcome": "Unsupported before I/O; REPL remained usable"
+    },
+    {
+      "operation": "Release REPL design 0",
+      "user": "Yes, animated content",
+      "outcome": "Fresh capability read then 2 packets17bytes; reconnected"
+    },
+    {
+      "operation": "Release REPL design 1 after tab 0",
+      "user": "Yes, different content",
+      "outcome": "Fresh capability read then 2 packets17bytes; distinct tab1content visually confirmed; reconnected"
     }
   ],
   "limits": "Clock styles 0 through 5 visually confirmed. Bare design return and distinct tabs 0/1 confirmed; tab 2 not independently distinguished. Legacy mode-3 effect 9 did not activate from blue light; effect 0 has no positive validation. No general effects-support claim. No storage writes, persistence, power-cycle or exact selected-tab readback tested. Both brightness fields co-vary."

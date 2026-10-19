@@ -14,6 +14,7 @@ public enum TimeboxEffect: Int, CaseIterable, Codable, Sendable {
 
 public enum TimeboxDisplayError: LocalizedError, Equatable {
     case unverified(String)
+    case unverifiedEffects
     case livePreparationRequired(String)
     case invalidDesignIndex(Int)
     case designCapability(UInt8)
@@ -24,6 +25,8 @@ public enum TimeboxDisplayError: LocalizedError, Equatable {
         case .invalidDesignIndex(let index): return "Design tab \(index) is outside the app-backed range 0 through 2."
         case .designCapability(let flag): return "Device did not advertise the app's three-tab capability (raw flag \(flag)); no tab packet was sent."
         case let .incompleteWrite(sent, total, reason): return "Transmitted \(sent) of \(total) display packets before failure: \(reason). Visible completion is unverified."
+        case .unverifiedEffects:
+            return "Legacy VJ effects are not verified on this Evo. No display packet was sent. See docs/validation/evo-display-channels.md."
         case .unverified(let operation):
             return "\(operation) is not verified on Evo yet. No display packet was sent. See docs/validation/evo-display-channels.md."
         }
@@ -55,7 +58,7 @@ public enum TimeboxDisplay: Equatable, Sendable {
             guard index == nil else { throw TimeboxDisplayError.livePreparationRequired("Numbered design-tab selection") }
             return Data([0x45, 5])
         case .effects:
-            throw TimeboxDisplayError.unverified("Legacy VJ effects on this Evo")
+            throw TimeboxDisplayError.unverifiedEffects
         }
     }
 }
