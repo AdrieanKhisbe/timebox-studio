@@ -12,7 +12,7 @@ three-slot alarms are integrated into the ordinary CLI, REPL and `TimeboxClient`
 Native GIF upload is also supported; see [animation limits and validation](mini-animation.md).
 See [clock/stopwatch/alarm validation](mini-clock-stopwatch-alarms.md) for the later
 promotion and exact hardware scope. Raw packets remain an escape hatch. Other
-channels, native countdown, status, MiniToo and
+channels, native countdown, MiniToo and
 Mini BLE/iOS have no compatibility claim. Mini library connections on iOS fail
 before BLE connection.
 
@@ -21,6 +21,8 @@ Clock synchronization is described separately in the
 Scrolling text requires explicit [host streaming](mini-streaming-text.md), which
 keeps the Mac connected for one complete scroll. Remaining countdown and automatic
 identity evidence is recorded in [the capability follow-up](mini-remaining-capabilities.md).
+Model-aware [live status](mini-status.md) reports fresh configured mode and
+brightness using the Mini-specific settings layout.
 
 ```sh
 timeboxctl color FF0000 --address "$MAC" --model mini --channel 4
