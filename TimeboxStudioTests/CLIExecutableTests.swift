@@ -2,6 +2,21 @@ import XCTest
 
 /// Exercise the shipped entry point as well as the injected Bluetooth boundary.
 final class CLIExecutableTests: XCTestCase {
+    func testEnhancedEditorFallsBackForPipesWithoutHistoryWritesOrANSI() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let config = root.appendingPathComponent("config.yml")
+        try "default: desk\ndevices: {desk: {mac: 'AA:BB:CC:DD:EE:01', model: evo}}\n".write(to: config, atomically: true, encoding: .utf8)
+        let history = root.appendingPathComponent("history")
+        let result = try invoke(["repl", "--editor", "commandlinekit", "--history-file", history.path,
+            "--mock", "--config", config.path], input: "target current\nbrightness 50\nquit\n")
+        XCTAssertEqual(result.exit, 0, result.stderr)
+        XCTAssertTrue(result.stdout.contains("Target: desk"))
+        XCTAssertFalse(result.stdout.contains("\u{1B}"))
+        XCTAssertTrue(result.stderr.contains("using plain input"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: history.path))
+    }
     func testExecutableConfigLifecycleAndMockOutput() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

@@ -11,6 +11,7 @@ public final class TimeboxCommandLine {
 
     public static func handles(_ arguments: [String]) -> Bool {
         guard let command = arguments.first else { return false }
+        if arguments.contains("--editor") || arguments.contains("--history-file") { return true }
         if arguments.contains(where: { ["--json", "--yaml", "--yml"].contains($0) }) { return true }
         if ["brightness", "color"].contains(command), arguments.contains("--uuid") { return false }
         return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "alarm", "time", "countdown", "stopwatch", "animation", "text", "status", "display", "design", "effect"].contains(command)
@@ -31,10 +32,19 @@ public final class TimeboxCommandLine {
         var target: ResolvedDevice?
         do {
             guard !command.isEmpty else { throw CommandFailure("invalid_arguments", "A command is required.") }
+            guard command == "repl" || !arguments.contains(where: { ["--editor", "--history-file"].contains($0) }) else {
+                throw CommandFailure("invalid_arguments", "--editor and --history-file apply only to repl.")
+            }
             guard ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "alarm", "time", "countdown", "stopwatch", "animation", "text", "status", "display", "design", "effect"].contains(command), !arguments.contains("--uuid") else {
                 throw CommandFailure("unsupported", "Structured output is not supported for this diagnostic command.")
             }
             let options = try CommandOptions(Array(arguments.dropFirst()))
+            guard command == "repl" || (options.editor == nil && options.historyFile == nil) else {
+                throw CommandFailure("invalid_arguments", "--editor and --history-file apply only to repl.")
+            }
+            if options.historyFile != nil, options.editor != "commandlinekit" {
+                throw CommandFailure("invalid_arguments", "--history-file requires --editor commandlinekit.")
+            }
             guard command == "text" || !options.stream else { throw CommandFailure("invalid_arguments", "--stream applies only to text.") }
             guard command == "alarm" || !options.hasAlarmWriteOptions else { throw CommandFailure("invalid_arguments", "Schedule and volume options apply only to alarm commands.") }
             guard ["alarm", "status", "display", "design", "effect"].contains(command) || options.queryTimeout == nil else { throw CommandFailure("invalid_arguments", "Query timeout applies only to device queries and live display operations.") }
@@ -122,7 +132,7 @@ public final class TimeboxCommandLine {
                 try emit(performAlarm(alarmOperation, target: resolved, options: options))
                 return 0
             }
-            if command == "repl" { try repl(resolved, options: options); return 0 }
+            if command == "repl" { try repl(resolved, options: options, configuration: configuration); return 0 }
             if command == "connect" {
                 let transport = environment.makeTransport(options.mock)
                 defer { transport.disconnect() }
@@ -295,8 +305,17 @@ public final class TimeboxCommandLine {
         }
     }
 
-    func repl(_ initialTarget: ResolvedDevice, options: CommandOptions) throws {
+    func repl(_ initialTarget: ResolvedDevice, options: CommandOptions, configuration: DeviceConfiguration) throws {
         guard options.positionals.isEmpty else { throw CommandFailure("invalid_arguments", "repl takes no positional arguments.") }
+        let enhanced = options.editor == "commandlinekit" && environment.isInteractive && environment.stdoutIsTerminal
+        let input: REPLInput? = enhanced ? try environment.makeREPLInput(.init(historyFile: options.historyFile, deviceNames: configuration.devices.keys.sorted())) : nil
+        defer {
+            do { try input?.finish() }
+            catch { environment.errorOutput("Could not save REPL history: \(error)") }
+        }
+        if options.editor == "commandlinekit", !enhanced {
+            environment.errorOutput("Line editing requires terminal input and output; using plain input without persistent history.")
+        }
         var target = initialTarget
         var transport = environment.makeTransport(options.mock)
         defer { transport.disconnect() }
@@ -304,10 +323,26 @@ public final class TimeboxCommandLine {
         transport.wait(milliseconds: 150)
         environment.output("Persistent connection open. Commands: target [NAME|current], status, display, design, effect, text [--stream] MESSAGE, animation PATH [--resize fit|fill|stretch] [--adapt], alarm list/set/disable, time sync, countdown start/stop, stopwatch start/stop/reset, color, brightness, image, hex, help, quit.")
         while true {
-            if environment.isInteractive { environment.rawOutput("timebox> ") }
-            guard let line = environment.readLine() else { break }
+            let line: String?
+            if let input { line = try REPLInputPump.read { try input.readLine(prompt: "timebox> ") } }
+            else {
+                if environment.isInteractive { environment.rawOutput("timebox> ") }
+                line = environment.readLine()
+            }
+            guard let line else { break }
             let parts = line.split(whereSeparator: \.isWhitespace).map(String.init)
             guard let command = parts.first?.lowercased() else { continue }
+            // Editor selection belongs to session startup, never a device
+            // operation. Text's outer quoted message remains literal content.
+            var optionText = line.drop(while: { $0.isWhitespace }).drop(while: { !$0.isWhitespace }).trimmingCharacters(in: .whitespaces)
+            if command == "text", optionText.hasPrefix("--stream ") || optionText.hasPrefix("--stream\t") {
+                optionText = String(optionText.dropFirst(8)).trimmingCharacters(in: .whitespaces)
+            }
+            let quotedMessage = command == "text" && (optionText.hasPrefix("\"") || optionText.hasPrefix("'"))
+            if !quotedMessage, optionText.split(whereSeparator: \.isWhitespace).contains(where: { ["--editor", "--history-file"].contains(String($0)) }) {
+                environment.errorOutput("Error: --editor and --history-file apply only when starting repl.")
+                continue
+            }
             if ["quit", "exit", "q"].contains(command) { break }
             if ["help", "?"].contains(command) {
                 environment.output("text --stream MESSAGE: one complete host-driven scroll; required for Mini, with --stream before the quoted message.")

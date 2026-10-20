@@ -20,12 +20,13 @@ let package = Package(
         .library(name: "TimeboxBluetooth", targets: ["TimeboxBluetooth"])
     ],
     dependencies: [
-        .package(url: "https://github.com/jpsim/Yams.git", from: "6.2.2")
+        .package(url: "https://github.com/jpsim/Yams.git", from: "6.2.2"),
+        .package(url: "https://github.com/objecthub/swift-commandlinekit.git", revision: "b3c68f89f7096c57f26417915595122f099f1622")
     ],
     targets: [
         .target(
             name: "TimeboxCLIKit",
-            dependencies: ["TimeboxBluetooth", "TimeboxKit", "TimeboxUtilities", .product(name: "Yams", package: "Yams")],
+            dependencies: ["TimeboxBluetooth", "TimeboxKit", "TimeboxUtilities", .product(name: "Yams", package: "Yams"), .product(name: "CommandLineKit", package: "swift-commandlinekit")],
             path: "timeboxctl/Support"
         ),
         .target(

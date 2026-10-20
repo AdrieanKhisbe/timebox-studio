@@ -1002,6 +1002,8 @@ enum TimeboxCLI {
               --config PATH overrides the config file for discovery, management, REPL and device commands.
               list and one-shot device commands accept --json or --yaml (--yml alias); logs go to stderr.
               repl: target NAME switches the session; target / target current report its selected device.
+              repl --editor commandlinekit enables the prototype line editor on terminal input/output.
+              repl --editor commandlinekit --history-file PATH explicitly loads/saves up to 1024 history entries.
               scan actively searches nearby Bluetooth Classic devices that may not be paired yet.
               scan-ble actively scans Bluetooth LE advertisements and prints UUIDs/service data.
               inspect-ble connects over BLE and discovers services/characteristics.

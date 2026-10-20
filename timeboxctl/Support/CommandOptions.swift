@@ -27,6 +27,8 @@ struct CommandOptions {
     var resize: String?
     var adapt = false
     var stream = false
+    var editor: String?
+    var historyFile: String?
     var positionals: [String] = []
 
     init(_ arguments: [String]) throws {
@@ -65,6 +67,13 @@ struct CommandOptions {
             case "--resize": resize = try value()
             case "--adapt": adapt = true
             case "--stream": stream = true
+            case "--editor":
+                let text = try value()
+                guard ["plain", "commandlinekit"].contains(text) else {
+                    throw CommandFailure("invalid_arguments", "--editor must be plain or commandlinekit in this prototype.")
+                }
+                editor = text
+            case "--history-file": historyFile = try value()
             case "--mock": mock = true
             case "--all": all = true
             case "--save": save = true
