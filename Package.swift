@@ -20,12 +20,14 @@ let package = Package(
         .library(name: "TimeboxBluetooth", targets: ["TimeboxBluetooth"])
     ],
     dependencies: [
-        .package(url: "https://github.com/jpsim/Yams.git", from: "6.2.2")
+        .package(url: "https://github.com/jpsim/Yams.git", from: "6.2.2"),
+        .package(url: "https://github.com/mattt/bestline-swift.git", revision: "823c299247f2f35a4fd9a70f7bea4c8c9edcc946")
     ],
     targets: [
+        .target(name: "REPLInputSupport", path: "timeboxctl/REPLInputSupport", publicHeadersPath: "include"),
         .target(
             name: "TimeboxCLIKit",
-            dependencies: ["TimeboxBluetooth", "TimeboxKit", "TimeboxUtilities", .product(name: "Yams", package: "Yams")],
+            dependencies: ["TimeboxBluetooth", "TimeboxKit", "TimeboxUtilities", .target(name: "REPLInputSupport", condition: .when(platforms: [.macOS])), .product(name: "Yams", package: "Yams"), .product(name: "Bestline", package: "bestline-swift", condition: .when(platforms: [.macOS]))],
             path: "timeboxctl/Support"
         ),
         .target(
@@ -75,7 +77,7 @@ let package = Package(
                 "TimeboxUtilities"
             ],
             path: "timeboxctl",
-            exclude: ["Info.plist", "Support"],
+            exclude: ["Info.plist", "Support", "REPLInputSupport"],
             linkerSettings: [
                 .unsafeFlags(["-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist", "-Xlinker", cliInfoPlist])
             ]

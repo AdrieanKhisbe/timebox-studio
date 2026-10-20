@@ -24,6 +24,13 @@ final class CLIExecutableTests: XCTestCase {
                               input: "target current\nbrightness 50\nquit\n")
         XCTAssertEqual(repl.exit, 0, repl.stderr)
         XCTAssertTrue(repl.stdout.contains("Target: Office desk | AA:BB:CC:DD:EE:01 | connected"))
+        let history = root.appendingPathComponent("must-not-be-created.history")
+        let editedPipe = try invoke(["repl", "--editor", "bestline", "--history-file", history.path, "--mock"] + options,
+                                    input: "target current\nbrightness 30\nquit\n")
+        XCTAssertEqual(editedPipe.exit, 0, editedPipe.stderr)
+        XCTAssertTrue(editedPipe.stdout.contains("Target: Office desk"))
+        XCTAssertFalse(editedPipe.stdout.contains("\u{1b}"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: history.path))
         XCTAssertEqual(try String(contentsOf: config, encoding: .utf8), saved)
         let failure = try invoke(["brightness", "101", "--json"] + options)
         XCTAssertEqual(failure.exit, 2)

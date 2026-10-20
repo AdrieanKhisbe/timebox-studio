@@ -1,0 +1,299 @@
+{
+  "scope": "mock device transport; PTY byte/control-flow checks, not human visual or real Bluetooth validation",
+  "editors": {
+    "commandlinekit": {
+      "pipe_fallback": {
+        "exit_code": 0,
+        "simulated_writes": 2,
+        "ansi_free": true,
+        "target_mini": true
+      },
+      "editor_option_rejected_outside_repl": true,
+      "brightness": true,
+      "cursor_edit": true,
+      "command_completion": true,
+      "target_completion": true,
+      "unknown_target_keeps_target": true,
+      "unicode_alias": true,
+      "history_up": true,
+      "ctrl_r_search_prompt": false,
+      "ctrl_r_recalls_executable_command": false,
+      "resize_then_command": true,
+      "editing_session": {
+        "exit_code": 0,
+        "termios_restored": true,
+        "termios_exact": true,
+        "termios_changes": {},
+        "transcript": "/private/tmp/timebox-repl-compare-2cwwtobb/commandlinekit-editing.pty"
+      },
+      "history_file_created": true,
+      "history_contains_commands": true,
+      "history_reloaded_in_new_process": true,
+      "history_reload_session": {
+        "exit_code": 0,
+        "termios_restored": true,
+        "termios_exact": false,
+        "termios_changes": {
+          "3": [
+            "1483",
+            "536872395"
+          ]
+        },
+        "transcript": "/private/tmp/timebox-repl-compare-2cwwtobb/commandlinekit-history-reload.pty"
+      },
+      "empty_ctrl_d_exits": false,
+      "ctrl_d_session": {
+        "exit_code": 0,
+        "termios_restored": true,
+        "termios_exact": false,
+        "termios_changes": {
+          "3": [
+            "1483",
+            "536872395"
+          ]
+        },
+        "transcript": "/private/tmp/timebox-repl-compare-2cwwtobb/commandlinekit-ctrl-d.pty"
+      },
+      "ctrl_c_exits": true,
+      "ctrl_c_session": {
+        "exit_code": 0,
+        "termios_restored": true,
+        "termios_exact": false,
+        "termios_changes": {
+          "3": [
+            "1483",
+            "536872395"
+          ]
+        },
+        "transcript": "/private/tmp/timebox-repl-compare-2cwwtobb/commandlinekit-ctrl-c.pty"
+      },
+      "ctrl_c_clean_exit": true,
+      "bracketed_paste_no_early_execution": true,
+      "bracketed_paste_mode_announced": false,
+      "paste_session": {
+        "exit_code": 0,
+        "termios_restored": true,
+        "termios_exact": false,
+        "termios_changes": {
+          "3": [
+            "1483",
+            "536872395"
+          ]
+        },
+        "transcript": "/private/tmp/timebox-repl-compare-2cwwtobb/commandlinekit-paste.pty"
+      },
+      "single_line_bracketed_paste_executes": false,
+      "single_line_paste_session": {
+        "exit_code": 0,
+        "termios_restored": true,
+        "termios_exact": false,
+        "termios_changes": {
+          "3": [
+            "1483",
+            "536872395"
+          ]
+        },
+        "transcript": "/private/tmp/timebox-repl-compare-2cwwtobb/commandlinekit-single-paste.pty"
+      },
+      "interrupt_stress": []
+    },
+    "bestline": {
+      "pipe_fallback": {
+        "exit_code": 0,
+        "simulated_writes": 2,
+        "ansi_free": true,
+        "target_mini": true
+      },
+      "editor_option_rejected_outside_repl": true,
+      "brightness": true,
+      "cursor_edit": true,
+      "command_completion": true,
+      "target_completion": true,
+      "unknown_target_keeps_target": true,
+      "unicode_alias": true,
+      "history_up": true,
+      "ctrl_r_search_prompt": true,
+      "ctrl_r_recalls_executable_command": true,
+      "resize_then_command": true,
+      "editing_session": {
+        "exit_code": 0,
+        "termios_restored": true,
+        "termios_exact": true,
+        "termios_changes": {},
+        "transcript": "/private/tmp/timebox-repl-compare-jtrw3iox/bestline-editing.pty"
+      },
+      "history_file_created": true,
+      "history_contains_commands": true,
+      "history_reloaded_in_new_process": true,
+      "history_reload_session": {
+        "exit_code": 0,
+        "termios_restored": true,
+        "termios_exact": false,
+        "termios_changes": {
+          "3": [
+            "1483",
+            "536872395"
+          ]
+        },
+        "transcript": "/private/tmp/timebox-repl-compare-jtrw3iox/bestline-history-reload.pty"
+      },
+      "empty_ctrl_d_exits": true,
+      "ctrl_d_session": {
+        "exit_code": 0,
+        "termios_restored": true,
+        "termios_exact": false,
+        "termios_changes": {
+          "3": [
+            "1483",
+            "536872395"
+          ]
+        },
+        "transcript": "/private/tmp/timebox-repl-compare-jtrw3iox/bestline-ctrl-d.pty"
+      },
+      "ctrl_c_exits": true,
+      "ctrl_c_session": {
+        "exit_code": 0,
+        "termios_restored": true,
+        "termios_exact": false,
+        "termios_changes": {
+          "3": [
+            "1483",
+            "536872395"
+          ]
+        },
+        "transcript": "/private/tmp/timebox-repl-compare-jtrw3iox/bestline-ctrl-c.pty"
+      },
+      "ctrl_c_clean_exit": true,
+      "bracketed_paste_no_early_execution": true,
+      "bracketed_paste_mode_announced": true,
+      "paste_session": {
+        "exit_code": 0,
+        "termios_restored": true,
+        "termios_exact": false,
+        "termios_changes": {
+          "3": [
+            "1483",
+            "536872395"
+          ]
+        },
+        "transcript": "/private/tmp/timebox-repl-compare-jtrw3iox/bestline-paste.pty"
+      },
+      "single_line_bracketed_paste_executes": true,
+      "single_line_paste_session": {
+        "exit_code": 0,
+        "termios_restored": true,
+        "termios_exact": false,
+        "termios_changes": {
+          "3": [
+            "1483",
+            "536872395"
+          ]
+        },
+        "transcript": "/private/tmp/timebox-repl-compare-jtrw3iox/bestline-single-paste.pty"
+      },
+      "interrupt_stress": [
+        {
+          "attempt": 1,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 2,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 3,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 4,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 5,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 6,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 7,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 8,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 9,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 10,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 11,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 12,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 13,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 14,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 15,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 16,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 17,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 18,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 19,
+          "exit_code": 0,
+          "termios_restored": true
+        },
+        {
+          "attempt": 20,
+          "exit_code": 0,
+          "termios_restored": true
+        }
+      ]
+    }
+  },
+  "config_unchanged": true
+}

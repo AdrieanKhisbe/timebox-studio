@@ -28,6 +28,8 @@ public struct CommandEnvironment {
     public var errorOutput: (String) -> Void
     public var rawOutput: (String) -> Void
     public var readLine: () -> String?
+    /// REPL-only input; selection/configuration prompts continue using readLine.
+    public var makeREPLInput: ((String, String?, [String]) throws -> REPLLineInput)?
     public var isInteractive: Bool
     public var stdoutIsTerminal: Bool
     public var clock: () -> Date
@@ -43,6 +45,7 @@ public struct CommandEnvironment {
                 errorOutput: @escaping (String) -> Void = { fputs($0 + "\n", stderr) },
                 rawOutput: @escaping (String) -> Void = { FileHandle.standardOutput.write(Data($0.utf8)) },
                 readLine: @escaping () -> String? = { Swift.readLine() },
+                makeREPLInput: ((String, String?, [String]) throws -> REPLLineInput)? = nil,
                 isInteractive: Bool = false, stdoutIsTerminal: Bool = false, variables: [String: String] = [:],
                 clock: @escaping () -> Date = Date.init, timeZone: @escaping () -> TimeZone = { .current },
                 monotonicTime: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
@@ -53,6 +56,7 @@ public struct CommandEnvironment {
         self.discover = discover; self.configuration = configuration; self.makeTransport = makeTransport
         self.output = output; self.errorOutput = errorOutput; self.readLine = readLine
         self.rawOutput = rawOutput
+        self.makeREPLInput = makeREPLInput
         self.isInteractive = isInteractive; self.variables = variables
         self.stdoutIsTerminal = stdoutIsTerminal
     }
@@ -65,6 +69,8 @@ public struct CommandEnvironment {
         }, makeTransport: { mock in
             if mock { return SimulatedCommandTransport() }
             return ClassicCommandTransport()
+        }, makeREPLInput: { editor, history, names in
+            try REPLInputFactory.make(editor: editor, historyFile: history, deviceNames: names)
         }, isInteractive: isatty(STDIN_FILENO) != 0, stdoutIsTerminal: isatty(STDOUT_FILENO) != 0, variables: ProcessInfo.processInfo.environment)
     }
 }

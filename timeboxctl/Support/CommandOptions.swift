@@ -27,6 +27,8 @@ struct CommandOptions {
     var resize: String?
     var adapt = false
     var stream = false
+    var editor: String?
+    var historyFile: String?
     var positionals: [String] = []
 
     init(_ arguments: [String]) throws {
@@ -40,6 +42,11 @@ struct CommandOptions {
                 return arguments[index]
             }
             switch argument {
+            case "--editor":
+                let name = try value()
+                guard ["plain", "bestline"].contains(name) else { throw CommandFailure("invalid_arguments", "--editor must be plain or bestline.") }
+                editor = name
+            case "--history-file": historyFile = try value()
             case "--device", "--name": name = try value(); selectorCount += 1
             case "--address": address = try value(); selectorCount += 1
             case "--model":

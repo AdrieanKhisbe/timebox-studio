@@ -985,6 +985,7 @@ enum TimeboxCLI {
               timeboxctl color FF0000 --address AA-BB-CC-DD-EE-FF [--channel 1] [--brightness 100]   (Classic SPP)
               timeboxctl image test.png --address AA-BB-CC-DD-EE-FF [--channel 1]    (PNG/JPG -> 16x16 picture on the display)
               timeboxctl repl --address AA-BB-CC-DD-EE-FF [--channel 1]              (interactive: one persistent SPP connection, stream commands)
+              timeboxctl repl --editor bestline [--history-file PATH] --device NAME (opt-in editor prototype; plain input remains default)
               timeboxctl brightness 50 --uuid "BE32D255-...-0458D3"                    (BLE; legacy/diagnostic, no visible effect on Evo)
               timeboxctl color FF0000 --uuid "BE32D255-...-0458D3" [--brightness 100]  (BLE; legacy/diagnostic)
               timeboxctl listen-ble --uuid "BE32D255-6999-AE59-4577-4F5BDA0458D3" [--seconds 20] [--request-settings | "01 03 00 46 49 00 02"] [--with-response | --without-response]
