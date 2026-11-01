@@ -132,4 +132,4 @@ disable results both come from fresh readback, not local command history.
 `swift test`: 64 tests pass, including protocol fixtures, invalid schedules,
 recurrence aliases, shared CLI/REPL packets, and snapshot/readback failures.
 The release CLI build passes. Finite weekdays remain open as described in the
-[follow-up](evo-finite-weekday-follow-up.md).
+[follow-up](https://github.com/AdrieanKhisbe/timebox-studio/issues/10#issuecomment-6558039284).
