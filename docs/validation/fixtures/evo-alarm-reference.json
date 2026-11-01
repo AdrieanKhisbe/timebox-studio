@@ -1,0 +1,49 @@
+{
+  "evidence": "Reference encoder output only; not captured from or verified on Evo firmware.",
+  "hass_revision": "479d728d1a414a8a9e880bd801fe5c4a6956df53",
+  "esp32_revision": "b69b1bd7d84c306202beca98ab90549f36d590b9",
+  "cases": [
+    {
+      "name": "upstream_timebox_golden",
+      "number": 1, "time": "07:30", "weekdays": ["mon", "wed", "fri"],
+      "alarmMode": 1, "triggerMode": 1, "frequency": 101.1, "volume": 80,
+      "payload": "43 01 01 07 1e 2a 01 01 0b 0a 50",
+      "packet": "01 0d 00 43 01 01 07 1e 2a 01 01 0b 0a 50 08 01 02"
+    },
+    {
+      "name": "no_weekdays_explicit_zero_options",
+      "number": 0, "time": "07:30", "weekdays": null,
+      "alarmMode": 0, "triggerMode": 0, "frequency": null, "volume": 0,
+      "payload": "43 00 01 07 1e 00 00 00 00 00 00",
+      "packet": "01 0d 00 43 00 01 07 1e 00 00 00 00 00 00 76 00 02"
+    },
+    {
+      "name": "monday_explicit_zero_options",
+      "number": 0, "time": "07:30", "weekdays": ["mon"],
+      "alarmMode": 0, "triggerMode": 0, "frequency": null, "volume": 0,
+      "payload": "43 00 01 07 1e 02 00 00 00 00 00",
+      "packet": "01 0d 00 43 00 01 07 1e 02 00 00 00 00 00 78 00 02"
+    },
+    {
+      "name": "monday_tuesday_explicit_zero_options",
+      "number": 0, "time": "07:30", "weekdays": ["mon", "tue"],
+      "alarmMode": 0, "triggerMode": 0, "frequency": null, "volume": 0,
+      "payload": "43 00 01 07 1e 06 00 00 00 00 00",
+      "packet": "01 0d 00 43 00 01 07 1e 06 00 00 00 00 00 7c 00 02"
+    },
+    {
+      "name": "all_weekdays_explicit_zero_options",
+      "number": 0, "time": "07:30", "weekdays": ["sun", "mon", "tue", "wed", "thu", "fri", "sat"],
+      "alarmMode": 0, "triggerMode": 0, "frequency": null, "volume": 0,
+      "payload": "43 00 01 07 1e 7f 00 00 00 00 00",
+      "packet": "01 0d 00 43 00 01 07 1e 7f 00 00 00 00 00 f5 00 02"
+    },
+    {
+      "name": "disable_reference_shape",
+      "number": 0, "time": null, "weekdays": null,
+      "alarmMode": 0, "triggerMode": 0, "frequency": null, "volume": 0,
+      "payload": "43 00 00 00 00 00 00 00 00 00 00",
+      "packet": "01 0d 00 43 00 00 00 00 00 00 00 00 00 00 50 00 02"
+    }
+  ]
+}
