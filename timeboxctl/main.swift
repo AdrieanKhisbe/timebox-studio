@@ -900,6 +900,7 @@ enum TimeboxCLI {
               timeboxctl device select [NAME] [--config PATH]
               timeboxctl device rename [OLD [NEW]] [--config PATH]
               timeboxctl config [show] [--yaml|--yml|--json] [--config PATH]
+              timeboxctl alarm list [device options] [--timeout SECONDS] [--json|--yaml]
               timeboxctl stopwatch start|stop|reset [device options]
               timeboxctl countdown start MM:SS | countdown stop [device options]
               timeboxctl time sync [--device NAME|--address MAC] [--json|--yaml]
