@@ -10,19 +10,24 @@ import select
 import struct
 import subprocess
 import sys
+import tempfile
 import termios
 import time
 
 binary = str(Path(sys.argv[1] if len(sys.argv) > 1 else '.build/debug/timeboxctl').resolve())
+scratch = tempfile.TemporaryDirectory(prefix='timebox-repl-smoke-')
+config = Path(scratch.name) / 'config.yml'
+config.write_text('default: desk\ndevices:\n  desk:\n    mac: "00:11:22:33:44:55"\n    model: evo\n')
+command = [binary, 'repl', '--mock', '--config', str(config), '--device', 'desk']
 environment = dict(os.environ, TERM='xterm-256color')
 environment.pop('NO_COLOR', None)
 environment.pop('TIMEBOX_ADDRESS', None)
 ansi = re.compile(rb'\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07]*(?:\x07|\x1b\\)')
-pipe = subprocess.run([binary, 'repl', '--mock'], input='brightness 20\nquit\n', text=True,
+pipe = subprocess.run(command, input='brightness 20\nquit\n', text=True,
                       capture_output=True, env=environment, timeout=10)
 assert pipe.returncode == 0, pipe.stderr
 assert 'simulated (' in pipe.stdout and '\x1b' not in pipe.stdout and 'timebox>' not in pipe.stdout
-invalid = subprocess.run([binary, 'repl', '--mock', '--editor', 'invalid'], text=True,
+invalid = subprocess.run(command + ['--editor', 'invalid'], text=True,
                          capture_output=True, env=environment, timeout=10)
 assert invalid.returncode != 0 and 'connection open' not in invalid.stdout.lower()
 
@@ -30,7 +35,7 @@ for ending in (b'quit\r', b'\x03', b'\x04'):
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 24, 100, 0, 0))
     before = termios.tcgetattr(slave)
-    process = subprocess.Popen([binary, 'repl', '--mock'], stdin=slave, stdout=slave, stderr=slave, env=environment)
+    process = subprocess.Popen(command, stdin=slave, stdout=slave, stderr=slave, env=environment)
     transcript = bytearray()
     tail = b''
 
