@@ -1,5 +1,6 @@
 import Foundation
 import TimeboxREPL
+import TimeboxCommands
 import TimeboxBluetooth
 import TimeboxKit
 import TimeboxUtilities
@@ -551,11 +552,11 @@ enum TimeboxCLI {
         case "probe-rfcomm":
             return probeRFCOMMSync(arguments: arguments)
         case "color":
-            return colorSPP(arguments: arguments)
+            return deviceSPP(command: command, arguments: arguments)
         case "brightness":
-            return brightnessSPP(arguments: arguments)
+            return deviceSPP(command: command, arguments: arguments)
         case "image":
-            return imageSPP(arguments: arguments)
+            return deviceSPP(command: command, arguments: arguments)
         case "repl":
             return replSPP(arguments: arguments)
         default:
@@ -563,59 +564,12 @@ enum TimeboxCLI {
         }
     }
 
-    private static func brightnessSPP(arguments: [String]) -> Int32 {
+    private static func deviceSPP(command: String, arguments: [String]) -> Int32 {
         do {
             let options = try ParsedOptions(arguments: arguments, requiresHex: false)
-            let percent = try parseBrightnessPercent(options.hexInput)
-            let packet = try TimeboxPacketEncoder.encode(.setBrightness(percent))
-            for line in TimeboxDebugFormatter.commandDebugLines(
-                name: "setBrightness",
-                parameters: ["brightness: \(percent)%"],
-                data: packet
-            ) {
-                print(line)
-            }
-            return sendSPP(packet: packet, options: options)
-        } catch {
-            fputs("\(error.localizedDescription)\n", stderr)
-            return 1
-        }
-    }
-
-    private static func colorSPP(arguments: [String]) -> Int32 {
-        do {
-            let options = try ParsedOptions(arguments: arguments, requiresHex: true)
-            let color = try parseColor(options.hexInput)
-            let percent = options.brightness ?? 100
-            let packet = try TimeboxPacketEncoder.encode(
-                .lightningPlainColor(color: color, brightnessPercent: percent)
-            )
-            for line in TimeboxDebugFormatter.commandDebugLines(
-                name: "lightningPlainColor",
-                parameters: [
-                    "color: #\(String(format: "%02X%02X%02X", color.red, color.green, color.blue))",
-                    "brightness: \(percent)%"
-                ],
-                data: packet
-            ) {
-                print(line)
-            }
-            return sendSPP(packet: packet, options: options)
-        } catch {
-            fputs("\(error.localizedDescription)\n", stderr)
-            return 1
-        }
-    }
-
-    private static func imageSPP(arguments: [String]) -> Int32 {
-        do {
-            let options = try ParsedOptions(arguments: arguments, requiresHex: false)
-            let path = options.hexInput.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !path.isEmpty else { throw CLIError.missingImagePath }
-            let frame = try ImageToPixelFrameConverter.loadPixelFrame(path: path)
-            let packet = try TimeboxPacketEncoder.encode(.image(frame))
-            print("image: \(path) -> 16x16, packet \(packet.count) byte(s)")
-            return sendSPP(packet: packet, options: options)
+            let args = command == "image" ? [options.hexInput] : options.hexInput.split(whereSeparator: \.isWhitespace).map(String.init)
+            let operation = try DeviceCommand(name: command, arguments: args, brightness: options.brightness ?? 100)
+            return try operation.execute { sendSPP(packet: $0, options: options) }
         } catch {
             fputs("\(error.localizedDescription)\n", stderr)
             return 1
@@ -629,6 +583,7 @@ enum TimeboxCLI {
     /// before teardown (the firmware drops commands cut off too soon), and retries
     /// the connect if macOS is momentarily holding the channel.
     private static func sendSPP(packet: Data, options: ParsedOptions) -> Int32 {
+        if options.useMock { print("simulated (\(packet.count) bytes)"); return 0 }
         let holdMs = options.holdMilliseconds ?? 500
         let device: TimeboxDevice
         do {
@@ -723,27 +678,7 @@ enum TimeboxCLI {
     }
 
     private static func parseReplCommand(_ line: String) throws -> Data {
-        let parts = line.split(separator: " ").map(String.init)
-        switch parts.first?.lowercased() {
-        case "color":
-            guard parts.count >= 2 else { throw CLIError.missingColor }
-            let color = try parseColor(parts[1])
-            let percent = parts.count >= 3 ? (Int(parts[2]) ?? 100) : 100
-            return try TimeboxPacketEncoder.encode(
-                .lightningPlainColor(color: color, brightnessPercent: max(0, min(100, percent)))
-            )
-        case "brightness", "bright":
-            guard parts.count >= 2, let percent = Int(parts[1]) else { throw CLIError.missingBrightness }
-            return try TimeboxPacketEncoder.encode(.setBrightness(max(0, min(100, percent))))
-        case "image", "img":
-            guard parts.count >= 2 else { throw CLIError.missingImagePath }
-            let frame = try ImageToPixelFrameConverter.loadPixelFrame(path: parts.dropFirst().joined(separator: " "))
-            return try TimeboxPacketEncoder.encode(.image(frame))
-        case "hex":
-            return try TimeboxPacketEncoder.encode(.raw(HexStringParser.data(from: parts.dropFirst().joined(separator: " "))))
-        default:
-            return try TimeboxPacketEncoder.encode(.raw(HexStringParser.data(from: line)))
-        }
+        try DeviceCommand(replLine: line).encoded()
     }
 
     private static func sendHexSync(arguments: [String]) -> Int32 {
@@ -1222,6 +1157,7 @@ let sppCapableCommands: Set<String> = ["color", "brightness", "image", "repl"]
 
 let routeClassic: Bool = {
     if cliCommand == "repl" { return true }
+    if cliIsMock, let cliCommand, ["brightness", "color", "image"].contains(cliCommand), !cliArguments.contains("--uuid") { return true }
     guard let cliCommand, !cliIsMock else { return false }
     if classicSyncCommands.contains(cliCommand) { return true }
     return sppCapableCommands.contains(cliCommand) && cliHasAddress

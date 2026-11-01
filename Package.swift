@@ -23,6 +23,7 @@ let package = Package(
         .package(url: "https://github.com/mattt/bestline-swift.git", revision: "823c299247f2f35a4fd9a70f7bea4c8c9edcc946")
     ],
     targets: [
+        .target(name: "TimeboxCommands", dependencies: ["TimeboxKit", "TimeboxUtilities"], path: "timeboxctl/Commands"),
         .target(name: "REPLInputSupport", path: "timeboxctl/REPLInputSupport", publicHeadersPath: "include"),
         .target(name: "TimeboxREPL", dependencies: [
             .target(name: "REPLInputSupport", condition: .when(platforms: [.macOS])),
@@ -70,12 +71,13 @@ let package = Package(
             name: "timeboxctl",
             dependencies: [
                 "TimeboxREPL",
+                "TimeboxCommands",
                 "TimeboxBluetooth",
                 "TimeboxKit",
                 "TimeboxUtilities"
             ],
             path: "timeboxctl",
-            exclude: ["Info.plist", "REPL", "REPLInputSupport"],
+            exclude: ["Info.plist", "REPL", "REPLInputSupport", "Commands"],
             linkerSettings: [
                 .unsafeFlags(["-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist", "-Xlinker", cliInfoPlist])
             ]
@@ -84,6 +86,7 @@ let package = Package(
             name: "TimeboxStudioTests",
             dependencies: [
                 "TimeboxREPL",
+                "TimeboxCommands",
                 "TimeboxBluetooth",
                 "TimeboxKit",
                 "TimeboxUtilities"
