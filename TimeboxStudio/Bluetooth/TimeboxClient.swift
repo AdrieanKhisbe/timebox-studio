@@ -84,7 +84,7 @@ public final class TimeboxClient {
     public func connect(to device: TimeboxDevice, channel: UInt8? = nil) async throws {
         let resolved = try TimeboxModelResolver.resolve(explicit: requestedModel, detected: TimeboxModelResolver.detectedModels(for: device))
         #if !os(macOS)
-        guard resolved.model != .mini else { throw TimeboxModelError.unsupported("BLE/iOS transport") }
+        guard resolved.model.protocolFamily != .legacy11 else { throw TimeboxModelError.unsupported("BLE/iOS transport") }
         #endif
         modelResolution = resolved
         #if os(macOS)
@@ -128,22 +128,14 @@ public final class TimeboxClient {
 
     // MARK: - Sending (connection must be open)
 
-    /// Select the Mini bare clock or an Evo channel/documented complete profile.
+    /// Select a model-specific channel with fresh complete clock/light profiles.
     /// Live-preserving selections close this persistent link, use dedicated fresh
     /// query/write links, then reconnect it. Failure leaves it disconnected.
     /// Receive-capable Classic is required; custom/BLE write adapters are never
     /// silently replaced with a native Classic transport.
     public func display(_ selection: TimeboxDisplay) async throws {
         let selectedModel = try model
-        if selectedModel == .mini, selection == .clock() {
-            let packet = try TimeboxPacketEncoder.encode(.display(selection), model: selectedModel)
-            try await transport.write(packet)
-            return
-        }
-        if selectedModel == .mini {
-            guard case .light = selection else { throw TimeboxModelError.unsupported("this display channel or Evo clock style") }
-        }
-        try selection.validate()
+        try selection.validate(model: selectedModel)
         if selection.requiresLivePreparation {
             #if os(macOS)
             guard let target = connectedTarget, transport.isConnected else { throw TimeboxTransportError.notConnected }

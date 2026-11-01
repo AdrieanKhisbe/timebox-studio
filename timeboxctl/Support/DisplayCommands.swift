@@ -6,12 +6,8 @@ extension TimeboxCommandLine {
     func performDisplay(_ selection: TimeboxDisplay, command: String,
                         target: ResolvedDevice, options: CommandOptions) throws -> CommandResult {
         let model = target.modelResolution?.model ?? .evo
-        let miniClock = model == .mini && selection == .clock()
-        if model == .mini, !miniClock {
-            guard case .light = selection else { throw TimeboxModelError.unsupported("this display channel or Evo clock style") }
-        }
-        if miniClock, options.queryTimeout != nil { throw CommandFailure("invalid_arguments", "Mini clock display does not perform a query.") }
-        guard !options.mock || !selection.requiresLivePreparation || miniClock else {
+        try selection.validate(model: model)
+        guard !options.mock || !selection.requiresLivePreparation else {
             throw CommandFailure("unsupported", "Live display preservation and design capabilities require device reads; mock state is unavailable.")
         }
         diagnostic("Applying display selection to \(target.logicalName ?? target.device.address)...")
@@ -29,6 +25,6 @@ extension TimeboxCommandLine {
         diagnostic(options.mock ? "Simulated \(result.packetCount) display packet(s)." : "Sent \(result.packetCount) display packet(s).")
         return CommandResult(command: command, status: options.mock ? "simulated" : "sent", device: target,
             data: ["bytes": result.byteCount, "packets": result.packetCount,
-                   "preserved_profile": selection.preservedChannel != nil && !miniClock])
+                   "preserved_profile": selection.preservedChannel != nil])
     }
 }

@@ -21,11 +21,11 @@ public struct TimeboxResponseDecoder {
     public var hasPendingBytes: Bool { !buffer.isEmpty }
 
     public mutating func append(_ data: Data) throws -> [TimeboxResponseFrame] {
-        if model == .mini { return try appendMini(data) }
+        if model.protocolFamily == .legacy11 { return try appendLegacy(data) }
         return try appendEvo(data)
     }
 
-    private mutating func appendMini(_ data: Data) throws -> [TimeboxResponseFrame] {
+    private mutating func appendLegacy(_ data: Data) throws -> [TimeboxResponseFrame] {
         buffer.append(data)
         var frames: [TimeboxResponseFrame] = []
         let greeting: [UInt8] = [0, 5, 0x48, 0x45, 0x4C, 0x4C, 0x4F, 0]
@@ -34,13 +34,13 @@ public struct TimeboxResponseDecoder {
             if bytes[0] == 0 {
                 let count = min(bytes.count, greeting.count)
                 guard Array(bytes.prefix(count)) == Array(greeting.prefix(count)) else {
-                    throw TimeboxResponseError.malformed("unrecognized Mini greeting")
+                    throw TimeboxResponseError.malformed("unrecognized legacy11 greeting")
                 }
                 guard bytes.count >= greeting.count else { break }
                 buffer = Data(bytes.dropFirst(greeting.count))
                 continue
             }
-            guard bytes[0] == 1 else { throw TimeboxResponseError.malformed("missing Mini start byte") }
+            guard bytes[0] == 1 else { throw TimeboxResponseError.malformed("missing legacy11 start byte") }
             var interior: [UInt8] = []
             var index = 1
             var complete = false
@@ -50,18 +50,18 @@ public struct TimeboxResponseDecoder {
                     var decoder = TimeboxResponseDecoder(model: .evo)
                     let decoded = try decoder.append(Data([1] + interior + [2]))
                     guard decoded.count == 1, !decoder.hasPendingBytes else {
-                        throw TimeboxResponseError.malformed("truncated Mini frame")
+                        throw TimeboxResponseError.malformed("truncated legacy11 frame")
                     }
                     frames.append(contentsOf: decoded)
                     buffer = Data(bytes.dropFirst(index + 1))
                     complete = true
                     break
                 }
-                if byte == 1 { throw TimeboxResponseError.malformed("unescaped Mini start byte") }
+                if byte == 1 { throw TimeboxResponseError.malformed("unescaped legacy11 start byte") }
                 if byte == 3 {
                     guard index + 1 < bytes.count else { break }
                     let escaped = bytes[index + 1]
-                    guard (4...6).contains(escaped) else { throw TimeboxResponseError.malformed("invalid Mini escape") }
+                    guard (4...6).contains(escaped) else { throw TimeboxResponseError.malformed("invalid legacy11 escape") }
                     interior.append(escaped - 3)
                     index += 2
                 } else {
@@ -70,8 +70,8 @@ public struct TimeboxResponseDecoder {
                 }
                 if interior.count >= 2 {
                     let length = Int(interior[0]) | Int(interior[1]) << 8
-                    guard length >= 5 else { throw TimeboxResponseError.malformed("Mini response length is too short") }
-                    guard interior.count <= length + 2 else { throw TimeboxResponseError.malformed("Mini frame exceeds declared length") }
+                    guard length >= 5 else { throw TimeboxResponseError.malformed("legacy11 response length is too short") }
+                    guard interior.count <= length + 2 else { throw TimeboxResponseError.malformed("legacy11 frame exceeds declared length") }
                 }
             }
             if !complete { break }

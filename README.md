@@ -222,7 +222,9 @@ effects remain unverified. REPL/client live
 operations reconnect on success and remain disconnected on failure. Custom/design
 channel selection is distinct from stored-content enumeration. See [display evidence and acceptance](docs/validation/evo-display-channels.md).
 
-### Original Timebox Mini and model selection
+### Original Timebox, Mini and model selection
+
+The original Timebox (`--model timebox`) and Timebox Mini (`--model mini`) share the `legacy11` protocol; Evo uses `evo16`. Bluetooth Classic and BLE name transports, independently of the product model.
 
 The CLI supports original Mini brightness, solid color, static 11×11 images, clock display and synchronization, native stopwatch, three-slot alarms, native GIF uploads, streamed text, and live status:
 
@@ -239,16 +241,18 @@ timeboxctl animation art.gif --device mini --model mini [--adapt]
 timeboxctl text "Hello Mini" --stream --device mini --model mini
 ```
 
-Use `--model evo` for Evo, or save `model: evo` / `model: mini` in that device's
+Use `--model timebox` for the original Timebox, `--model mini` for Mini and
+`--model evo` for Evo, or save the corresponding `model` in that device's
 config entry. CLI `--model auto` bypasses the saved override. Reliable automatic
 hardware identification has not been established, so an unknown model fails
 before display writes and asks for an explicit choice. Bluetooth names and RFCOMM
 channels alone are not identity evidence. REPL target changes resolve the new
 model independently; startup overrides do not carry across targets.
 
-`TimeboxClient(model: .mini)` enables the library Mini profile. Existing
+`TimeboxClient(model: .timebox)` selects the original model;
+`TimeboxClient(model: .mini)` keeps the Mini identity. Both select legacy11 encoding. Existing
 `TimeboxClient()` callers retain Evo behavior; pass `model: nil` to request
-conservative automatic identification. Mini BLE/iOS, native countdown and stored
+conservative automatic identification. Production legacy11 BLE/iOS, native countdown and stored
 content remain unverified and unsupported. Mini GIF uploads use a conservative
 12-frame/common-delay policy; see [format and physical validation](docs/validation/mini-animation.md).
 Native clock, stopwatch and alarm
@@ -260,6 +264,11 @@ see [Mini clock-sync evidence](docs/validation/mini-clock-sync.md) for its manua
 acceptance and protocol sources.
 Mini scrolling text requires explicit `--stream`, which holds the Mac connection
 for one full scroll; see [streaming behavior and validation](docs/validation/mini-streaming-text.md).
+Original Timebox/Mini bare `display clock` reads and preserves the complete stored
+format/RGB profile. It rejects incomplete or unknown layouts before writing; short
+selectors can corrupt RGB by consuming checksum bytes. Bare clock/light selections
+require live reads and cannot use `--mock`. See [original Timebox evidence](docs/validation/original-timebox.md).
+
 Mini `display light` preserves stored RGB, light level and known variant through
 a fresh settings read. Explicit `--color` or `--brightness` applies a full plain
 light profile; see [Mini light-mode validation](docs/validation/mini-light.md).

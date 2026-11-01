@@ -83,16 +83,16 @@ public final class TimeboxCommandLine {
             if !["send-hex", "connect"].contains(command) {
                 resolved.modelResolution = try resolveModel(options, target: resolved, configuration: configuration)
             }
-            if ["design", "effect", "countdown"].contains(command), resolved.modelResolution?.model == .mini {
+            if ["design", "effect", "countdown"].contains(command), resolved.modelResolution?.model.protocolFamily == .legacy11 {
                 throw TimeboxModelError.unsupported(command)
             }
-            if command == "text", resolved.modelResolution?.model == .mini, !options.stream {
-                throw CommandFailure("unsupported", "Mini scrolling text requires explicit --stream mode: text --stream \"Hello\".")
+            if command == "text", resolved.modelResolution?.model.protocolFamily == .legacy11, !options.stream {
+                throw CommandFailure("unsupported", "Legacy11 scrolling text requires explicit --stream mode: text --stream \"Hello\".")
             }
             let packet: Data?
             if ["repl", "connect", "alarm", "animation", "text", "status", "display", "design", "effect"].contains(command) {
                 packet = nil
-            } else if let preparedPacket, resolved.modelResolution?.model != .mini {
+            } else if let preparedPacket, resolved.modelResolution?.model.protocolFamily != .legacy11 {
                 packet = preparedPacket
             } else {
                 packet = try self.packet(command, options: options, model: resolved.modelResolution?.model ?? .evo, clockSnapshot: capturedClock)
@@ -300,13 +300,13 @@ public final class TimeboxCommandLine {
             guard let command = parts.first?.lowercased() else { continue }
             if ["quit", "exit", "q"].contains(command) { break }
             if ["help", "?"].contains(command) {
-                environment.output("text --stream MESSAGE: one complete host-driven scroll; required for Mini, with --stream before the quoted message.")
+                environment.output("text --stream MESSAGE: one complete host-driven scroll; required for original Timebox/Mini, with --stream before the quoted message.")
                 environment.output("target [NAME|current], text [--stream] MESSAGE, animation PATH [--resize fit|fill|stretch] [--adapt], time sync, countdown start MM:SS, countdown stop, stopwatch start/stop/reset, status [--timeout SECONDS], display clock [--style 0..5], display light [--color RRGGBB] [--brightness 0..100], display design, design 0..2 (fresh capability required), effects unsupported, alarm list, alarm set SLOT --time HH:MM [--days mon,tue] [--volume 0..100], alarm disable SLOT, color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit")
                 continue
             }
             do {
                 guard command == "text" || !parts.dropFirst().contains("--stream") else { throw CommandFailure("invalid_arguments", "--stream applies only to text.") }
-                if ["design", "effect", "countdown"].contains(command), target.modelResolution?.model == .mini {
+                if ["design", "effect", "countdown"].contains(command), target.modelResolution?.model.protocolFamily == .legacy11 {
                     throw TimeboxModelError.unsupported(command)
                 }
                 if command == "text" {
@@ -322,7 +322,7 @@ public final class TimeboxCommandLine {
                         environment.output(options.mock ? "simulated complete text scroll" : "completed one text scroll")
                         continue
                     }
-                    guard target.modelResolution?.model != .mini else { throw CommandFailure("unsupported", "Mini scrolling text requires explicit --stream mode: text --stream \"Hello\".") }
+                    guard target.modelResolution?.model.protocolFamily != .legacy11 else { throw CommandFailure("unsupported", "Legacy11 scrolling text requires explicit --stream mode: text --stream \"Hello\".") }
                     let text = parsed.text
                     let rendered = try TimeboxTextRenderer.render(text)
                     let upload = try TimeboxAnimationEncoder.prepare(rendered.animation)
@@ -357,12 +357,8 @@ public final class TimeboxCommandLine {
                     }
                     let selection = try DisplayOperation(command: command, options: displayOptions).selection
                     let model = target.modelResolution?.model ?? .evo
-                    let miniClock = model == .mini && selection == .clock()
-                    if model == .mini, !miniClock {
-                        guard case .light = selection else { throw TimeboxModelError.unsupported("this display channel or Evo clock style") }
-                    }
-                    try selection.validate()
-                    if selection.requiresLivePreparation && !miniClock {
+                    try selection.validate(model: model)
+                    if selection.requiresLivePreparation {
                         guard !options.mock else { throw CommandFailure("unsupported", "Mock mode has no live display profile or capability state.") }
                         let selectedChannel = transport.channel
                         transport.disconnect()

@@ -35,7 +35,7 @@ public struct DeviceConfigDocument {
                     var model: TimeboxModel?
                     if let value = entry["model"] {
                         guard let text = Self.string(value), let parsed = TimeboxModel(rawValue: text) else {
-                            throw CommandFailure("invalid_config", "Device model must be evo or mini.")
+                            throw CommandFailure("invalid_config", "Device model must be evo, mini or timebox.")
                         }
                         model = parsed
                     }

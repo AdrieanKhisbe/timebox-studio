@@ -5,7 +5,7 @@ extension TimeboxCommandLine {
     func prepareTextStream(_ text: String, model: TimeboxModel) throws -> TimeboxTextStream {
         do {
             let stream = try TimeboxTextStream(text, model: model)
-            environment.errorOutput("Text font: \(stream.fontName) (\(model == .mini ? 9 : 12)px). Streaming one complete scroll; keep this process connected.")
+            environment.errorOutput("Text font: \(stream.fontName) (\(model.protocolFamily == .legacy11 ? 9 : 12)px). Streaming one complete scroll; keep this process connected.")
             return stream
         } catch { throw CommandFailure("invalid_media", error.localizedDescription) }
     }

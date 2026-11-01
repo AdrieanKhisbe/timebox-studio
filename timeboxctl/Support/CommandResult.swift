@@ -15,6 +15,8 @@ struct CommandResult {
             var value: [String: Any] = ["name": device.logicalName as Any? ?? NSNull(), "mac": device.device.address]
             if let resolution = device.modelResolution {
                 value["model"] = resolution.model.rawValue; value["model_source"] = resolution.source.rawValue
+                value["protocol_family"] = resolution.model.protocolFamily.rawValue
+                value["transport"] = "classic"
             }
             result["device"] = value
         }

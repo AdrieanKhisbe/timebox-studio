@@ -58,7 +58,7 @@ struct CommandOptions {
             case "--model":
                 let text = try value()
                 guard text == "auto" || TimeboxModel(rawValue: text) != nil else {
-                    throw CommandFailure("invalid_arguments", "--model must be auto, evo or mini.")
+                    throw CommandFailure("invalid_arguments", "--model must be auto, evo, mini or timebox.")
                 }
                 model = TimeboxModel(rawValue: text); explicitAutoModel = text == "auto"
             case "--channel":

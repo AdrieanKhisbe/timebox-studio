@@ -15,7 +15,7 @@ public struct TimeboxStatus: Equatable, Sendable {
 
     /// Mode 6 has conflicting source descriptions; preserve it without a label.
     public var mode: String? {
-        if model == .mini {
+        if model.protocolFamily == .legacy11 {
             switch modeRaw {
             case 0: return "clock"
             case 1: return "temperature"
@@ -45,7 +45,7 @@ public enum TimeboxStatusDecodingError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .invalidLength(let count): return "Incomplete Evo settings: expected at least 20 data bytes, received \(count)."
-        case .invalidMiniLength(let count): return "Incomplete Mini settings: expected at least 23 data bytes, received \(count)."
+        case .invalidMiniLength(let count): return "Incomplete legacy11 settings: expected at least 23 data bytes, received \(count)."
         case let .invalidBrightness(field, value): return "Invalid \(field) brightness \(value); expected 0 through 100."
         }
     }
@@ -57,13 +57,13 @@ public enum TimeboxStatusDecoder {
     }
 
     public static func decode(_ data: Data, model: TimeboxModel) throws -> TimeboxStatus {
-        if model == .mini {
+        if model.protocolFamily == .legacy11 {
             guard data.count >= 23 else { throw TimeboxStatusDecodingError.invalidMiniLength(data.count) }
         } else {
             guard data.count >= 20 else { throw TimeboxStatusDecodingError.invalidLength(data.count) }
         }
         let bytes = Array(data)
-        let light = Int(bytes[6]), system = Int(bytes[model == .mini ? 8 : 10])
+        let light = Int(bytes[6]), system = Int(bytes[model.protocolFamily == .legacy11 ? 8 : 10])
         guard light <= 100 else { throw TimeboxStatusDecodingError.invalidBrightness(field: "light", value: light) }
         guard system <= 100 else { throw TimeboxStatusDecodingError.invalidBrightness(field: "system", value: system) }
         return TimeboxStatus(model: model, modeRaw: bytes[0], brightness: system, lightBrightness: light, rawData: data)

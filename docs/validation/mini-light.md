@@ -20,8 +20,10 @@ Bare selection needs live Classic reads and cannot use mock state. The fresh
 query is fully validated before opening a separate control connection; errors
 send no control packet and never fall back to defaults. REPL resumption preserves
 the selected target/channel. The library supports `TimeboxClient.display(.light())`
-and explicit `.light(color:brightnessPercent:)`; Mini bare clock remains its
-already verified no-query24-hour command. Model-tagged profiles cannot be encoded
+and explicit `.light(color:brightnessPercent:)`. Bare clock selection now reads
+the complete legacy11 format/RGB profile as described in the
+[original Timebox regression report](original-timebox.md); the former short
+selector did not preserve RGB reliably. Model-tagged profiles cannot be encoded
 through the other model's encoder.
 
 ## Primary protocol evidence

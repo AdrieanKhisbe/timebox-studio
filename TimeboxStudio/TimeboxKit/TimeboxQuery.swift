@@ -27,7 +27,7 @@ public struct TimeboxQuery<Response> {
                 decode: @escaping (Data) throws -> Response) throws {
         guard !payload.isEmpty else { throw TimeboxResponseError.malformed("empty query payload") }
         self.model = model
-        self.request = try model == .mini ? TimeboxMiniEncoder.frame(payload) : TimeboxPacketEncoder.encodePayload(payload)
+        self.request = try model.protocolFamily == .legacy11 ? TimeboxLegacyEncoder.frame(payload) : TimeboxPacketEncoder.encodePayload(payload)
         self.responseCommand = responseCommand
         self.decode = decode
         self.matchesResponseData = matchingResponse

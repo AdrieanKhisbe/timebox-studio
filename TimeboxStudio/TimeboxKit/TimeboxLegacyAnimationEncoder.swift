@@ -1,17 +1,17 @@
 import Foundation
 
-/// Original Mini conservative, source-backed policy; not measured firmware capacity.
-public enum TimeboxMiniAnimationEncoder {
+/// Shared legacy11 policy based on Mini sources; original Timebox animation hardware acceptance remains pending.
+public enum TimeboxLegacyAnimationEncoder {
     public static let maximumFrames = 12
     public static let minimumFrameMilliseconds = 200
     public static let maximumFrameMilliseconds = 25_500
 
-    static func prepare(_ animation: TimeboxAnimation, adapt: Bool) throws -> TimeboxAnimationUpload {
+    static func prepare(_ animation: TimeboxAnimation, model: TimeboxModel = .mini, adapt: Bool) throws -> TimeboxAnimationUpload {
         if animation.frames.count == 1 {
-            let packet = try TimeboxMiniEncoder.encode(.image(animation.frames[0].image))
+            let packet = try TimeboxLegacyEncoder.encode(.image(animation.frames[0].image), model: model)
             return TimeboxAnimationUpload(packets: [packet], sourceFrames: 1, effectiveFrames: 1,
                 sourceMilliseconds: animation.totalMilliseconds, effectiveMilliseconds: 0, paletteBits: 4,
-                model: .mini, isStatic: true, frameDurationMilliseconds: nil, adaptations: [])
+                model: model, isStatic: true, frameDurationMilliseconds: nil, adaptations: [])
         }
         let source = animation.frames
         var selected: [PixelFrame] = []
@@ -31,10 +31,10 @@ public enum TimeboxMiniAnimationEncoder {
         }
         if selected.isEmpty {
             guard adapt else {
-                throw TimeboxAnimationError.invalid("Mini animation requires at most 12 native frames with a common 200...25500ms delay in 100ms steps. Use --adapt to permit temporal sampling/timing changes.")
+                throw TimeboxAnimationError.invalid("Legacy11 animation requires at most 12 native frames with a common 200...25500ms delay in 100ms steps. Use --adapt to permit temporal sampling/timing changes.")
             }
             guard animation.totalMilliseconds <= maximumFrames * maximumFrameMilliseconds else {
-                throw TimeboxAnimationError.invalid("Mini animation duration exceeds the conservative 12 × 25500ms envelope; shorten it.")
+                throw TimeboxAnimationError.invalid("Legacy11 animation duration exceeds the conservative 12 × 25500ms envelope; shorten it.")
             }
             // Minimize duration error, then retain the most native frames. Sample
             // the original timeline uniformly; report every lossy semantic change.
@@ -46,7 +46,7 @@ public enum TimeboxMiniAnimationEncoder {
                     best = (error, count, candidate)
                 }
             }
-            guard let best else { throw TimeboxAnimationError.invalid("Cannot fit Mini animation timing.") }
+            guard let best else { throw TimeboxAnimationError.invalid("Cannot fit Legacy11 animation timing.") }
             tick = best.tick
             var index = 0, end = source[0].durationMilliseconds
             for slot in 0..<best.count {
@@ -62,12 +62,15 @@ public enum TimeboxMiniAnimationEncoder {
             // Mini reference sends one entire frame per 0x49 command: no Evo
             // total-stream size field, palette header, or 200-byte chunk splitting.
             var payload = Data([0x49, 0, 0x0A, 0x0A, 4, UInt8(index), UInt8(tick / 100)])
-            payload.append(try TimeboxMiniEncoder.imagePayload(image).dropFirst(5))
-            packets.append(try TimeboxMiniEncoder.frame(payload))
+            payload.append(try TimeboxLegacyEncoder.imagePayload(image).dropFirst(5))
+            packets.append(try TimeboxLegacyEncoder.frame(payload))
         }
         return TimeboxAnimationUpload(packets: packets, sourceFrames: source.count,
             effectiveFrames: selected.count, sourceMilliseconds: animation.totalMilliseconds,
-            effectiveMilliseconds: selected.count * tick, paletteBits: 4, model: .mini,
+            effectiveMilliseconds: selected.count * tick, paletteBits: 4, model: model,
             isStatic: false, frameDurationMilliseconds: tick, adaptations: changes)
     }
 }
+
+/// Source compatibility for the original Legacy11 animation policy name.
+public typealias TimeboxMiniAnimationEncoder = TimeboxLegacyAnimationEncoder

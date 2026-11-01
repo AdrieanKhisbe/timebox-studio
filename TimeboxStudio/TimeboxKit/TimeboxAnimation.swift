@@ -59,7 +59,7 @@ public enum TimeboxAnimationEncoder {
         guard animation.frames.allSatisfy({ $0.image.width == model.width && $0.image.height == model.height }) else {
             throw TimeboxAnimationError.invalid("Animation frame dimensions do not match the selected \(model.rawValue) model.")
         }
-        if model == .mini { return try TimeboxMiniAnimationEncoder.prepare(animation, adapt: adapt) }
+        if model.protocolFamily == .legacy11 { return try TimeboxLegacyAnimationEncoder.prepare(animation, model: model, adapt: adapt) }
         var candidates = animation.frames
         func framesData(_ frames: [TimeboxAnimationFrame], bits: Int) throws -> Data {
             var result = Data()

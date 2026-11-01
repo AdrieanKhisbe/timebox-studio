@@ -10,9 +10,8 @@ final class MiniCommandTests: XCTestCase {
     private let after = Data([1,35,0,4,66,85,0,0,0,0,0,0,3,4,0,0,50,3,4,0,0,0,0,0,3,4,0,0,50,3,5,3,4,3,5,52,0,0,3,4,0,0,50,145,3,4,2])
     private let query = Data([1,3,6,0,66,69,0,2])
 
-    func testClockAndStopwatchUseNativeMiniPacketsThroughCLIAndREPL() {
+    func testStopwatchUsesNativeMiniPacketsThroughCLIAndREPL() {
         let commands: [([String], Data)] = [
-            (["display", "clock"], Data([1,5,0,69,0,3,4,75,0,2])),
             (["stopwatch", "start"], Data([1,5,0,69,6,3,4,81,0,2])),
             (["stopwatch", "stop"], Data([1,5,0,69,6,0,80,0,2])),
             (["stopwatch", "reset"], Data([1,5,0,69,6,3,5,82,0,2]))
@@ -27,7 +26,7 @@ final class MiniCommandTests: XCTestCase {
         repl.input = commands.map { $0.0.joined(separator: " ") } + ["quit"]
         XCTAssertEqual(repl.run(["repl"] + selectors), 0, repl.stderr.joined())
         XCTAssertEqual(repl.transport.packets, commands.map(\.1))
-        XCTAssertEqual(repl.transport.connections.count, 1, "Mini clock must not query Evo settings or reconnect")
+        XCTAssertEqual(repl.transport.connections.count, 1, "Stopwatch controls keep the current connection")
     }
 
     func testMiniAlarmListDecodesGreetingAndReportsThreeSlotsInBothFormats() throws {
@@ -78,16 +77,16 @@ final class MiniCommandTests: XCTestCase {
         }
     }
 
-    func testAlarmREPLReconnectsAfterReadAndMiniClockStillWorks() {
+    func testAlarmREPLReconnectsAfterReadAndMiniClockStillWorks() throws {
         let cli = CommandHarness()
-        cli.transport.replyChunks = [before]
+        cli.transport.replyChunks = [before, try TimeboxMiniEncoder.frame(Data([4,0x46,0x55,0,0,4,255,255,255,100,5,20,0,0,62,224,24,88,255,255,0,0,255,255,255,0]))]
         cli.input = ["alarm list", "display clock", "stopwatch reset", "quit"]
         XCTAssertEqual(cli.run(["repl"] + selectors + ["--channel", "4"]), 0, cli.stderr.joined())
         XCTAssertTrue(cli.stderr.isEmpty)
         XCTAssertTrue(cli.stdout.joined().contains("3 slots"))
         XCTAssertEqual(cli.transport.packets.first, query)
-        XCTAssertEqual(cli.transport.packets.count, 3)
-        XCTAssertEqual(cli.transport.connections.map { $0.1 }, [4,4,4], "same-target alarm queries retain the current control channel")
+        XCTAssertEqual(cli.transport.packets.count, 4)
+        XCTAssertEqual(cli.transport.connections.map { $0.1 }, [4,4,4,4,4,4], "same-target alarm queries retain the current control channel")
     }
 
     func testAlarmWriteFailureIsNotReplayed() {
