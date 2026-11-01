@@ -35,7 +35,7 @@ final class DisplayCommandTests: XCTestCase {
 
     func testLibraryOperationsUseTheActualTransportPath() async throws {
         let transport = DisplayRecordingTransport()
-        let client = TimeboxClient(transport: transport)
+        let client = TimeboxClient(model: .evo, transport: transport)
         try await client.connect(to: .mock)
         try await client.display(.design())
         do { try await client.display(.effects(effect: .countdown)); XCTFail("Expected VJ gate") }

@@ -25,6 +25,7 @@ extension TimeboxCommandLine {
     }
 
     func sendAnimation(_ upload: TimeboxAnimationUpload, to target: ResolvedDevice, options: CommandOptions) throws {
+        guard target.modelResolution?.model != .mini else { throw TimeboxModelError.unsupported("animation") }
         let transport = environment.makeTransport(options.mock)
         defer { transport.disconnect() }
         try connect(transport, to: target, channel: options.channel)

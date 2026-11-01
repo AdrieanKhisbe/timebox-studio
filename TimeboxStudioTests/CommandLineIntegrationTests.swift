@@ -1,6 +1,7 @@
 import XCTest
 import TimeboxBluetooth
 import TimeboxCLIKit
+import TimeboxKit
 
 final class RecordingCommandTransport: CommandTransport {
     var isConnected = false
@@ -62,6 +63,7 @@ final class CommandHarness {
     var stderr: [String] = []
     var input: [String] = []
     var paired: [TimeboxDevice] = []
+    var detectedModels: Set<TimeboxModel> = [.evo]
     var configuration = DeviceConfiguration()
     let transport = RecordingCommandTransport()
     var environment: [String: String] = [:]
@@ -74,7 +76,7 @@ final class CommandHarness {
             configuration: { path in
                 if let path { return try DeviceConfigFile(path: path).read().configuration }
                 return self.configuration
-            }, makeTransport: { _ in self.transport },
+            }, makeTransport: { _ in self.transport }, detectModels: { _ in self.detectedModels },
             output: { self.stdout.append($0) }, errorOutput: { self.stderr.append($0) },
             rawOutput: { self.rawStdout += $0 },
             readLine: { self.input.isEmpty ? nil : self.input.removeFirst() },

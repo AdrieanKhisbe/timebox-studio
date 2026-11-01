@@ -15,36 +15,36 @@ public enum ImageToPixelFrameError: LocalizedError, Equatable {
         case .cannotLoad(let path):
             return "Could not load an image from \(path). Use a PNG/JPEG/BMP/GIF file."
         case .cannotCreateContext:
-            return "Could not create a 16x16 drawing context to rasterize the image."
+            return "Could not create a drawing context to rasterize the image."
         case .unavailable:
             return "Image conversion requires CoreGraphics (macOS)."
         }
     }
 }
 
-/// Loads an image file and rasterizes it to a 16x16 `PixelFrame` using
+/// Loads an image file and rasterizes it to the selected model’s `PixelFrame` using
 /// nearest-neighbor scaling, in row-major order with the top-left pixel first.
 public enum ImageToPixelFrameConverter {
-    public static func loadPixelFrame(path: String) throws -> PixelFrame {
+    public static func loadPixelFrame(path: String, model: TimeboxModel = .evo) throws -> PixelFrame {
         #if canImport(CoreGraphics)
         let url = URL(fileURLWithPath: path) as CFURL
         guard let source = CGImageSourceCreateWithURL(url, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
             throw ImageToPixelFrameError.cannotLoad(path)
         }
-        return try pixelFrame(from: image)
+        return try pixelFrame(from: image, model: model)
         #else
         throw ImageToPixelFrameError.unavailable
         #endif
     }
 
     #if canImport(CoreGraphics)
-    /// Rasterize a `CGImage` to a 16x16 `PixelFrame`. `interpolation` defaults to
+    /// Rasterize a `CGImage` to the selected model’s `PixelFrame`. `interpolation` defaults to
     /// `.none` (nearest-neighbor, crisp for pixel-art); pass `.high` for photos /
     /// album art so the downscale is smooth.
-    public static func pixelFrame(from image: CGImage, interpolation: CGInterpolationQuality = .none) throws -> PixelFrame {
-        let width = PixelFrame.width
-        let height = PixelFrame.height
+    public static func pixelFrame(from image: CGImage, interpolation: CGInterpolationQuality = .none, model: TimeboxModel = .evo) throws -> PixelFrame {
+        let width = model.width
+        let height = model.height
         let bytesPerPixel = 4
         let bytesPerRow = width * bytesPerPixel
         var buffer = [UInt8](repeating: 0, count: bytesPerRow * height)
@@ -78,7 +78,7 @@ public enum ImageToPixelFrameConverter {
                 ))
             }
         }
-        return try PixelFrame(pixels: pixels)
+        return try PixelFrame(pixels: pixels, model: model)
     }
     #endif
 }

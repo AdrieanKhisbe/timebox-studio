@@ -1,0 +1,33 @@
+{
+  "source": "Parent-reported output from bounded standard IOBluetooth SDP refresh, transcribed2026-10-19; no raw notification stream applies to this API result.",
+  "date": "2026-10-19",
+  "captures": [
+    {
+      "device": "AKTBR",
+      "mac": "$MAC",
+      "source": "sdp_refresh",
+      "timeout_seconds": 8,
+      "query_state": "success",
+      "request_status": 0,
+      "callback_status": 0,
+      "service_uuid": "1200",
+      "service_count": 7,
+      "record_found": false,
+      "records": []
+    },
+    {
+      "device": "main-evo",
+      "mac": "$MAC",
+      "source": "sdp_refresh",
+      "timeout_seconds": 8,
+      "query_state": "success",
+      "request_status": 0,
+      "callback_status": 0,
+      "service_uuid": "1200",
+      "service_count": 7,
+      "record_found": false,
+      "records": []
+    }
+  ],
+  "limits": "No candidate PnP identity fields in the refreshed records for these two devices. Does not prove all firmware lacks identity or justify classification from names, MAC prefixes, channels or generic services."
+}

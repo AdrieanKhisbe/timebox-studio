@@ -1,4 +1,5 @@
 import Foundation
+import TimeboxKit
 
 enum OutputFormat: String { case json, yaml }
 
@@ -8,6 +9,8 @@ struct CommandOptions {
     var historyFile: String?
     var hasREPLInputOptions = false
     var name: String?
+    var model: TimeboxModel?
+    var explicitAutoModel = false
     var address: String?
     var channel: UInt8?
     var brightness = 100
@@ -51,6 +54,12 @@ struct CommandOptions {
             case "--history-file": historyFile = try value(); hasREPLInputOptions = true
             case "--device", "--name": name = try value(); selectorCount += 1
             case "--address": address = try value(); selectorCount += 1
+            case "--model":
+                let text = try value()
+                guard text == "auto" || TimeboxModel(rawValue: text) != nil else {
+                    throw CommandFailure("invalid_arguments", "--model must be auto, evo or mini.")
+                }
+                model = TimeboxModel(rawValue: text); explicitAutoModel = text == "auto"
             case "--channel":
                 let text = try value()
                 guard let number = UInt8(text), number > 0 else { throw CommandFailure("invalid_arguments", "Channel must be 1...255.") }

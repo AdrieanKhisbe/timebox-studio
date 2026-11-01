@@ -4,6 +4,7 @@ import TimeboxBluetooth
 
 extension TimeboxCommandLine {
     func performStatus(target: ResolvedDevice, options: CommandOptions) throws -> CommandResult {
+        guard target.modelResolution?.model != .mini else { throw TimeboxModelError.unsupported("status") }
         guard !options.mock else { throw CommandFailure("unsupported", "Mock mode has no live device status.") }
         let transport = environment.makeTransport(false)
         defer { transport.disconnect() }

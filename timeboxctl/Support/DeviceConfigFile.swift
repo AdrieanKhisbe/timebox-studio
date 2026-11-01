@@ -1,5 +1,6 @@
 import Foundation
 import TimeboxBluetooth
+import TimeboxKit
 import Yams
 
 public struct DeviceConfigDocument {
@@ -31,7 +32,14 @@ public struct DeviceConfigDocument {
                         guard let name = Self.string(value) else { throw CommandFailure("invalid_config", "bluetooth_name must be a string.") }
                         bluetoothName = name
                     }
-                    devices[name] = ConfiguredDevice(mac: canonical, bluetoothName: bluetoothName)
+                    var model: TimeboxModel?
+                    if let value = entry["model"] {
+                        guard let text = Self.string(value), let parsed = TimeboxModel(rawValue: text) else {
+                            throw CommandFailure("invalid_config", "Device model must be evo or mini.")
+                        }
+                        model = parsed
+                    }
+                    devices[name] = ConfiguredDevice(mac: canonical, bluetoothName: bluetoothName, model: model)
                 }
             }
             var defaultName: String?
@@ -109,7 +117,7 @@ public struct DeviceConfigFile {
                 try editor.set(["devices", name, "mac"], value: .string(mac))
                 try editor.set(["devices", name, "bluetooth_name"], value: .string(device.name))
             }
-            configuration.devices[name] = .init(mac: mac, bluetoothName: device.name)
+            configuration.devices[name] = .init(mac: mac, bluetoothName: device.name, model: configuration.devices[name]?.model)
         }
         if configuration.defaultName == nil, let name = configuration.devices.keys.sorted().first {
             try editor.set(["default"], value: .string(name))

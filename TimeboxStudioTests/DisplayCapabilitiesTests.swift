@@ -186,7 +186,7 @@ final class DisplayCapabilitiesTests: XCTestCase {
     func testConnectedLibraryLifecycleReopensAfterSuccessAndStaysClosedAfterFailure() async throws {
         let factory = DisplayConnectionFactory(); factory.queryChunks = [try response(0x46, raw)]
         let persistent = DisplayPersistentTransport()
-        let client = TimeboxClient(transport: persistent, displayTransportFactory: factory.make)
+        let client = TimeboxClient(model: .evo, transport: persistent, displayTransportFactory: factory.make)
         try await client.connect(to: device, channel: 7)
         try await client.display(.clock())
         XCTAssertEqual(persistent.connections, 2)

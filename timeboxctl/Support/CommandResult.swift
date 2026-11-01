@@ -12,7 +12,11 @@ struct CommandResult {
     func formatted(_ format: OutputFormat) throws -> String {
         var result: [String: Any] = ["command": command, "status": status, "data": data]
         if let device {
-            result["device"] = ["name": device.logicalName as Any? ?? NSNull(), "mac": device.device.address]
+            var value: [String: Any] = ["name": device.logicalName as Any? ?? NSNull(), "mac": device.device.address]
+            if let resolution = device.modelResolution {
+                value["model"] = resolution.model.rawValue; value["model_source"] = resolution.source.rawValue
+            }
+            result["device"] = value
         }
         switch format {
         case .json:

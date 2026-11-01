@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-19",
+  "device": "AKTBR",
+  "mac": "$MAC",
+  "model": "mini (explicit)",
+  "channel": 4,
+  "observations": [
+    {
+      "operation": "one-shot color FF0000 brightness80",
+      "transport": "15 bytes sent",
+      "user": "mini display red"
+    },
+    {
+      "operation": "one-shot brightness20 and retries",
+      "transport": "8 bytes sent per request",
+      "user": "not dimmer; Bluetooth icon appears; impression of brief dim before disconnect",
+      "conclusion": "standalone visual acceptance ambiguous"
+    },
+    {
+      "operation": "persistent REPL color FF0000 80, brightness20, then brightness80",
+      "transport": "same connection kept open; 15/8/8 bytes sent",
+      "user": "yes it was dim after restore80",
+      "conclusion": "user confirmed dimming at20 relative80 with persistent connection"
+    },
+    {
+      "operation": "persistent REPL image orientation.bmp",
+      "transport": "193 bytes sent",
+      "user": "yes to white top-left, red top edge, green left edge, yellow diagonal, blue bottom-right pixel",
+      "conclusion": "all orientation components including pixel121 visually confirmed"
+    },
+    {
+      "operation": "persistent REPL image smiley.bmp",
+      "transport": "193 bytes sent",
+      "user": "yes, yellow smiley correct",
+      "conclusion": "integrated static image file visually confirmed"
+    },
+    {
+      "operation": "same REPL target main-evo; target; brightness30",
+      "transport": "SDP channel1; model evo(config);8byte write",
+      "user": "yep, Evo dimmed",
+      "conclusion": "Mini->Evo target/profile/channel switch confirmed"
+    },
+    {
+      "operation": "same REPL brightness100; target mini; target; image smiley.bmp",
+      "transport": "8byte restore;SDPchannel4;model mini(config);193byte image",
+      "user": "yes, smiley back and Evo bright",
+      "conclusion": "Evo->Mini switch and Evo restoration visually confirmed; no startup-channel4 leakage to Evo"
+    }
+  ],
+  "limits": "No trustworthy automatic Mini/Evo identity classifier. One-shot brightness visual result obscured by Bluetooth icon; persistence/reset cause unproven. One-shot image and independent green/blue solid fills not tested in this sequence. Main-evo restored100; Mini REPL connection remains open showing smiley."
+}
