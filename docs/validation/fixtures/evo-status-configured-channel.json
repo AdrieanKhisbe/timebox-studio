@@ -1,0 +1,91 @@
+{
+  "source": "Parent tool outputs and user physical observations, transcribed on 2026-10-19; notification chunks and exact timestamps were not saved. Operation labels normalized for readability; raw arrays unchanged.",
+  "date": "2026-10-19",
+  "device": "main-evo",
+  "mac": "$MAC",
+  "channel": 1,
+  "captures": [
+    {
+      "operation": "status while previously user-confirmed Hello animation was running",
+      "user_observation": "Hello text previously confirmed visible",
+      "raw_data": [
+        0,
+        0,
+        0,
+        52,
+        18,
+        64,
+        100,
+        0,
+        1,
+        0,
+        100,
+        1,
+        255,
+        0,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0
+      ],
+      "expected_configured_channel": "clock"
+    },
+    {
+      "operation": "display light --color 0000FF --brightness 30, then status",
+      "user_observation": "User confirmed dim blue display",
+      "raw_data": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        255,
+        30,
+        0,
+        1,
+        0,
+        30,
+        1,
+        255,
+        0,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0
+      ],
+      "expected_configured_channel": "light"
+    },
+    {
+      "operation": "display clock --style 0; brightness 100; then status",
+      "user_observation": "User confirmed white clock",
+      "raw_data": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        255,
+        100,
+        0,
+        1,
+        0,
+        100,
+        1,
+        255,
+        255,
+        255,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "expected_configured_channel": "clock"
+    }
+  ],
+  "limits": "0x46 reports configured channel and profile fields, not rendered overlays or pixels. Both brightness fields co-vary. Only clock style 0 and light blue were checked; other profiles and independent app changes remain unverified. Final clock profile intentionally replaced prior clock color/style; only system brightness returned to 100."
+}

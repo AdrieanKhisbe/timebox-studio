@@ -7,7 +7,7 @@ import TimeboxUtilities
 
 /// One CLI invocation. All ordinary device commands share selection and Classic routing.
 public final class TimeboxCommandLine {
-    static var replVocabulary: [String] { REPLSuggestions.commands + ["target", "target current"] }
+    static var replVocabulary: [String] { REPLSuggestions.commands + ["target", "target current", "status"] }
     var environment: CommandEnvironment
     var outputFormat: OutputFormat?
     public init(environment: CommandEnvironment) { self.environment = environment }
@@ -16,7 +16,7 @@ public final class TimeboxCommandLine {
         guard let command = arguments.first else { return false }
         if arguments.contains(where: { ["--json", "--yaml", "--yml"].contains($0) }) { return true }
         if ["brightness", "color"].contains(command), arguments.contains("--uuid") { return false }
-        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config"].contains(command)
+        return ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "status"].contains(command)
     }
 
     @discardableResult
@@ -29,12 +29,17 @@ public final class TimeboxCommandLine {
         var target: ResolvedDevice?
         do {
             guard !command.isEmpty else { throw CommandFailure("invalid_arguments", "A command is required.") }
-            guard ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config"].contains(command), !arguments.contains("--uuid") else {
+            guard ["list", "brightness", "color", "image", "repl", "connect", "send-hex", "device", "config", "status"].contains(command), !arguments.contains("--uuid") else {
                 throw CommandFailure("unsupported", "Structured output is not supported for this diagnostic command.")
             }
             let options = try CommandOptions(Array(arguments.dropFirst()))
             guard command == "repl" || !options.hasREPLInputOptions else {
                 throw CommandFailure("invalid_arguments", "Editor/history options are only valid when starting repl.")
+            }
+            guard command == "status" || options.queryTimeout == nil else { throw CommandFailure("invalid_arguments", "Query timeout applies only to status commands.") }
+            if command == "status" {
+                guard options.positionals.isEmpty else { throw CommandFailure("invalid_arguments", "status takes no positional arguments.") }
+                guard !options.mock else { throw CommandFailure("unsupported", "Mock mode has no live device status.") }
             }
             if command == "device" || command == "config" { try manage(command, options: options); return 0 }
             if command == "list" {
@@ -44,11 +49,15 @@ public final class TimeboxCommandLine {
             }
             guard !options.all, !options.save else { throw CommandFailure("invalid_arguments", "--all and --save are only valid for list.") }
             if command == "repl", options.format != nil { throw CommandFailure("invalid_arguments", "The REPL is interactive; JSON/YAML streams are not supported.") }
-            let packet = ["repl", "connect"].contains(command) ? nil : try packet(command, options: options)
+            let packet = ["repl", "connect", "status"].contains(command) ? nil : try packet(command, options: options)
             if command == "connect", !options.positionals.isEmpty { throw CommandFailure("invalid_arguments", "connect takes no positional arguments.") }
             let configuration = try environment.configuration(options.configPath)
             let resolved = try resolve(options, configuration: configuration)
             target = resolved
+            if command == "status" {
+                try emit(performStatus(target: resolved, options: options))
+                return 0
+            }
             if command == "repl" { try repl(resolved, options: options); return 0 }
             if command == "connect" {
                 let transport = environment.makeTransport(options.mock)
@@ -178,13 +187,36 @@ public final class TimeboxCommandLine {
         defer { transport.disconnect() }
         try connect(transport, to: target, channel: options.channel)
         transport.wait(milliseconds: 150)
-        environment.output("Persistent connection open. Commands: target [NAME|current], color, brightness, image, hex, help, quit.")
+        environment.output("Persistent connection open. Commands: target [NAME|current], status, color, brightness, image, hex, help, quit.")
         while let line = try input.readLine(prompt: REPLPrompt.text(interactive: environment.isInteractive, noColor: environment.variables["NO_COLOR"] != nil)) {
             let parts = line.split(whereSeparator: \.isWhitespace).map(String.init)
             guard let command = parts.first?.lowercased() else { continue }
             if ["quit", "exit", "q"].contains(command) { break }
-            if ["help", "?"].contains(command) { environment.output("target [NAME|current], color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit"); continue }
+            if ["help", "?"].contains(command) { environment.output("target [NAME|current], status, color RRGGBB [brightness], brightness 0..100, image PATH, hex BYTES, quit"); continue }
             do {
+                if command == "status" {
+                    let statusOptions = try CommandOptions(Array(parts.dropFirst()))
+                    guard statusOptions.positionals.isEmpty, !statusOptions.hasREPLInputOptions,
+                          statusOptions.name == nil, statusOptions.address == nil,
+                          statusOptions.channel == nil, statusOptions.configPath == nil,
+                          statusOptions.format == nil, !statusOptions.mock,
+                          !statusOptions.all, !statusOptions.save else {
+                        throw CommandFailure("invalid_arguments", "Use status [--timeout SECONDS]; target NAME selects the REPL device.")
+                    }
+                    guard !options.mock else { throw CommandFailure("unsupported", "Mock mode has no live device status.") }
+                    transport.disconnect()
+                    transport.wait(milliseconds: 500)
+                    var queryOptions = options
+                    queryOptions.queryTimeout = statusOptions.queryTimeout
+                    queryOptions.channel = nil
+                    _ = try performStatus(target: target, options: queryOptions)
+                    transport.wait(milliseconds: 500)
+                    transport = environment.makeTransport(false)
+                    do { try connect(transport, to: target, channel: nil) }
+                    catch { transport.disconnect(); throw error }
+                    transport.wait(milliseconds: 150)
+                    continue
+                }
                 if command == "target" {
                     let name = parts.dropFirst().joined(separator: " ")
                     if name.isEmpty || name.lowercased() == "current" {
@@ -233,6 +265,17 @@ public final class TimeboxCommandLine {
 
     static func failure(_ error: Error) -> CommandFailure {
         if let failure = error as? CommandFailure { return failure }
+        if let query = error as? TimeboxQueryError {
+            switch query {
+            case .timeout: return CommandFailure("query_timeout", query.localizedDescription)
+            case .invalidResponse: return CommandFailure("invalid_response", query.localizedDescription)
+            case .unsupported: return CommandFailure("unsupported", query.localizedDescription)
+            case .invalidArguments: return CommandFailure("invalid_arguments", query.localizedDescription)
+            case .disconnected: return CommandFailure("connection_failed", query.localizedDescription)
+            case .cancelled: return CommandFailure("cancelled", query.localizedDescription)
+            case .busy: return CommandFailure("query_busy", query.localizedDescription)
+            }
+        }
         return CommandFailure("execution_failed", error.localizedDescription)
     }
 }

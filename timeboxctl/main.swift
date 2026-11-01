@@ -895,6 +895,7 @@ enum TimeboxCLI {
         print(
             """
             Usage:
+              timeboxctl status [--timeout SECONDS] [device options] [--json|--yaml]
               timeboxctl list [--all] [--save] [--config PATH] [--json|--yaml|--yml] [--mock]
               timeboxctl device select [NAME] [--config PATH]
               timeboxctl device rename [OLD [NEW]] [--config PATH]

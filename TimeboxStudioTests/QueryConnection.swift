@@ -31,4 +31,3 @@ final class QueryConnection: TimeboxQueryTransport {
     }
     func disconnect() { isConnected = false }
 }
-

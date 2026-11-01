@@ -3,6 +3,7 @@ import Foundation
 enum OutputFormat: String { case json, yaml }
 
 struct CommandOptions {
+    var queryTimeout: TimeInterval?
     var editor = "bestline"
     var historyFile: String?
     var hasREPLInputOptions = false
@@ -29,6 +30,12 @@ struct CommandOptions {
                 return arguments[index]
             }
             switch argument {
+            case "--timeout":
+                let text = try value()
+                guard let seconds = Double(text), seconds.isFinite, seconds > 0, seconds <= 60 else {
+                    throw CommandFailure("invalid_arguments", "--timeout must be greater than zero and at most 60 seconds.")
+                }
+                queryTimeout = seconds
             case "--editor":
                 editor = try value(); hasREPLInputOptions = true
                 guard ["bestline", "plain"].contains(editor) else { throw CommandFailure("invalid_arguments", "Use --editor bestline or --editor plain.") }
