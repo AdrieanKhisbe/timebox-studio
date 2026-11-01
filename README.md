@@ -180,3 +180,17 @@ TimeboxStudioTests/  packet + image encoding tests
 
 Native macOS Swift only; no Divoom app, Node, Electron/web, or ESP32/Pi in the control
 path; protocol encoding kept separate from transport; a raw-hex escape hatch is retained.
+
+## Interactive REPL
+
+Requires Swift 6 or newer to build. The package retains Swift 5 language mode.
+The macOS CLI uses Bestline automatically in supported terminals, with completion,
+editing and searchable session history. Pipes use plain input without ANSI prompts.
+Use `repl --editor plain` for the plain terminal reader. Set `NO_COLOR` to suppress
+the bold blue `timebox` and bold red `>` prompt. History stays in memory unless
+`repl --history-file PATH` is supplied.
+
+```sh
+.build/debug/timeboxctl repl --address "$MAC"
+.build/debug/timeboxctl repl --mock
+```

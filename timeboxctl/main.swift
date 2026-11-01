@@ -1,4 +1,5 @@
 import Foundation
+import TimeboxREPL
 import TimeboxBluetooth
 import TimeboxKit
 import TimeboxUtilities
@@ -672,37 +673,36 @@ enum TimeboxCLI {
     private static func replSPP(arguments: [String]) -> Int32 {
         do {
             let options = try ParsedOptions(arguments: arguments, requiresHex: false)
-            let device = try resolveDevice(name: options.name, address: options.address, useMock: false)
-            let transport = IOBluetoothTimeboxTransport()
-            let channelDescription = options.channel.map { "RFCOMM channel \($0)" } ?? "auto-resolved SPP channel"
-            print("Connecting to \(device.name) (\(device.address)) on \(channelDescription)...")
-            try transport.connectPumpingRunLoop(to: device, channelID: options.channel)
-            transport.waitPumpingRunLoop(milliseconds: 150)
-            if let channelID = transport.lastRFCOMMChannelID {
-                print("Connected on RFCOMM channel \(channelID). Persistent connection open.")
-            }
+            let input = try REPLInputFactory.make(editor: options.editor, historyFile: options.historyFile, deviceNames: [])
+            defer { try? input.close() }
+            let transport = options.useMock ? nil : IOBluetoothTimeboxTransport()
+            defer { transport?.disconnect() }
+            if let transport {
+                let device = try resolveDevice(name: options.name, address: options.address, useMock: false)
+                print("Connecting to \(device.name) (\(device.address))...")
+                try transport.connectPumpingRunLoop(to: device, channelID: options.channel)
+                transport.waitPumpingRunLoop(milliseconds: 150)
+                print("Connected on RFCOMM channel \(transport.lastRFCOMMChannelID.map(String.init) ?? "unknown").")
+            } else { print("Simulated connection open.") }
             printReplHelp()
-
-            while true {
-                print("timebox> ", terminator: "")
-                fflush(stdout)
-                guard let line = readLine(strippingNewline: true) else { break }
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let prompt = REPLPrompt.text(interactive: isatty(STDIN_FILENO) != 0 && isatty(STDOUT_FILENO) != 0,
+                                         noColor: ProcessInfo.processInfo.environment["NO_COLOR"] != nil)
+            while let line = try input.readLine(prompt: prompt) {
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.isEmpty { continue }
                 let lower = trimmed.lowercased()
-                if lower == "quit" || lower == "exit" || lower == "q" { break }
-                if lower == "help" || lower == "?" { printReplHelp(); continue }
+                if ["quit", "exit", "q"].contains(lower) { break }
+                if ["help", "?"].contains(lower) { printReplHelp(); continue }
                 do {
                     let packet = try parseReplCommand(trimmed)
-                    try transport.writePumpingRunLoop(packet)
-                    transport.waitPumpingRunLoop(milliseconds: 60)
-                    print("  ok (\(packet.count) bytes: \(HexDump.string(from: packet)))")
-                } catch {
-                    print("  error: \(error.localizedDescription)")
-                }
+                    if let transport {
+                        try transport.writePumpingRunLoop(packet)
+                        transport.waitPumpingRunLoop(milliseconds: 60)
+                    }
+                    print("\(options.useMock ? "simulated" : "sent") (\(packet.count) bytes)")
+                } catch { print("Error: \(error.localizedDescription)") }
             }
-
-            transport.disconnect()
+            try input.close()
             print("Disconnected.")
             return 0
         } catch {
@@ -997,6 +997,8 @@ enum TimeboxCLI {
 }
 
 private struct ParsedOptions {
+    var editor = "bestline"
+    var historyFile: String?
     var name: String?
     var address: String?
     var uuid: UUID?
@@ -1019,6 +1021,12 @@ private struct ParsedOptions {
         while index < arguments.endIndex {
             let argument = arguments[index]
             switch argument {
+            case "--editor", "--history-file":
+                let nextIndex = arguments.index(after: index)
+                guard nextIndex < arguments.endIndex else { throw CLIError.missingValue(argument) }
+                if argument == "--editor" { editor = arguments[nextIndex] }
+                else { historyFile = arguments[nextIndex] }
+                index = arguments.index(after: nextIndex)
             case "--name":
                 let nextIndex = arguments.index(after: index)
                 guard nextIndex < arguments.endIndex else {
@@ -1213,11 +1221,16 @@ let classicSyncCommands: Set<String> = ["connect", "send-hex", "probe-rfcomm"]
 let sppCapableCommands: Set<String> = ["color", "brightness", "image", "repl"]
 
 let routeClassic: Bool = {
+    if cliCommand == "repl" { return true }
     guard let cliCommand, !cliIsMock else { return false }
     if classicSyncCommands.contains(cliCommand) { return true }
     return sppCapableCommands.contains(cliCommand) && cliHasAddress
 }()
 
+if cliCommand != "repl", cliArguments.contains(where: { ["--editor", "--history-file"].contains($0) }) {
+    fputs("--editor and --history-file are only valid when starting repl.\n", stderr)
+    exit(2)
+}
 let exitCode: Int32
 if routeClassic, let cliCommand {
     // Classic IOBluetooth path: run on the main thread so the main run loop

@@ -1,9 +1,9 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 
 import PackageDescription
 import Foundation
 
-let packageDirectory = URL(fileURLWithPath: #file).deletingLastPathComponent().path
+let packageDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent().path
 let appInfoPlist = "\(packageDirectory)/TimeboxStudio/App/Info.plist"
 let cliInfoPlist = "\(packageDirectory)/timeboxctl/Info.plist"
 
@@ -19,7 +19,15 @@ let package = Package(
         .library(name: "TimeboxKit", targets: ["TimeboxKit"]),
         .library(name: "TimeboxBluetooth", targets: ["TimeboxBluetooth"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/mattt/bestline-swift.git", revision: "823c299247f2f35a4fd9a70f7bea4c8c9edcc946")
+    ],
     targets: [
+        .target(name: "REPLInputSupport", path: "timeboxctl/REPLInputSupport", publicHeadersPath: "include"),
+        .target(name: "TimeboxREPL", dependencies: [
+            .target(name: "REPLInputSupport", condition: .when(platforms: [.macOS])),
+            .product(name: "Bestline", package: "bestline-swift", condition: .when(platforms: [.macOS]))
+        ], path: "timeboxctl/REPL"),
         .target(
             name: "TimeboxUtilities",
             path: "TimeboxStudio/Utilities"
@@ -61,12 +69,13 @@ let package = Package(
         .executableTarget(
             name: "timeboxctl",
             dependencies: [
+                "TimeboxREPL",
                 "TimeboxBluetooth",
                 "TimeboxKit",
                 "TimeboxUtilities"
             ],
             path: "timeboxctl",
-            exclude: ["Info.plist"],
+            exclude: ["Info.plist", "REPL", "REPLInputSupport"],
             linkerSettings: [
                 .unsafeFlags(["-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist", "-Xlinker", cliInfoPlist])
             ]
@@ -74,11 +83,13 @@ let package = Package(
         .testTarget(
             name: "TimeboxStudioTests",
             dependencies: [
+                "TimeboxREPL",
                 "TimeboxBluetooth",
                 "TimeboxKit",
                 "TimeboxUtilities"
             ],
             path: "TimeboxStudioTests"
         )
-    ]
+    ],
+    swiftLanguageModes: [.v5]
 )

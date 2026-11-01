@@ -3,7 +3,6 @@ name: Build, test, and deliver
 on:
   push:
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -45,6 +44,9 @@ jobs:
 
       - name: Run unit tests
         run: swift test
+
+      - name: Exercise REPL terminal handling
+        run: python3 scripts/test-repl.py
 
       - name: Build release products
         run: swift build --configuration release
