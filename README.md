@@ -241,13 +241,37 @@ timeboxctl animation art.gif --device mini --model mini [--adapt]
 timeboxctl text "Hello Mini" --stream --device mini --model mini
 ```
 
-Use `--model timebox` for the original Timebox, `--model mini` for Mini and
-`--model evo` for Evo, or save the corresponding `model` in that device's
-config entry. CLI `--model auto` bypasses the saved override. Reliable automatic
-hardware identification has not been established, so an unknown model fails
-before display writes and asks for an explicit choice. Bluetooth names and RFCOMM
-channels alone are not identity evidence. REPL target changes resolve the new
-model independently; startup overrides do not carry across targets.
+Select encoding independently of the exact product with `--protocol legacy11`
+or `--protocol evo16`, or save it in the config:
+
+```yaml
+default: old-timebox
+devices:
+  old-timebox:
+    mac: AA:BB:CC:DD:EE:FF
+    protocol: legacy11
+```
+
+Without a configured protocol or model, the CLI reads settings to identify the
+protocol family before control writes. Only recognized, checksummed settings
+layouts are accepted. Unknown/corrupt replies fail safely; use an explicit protocol
+when necessary. No Bluetooth name, MAC prefix or channel heuristic is used.
+This distinguishes Evo from legacy11 devices but does not distinguish original
+Timebox from Mini. Results report `model: null` when only the protocol is known.
+
+A configured protocol avoids detection overhead. For automatic one-shot `status`,
+the detection snapshot is reused immediately; the REPL caches only the protocol,
+so subsequent status reads stay fresh. See [protocol detection](docs/validation/protocol-detection.md)
+for query behavior and timing limitations.
+
+Existing `model: timebox`, `model: mini` and `model: evo` entries continue to imply
+their protocol without a query. Explicit `--model` overrides the saved selection;
+`--model auto` ignores the saved model. Explicit `--protocol` overrides the saved
+protocol; `--protocol auto` forces a live protocol read even with saved settings.
+Conflicting model/protocol selections are rejected; correct the config or combine
+`--model auto` with the desired `--protocol`. REPL target changes resolve the new
+target independently; startup overrides do not carry across targets. `list --save`
+does not connect to devices or guess protocols, and preserves existing overrides.
 
 `TimeboxClient(model: .timebox)` selects the original model;
 `TimeboxClient(model: .mini)` keeps the Mini identity. Both select legacy11 encoding. Existing

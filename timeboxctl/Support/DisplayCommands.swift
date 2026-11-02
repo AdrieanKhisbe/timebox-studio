@@ -5,7 +5,7 @@ import TimeboxBluetooth
 extension TimeboxCommandLine {
     func performDisplay(_ selection: TimeboxDisplay, command: String,
                         target: ResolvedDevice, options: CommandOptions) throws -> CommandResult {
-        let model = target.modelResolution?.model ?? .evo
+        let model = target.encodingModel
         try selection.validate(model: model)
         guard !options.mock || !selection.requiresLivePreparation else {
             throw CommandFailure("unsupported", "Live display preservation and design capabilities require device reads; mock state is unavailable.")
@@ -15,7 +15,7 @@ extension TimeboxCommandLine {
         do {
             result = try TimeboxDisplayWriter.perform(selection, device: target.device,
             channel: options.channel, timeout: options.queryTimeout ?? 5,
-            holdMilliseconds: options.holdMilliseconds, model: target.modelResolution?.model ?? .evo, makeTransport: { environment.makeTransport(options.mock) })
+            holdMilliseconds: options.holdMilliseconds, model: target.encodingModel, makeTransport: { environment.makeTransport(options.mock) })
         } catch let error as TimeboxTransportError {
             switch error {
             case .writeFailed: throw CommandFailure("write_failed", error.localizedDescription)

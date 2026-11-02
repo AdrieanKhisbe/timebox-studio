@@ -84,7 +84,7 @@ final class TimeboxMiniAnimationTests: XCTestCase {
         XCTAssertEqual(data["adapted"] as? Bool,false)
         let unknown = CommandHarness();unknown.detectedModels = []
         XCTAssertEqual(unknown.run(["animation","/nonexistent.gif","--address","AA:BB:CC:DD:EE:01","--json"]),1)
-        XCTAssertTrue(unknown.rawStdout.contains("unknown_model"))
+        XCTAssertTrue(unknown.rawStdout.contains("unknown_protocol"))
         XCTAssertTrue(unknown.transport.connections.isEmpty)
     }
 

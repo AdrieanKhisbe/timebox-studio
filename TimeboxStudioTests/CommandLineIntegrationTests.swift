@@ -70,6 +70,7 @@ final class CommandHarness {
     var input: [String] = []
     var paired: [TimeboxDevice] = []
     var detectedModels: Set<TimeboxModel> = [.evo]
+    var useProtocolProbe = false
     var configuration = DeviceConfiguration()
     let transport = RecordingCommandTransport()
     var environment: [String: String] = [:]
@@ -83,6 +84,7 @@ final class CommandHarness {
                 if let path { return try DeviceConfigFile(path: path).read().configuration }
                 return self.configuration
             }, makeTransport: { _ in self.transport }, detectModels: { _ in self.detectedModels },
+            detectProtocol: useProtocolProbe ? nil : { _, _, _ in throw CommandFailure("unknown_protocol", "No simulated settings available. Use --model or --protocol.") },
             output: { self.stdout.append($0) }, errorOutput: { self.stderr.append($0) },
             rawOutput: { self.rawStdout += $0 },
             readLine: { self.input.isEmpty ? nil : self.input.removeFirst() },

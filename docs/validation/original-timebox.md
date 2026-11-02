@@ -9,6 +9,9 @@ The tested original Timebox is distinct from Timebox Mini and MiniToo.
 `legacy11` framing/RGB444; Evo uses `evo16`. Bluetooth Classic RFCOMM and BLE
 are transports. Product names, MAC prefixes and channel numbers are not used
 to guess model identity; use `--model timebox` or a saved `model: timebox`.
+Protocol-only config (`protocol: legacy11`) and read-only automatic family
+detection are also available without asserting the exact model; see
+[protocol detection](protocol-detection.md).
 Existing Mini model values and public Mini encoder names remain compatible.
 
 ```sh

@@ -11,6 +11,9 @@ struct CommandOptions {
     var name: String?
     var model: TimeboxModel?
     var explicitAutoModel = false
+    var protocolFamily: TimeboxProtocolFamily?
+    var explicitAutoProtocol = false
+    var hasProtocolOption: Bool { protocolFamily != nil || explicitAutoProtocol }
     var address: String?
     var channel: UInt8?
     var brightness = 100
@@ -65,6 +68,12 @@ struct CommandOptions {
                 let text = try value()
                 guard let number = UInt8(text), number > 0 else { throw CommandFailure("invalid_arguments", "Channel must be 1...255.") }
                 channel = number
+            case "--protocol":
+                let text = try value()
+                guard text == "auto" || TimeboxProtocolFamily(rawValue: text) != nil else {
+                    throw CommandFailure("invalid_arguments", "--protocol must be auto, legacy11 or evo16.")
+                }
+                protocolFamily = TimeboxProtocolFamily(rawValue: text); explicitAutoProtocol = text == "auto"
             case "--brightness": brightness = try Self.percent(value()); hasBrightnessOption = true
             case "--color": displayColor = try value()
             case "--style":

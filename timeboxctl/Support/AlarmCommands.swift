@@ -4,7 +4,7 @@ import TimeboxBluetooth
 
 extension TimeboxCommandLine {
     func performAlarm(_ operation: AlarmOperation, target: ResolvedDevice, options: CommandOptions) throws -> CommandResult {
-        let model = target.modelResolution?.model ?? .evo
+        let model = target.encodingModel
         try operation.validate(model: model)
         let before = try readAlarms(target, options: options)
         let slot: Int
@@ -59,7 +59,7 @@ extension TimeboxCommandLine {
         try connect(transport, to: target, channel: options.channel)
         transport.wait(milliseconds: 150)
         // No retry of a timed-out query on the same link: replies have no request ID.
-        do { return try TimeboxAlarmReader.read(from: transport, model: target.modelResolution?.model ?? .evo, timeout: options.queryTimeout ?? 5) }
+        do { return try TimeboxAlarmReader.read(from: transport, model: target.encodingModel, timeout: options.queryTimeout ?? 5) }
         catch let error as TimeboxQueryError { throw Self.failure(error) }
         catch { throw CommandFailure("write_failed", error.localizedDescription) }
     }

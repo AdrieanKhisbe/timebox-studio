@@ -941,7 +941,8 @@ enum TimeboxCLI {
               scan-ble actively scans Bluetooth LE advertisements and prints UUIDs/service data.
               inspect-ble connects over BLE and discovers services/characteristics.
               send-ble-hex writes raw bytes to a BLE characteristic, auto-selecting a writable one if --characteristic is omitted.
-              --model auto|evo|mini|timebox selects device encoding (default auto; requires verified identity or a saved model override).
+              --protocol auto|legacy11|evo16 selects encoding; auto reads live settings when no protocol/model is configured.
+              --model auto|evo|mini|timebox sets product identity and implies its protocol; auto ignores the saved model.
               Original Timebox: use --model timebox; Mini: use --model mini. Both use legacy11 over Classic SPP; raw BLE remains experimental.
               brightness/color with --address use Classic SPP; --uuid selects legacy raw-BLE diagnostics, not the RCSP transport used by the iOS library.
               --hold-ms keeps a one-shot connection open after writing; a completed write does not confirm a visible display change.
