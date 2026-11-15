@@ -5,6 +5,11 @@ Validated on AKTBR (`$MAC`), 2026-10-19, macOS Classic RFCOMM channel4.
 SDP chose the channel; the model was explicitly Mini. MiniToo and BLE are outside
 this evidence. Reliable automatic model identification remains unresolved.
 
+Current clock behavior reads and preserves the complete legacy11 format/RGB
+profile; see the [original Timebox regression report](original-timebox.md).
+The short clock command captured below is historical evidence of visible clock
+selection, not proof of stored-RGB preservation.
+
 ## Supported commands
 
 ```sh

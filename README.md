@@ -3,7 +3,6 @@
 For saved devices, logical names and selection rules, see
 [device configuration](docs/device-configuration.md).
 For structured results and exit codes, see [CLI output](docs/cli-output.md).
-For live device alarm enumeration, see [alarm listing](docs/alarms.md).
 
 Control a Divoom **Timebox Evo** (16×16 RGB LED display) directly from **macOS and iOS** —
 send arbitrary images, solid colors, and brightness — with **no Divoom app, no Node, no
@@ -38,10 +37,35 @@ over both. See [`DEVELOPMENT_NOTES.md`](DEVELOPMENT_NOTES.md) for the protocol d
 
 ## Build & test
 
+Tests require the full Xcode installation (for XCTest), with its license accepted
+and initial setup completed. If `xcode-select -p` points to Command Line Tools,
+select Xcode with `sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer`,
+or prefix the commands below with
+`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
+
 ```sh
 swift build
 swift test
 ```
+
+## Continuous integration and delivery
+
+[GitHub Actions](https://github.com/AdrieanKhisbe/timebox-studio/actions/workflows/ci.yml)
+runs on every push, pull requests to `main`, and manual dispatches. It builds all
+products, runs the unit tests, and builds release executables on both Apple Silicon
+and Intel macOS runners. A separate job compiles `TimeboxBluetooth` and its
+dependencies for iOS without signing.
+
+Each successful macOS job delivers a `timebox-studio-macos-arm64` or
+`timebox-studio-macos-x86_64` artifact, retained for 14 days. Download the matching
+artifact from the workflow run, unzip it, then extract its `.tar.gz` archive. It
+contains `timeboxctl`, the standalone `TimeboxStudio` executable, and documentation.
+These are unsigned developer builds; the SwiftUI executable is not an `.app` bundle.
+The workflow does not publish GitHub Releases or deploy to the App Store.
+
+The tests cover hex parsing, pixel-frame validation, packet checksums, and image
+palette encoding. Bluetooth connection and display behavior require a real Timebox
+and are checked manually.
 
 ## Use the CLI
 
@@ -163,6 +187,19 @@ TimeboxStudioTests/  packet + image encoding tests
 Native macOS Swift only; no Divoom app, Node, Electron/web, or ESP32/Pi in the control
 path; protocol encoding kept separate from transport; a raw-hex escape hatch is retained.
 
+## Interactive REPL
+
+Requires Swift 6 or newer to build. The package retains Swift 5 language mode.
+The macOS CLI uses Bestline automatically in supported terminals, with completion,
+editing and searchable session history. Pipes use plain input without ANSI prompts.
+Use `repl --editor plain` for the plain terminal reader. Set `NO_COLOR` to suppress
+the bold blue `timebox` and bold red `>` prompt. History stays in memory unless
+`repl --history-file PATH` is supplied.
+
+```sh
+.build/debug/timeboxctl repl --address "$MAC"
+.build/debug/timeboxctl repl --mock
+```
 ### Evo display channels
 
 ```sh
@@ -185,9 +222,11 @@ effects remain unverified. REPL/client live
 operations reconnect on success and remain disconnected on failure. Custom/design
 channel selection is distinct from stored-content enumeration. See [display evidence and acceptance](docs/validation/evo-display-channels.md).
 
-### Original Timebox Mini and model selection
+### Original Timebox, Mini and model selection
 
-The CLI supports original Mini brightness, solid color, static11×11 images, clock display and synchronization, native stopwatch, three-slot alarms, native GIF uploads, streamed text, and live status:
+The original Timebox (`--model timebox`) and Timebox Mini (`--model mini`) share the `legacy11` protocol; Evo uses `evo16`. Bluetooth Classic and BLE name transports, independently of the product model.
+
+The CLI supports original Mini brightness, solid color, static 11×11 images, clock display and synchronization, native stopwatch, three-slot alarms, native GIF uploads, streamed text, and live status:
 
 ```sh
 timeboxctl image art.png --address AA:BB:CC:DD:EE:FF --model mini --channel 4
@@ -202,16 +241,42 @@ timeboxctl animation art.gif --device mini --model mini [--adapt]
 timeboxctl text "Hello Mini" --stream --device mini --model mini
 ```
 
-Use `--model evo` for Evo, or save `model: evo` / `model: mini` in that device's
-config entry. CLI `--model auto` bypasses the saved override. Reliable automatic
-hardware identification has not been established, so an unknown model fails
-before display writes and asks for an explicit choice. Bluetooth names and RFCOMM
-channels alone are not identity evidence. REPL target changes resolve the new
-model independently; startup overrides do not carry across targets.
+Select encoding independently of the exact product with `--protocol legacy11`
+or `--protocol evo16`, or save it in the config:
 
-`TimeboxClient(model: .mini)` enables the library Mini profile. Existing
+```yaml
+default: old-timebox
+devices:
+  old-timebox:
+    mac: AA:BB:CC:DD:EE:FF
+    protocol: legacy11
+```
+
+Without a configured protocol or model, the CLI reads settings to identify the
+protocol family before control writes. Only recognized, checksummed settings
+layouts are accepted. Unknown/corrupt replies fail safely; use an explicit protocol
+when necessary. No Bluetooth name, MAC prefix or channel heuristic is used.
+This distinguishes Evo from legacy11 devices but does not distinguish original
+Timebox from Mini. Results report `model: null` when only the protocol is known.
+
+A configured protocol avoids detection overhead. For automatic one-shot `status`,
+the detection snapshot is reused immediately; the REPL caches only the protocol,
+so subsequent status reads stay fresh. See [protocol detection](docs/validation/protocol-detection.md)
+for query behavior and timing limitations.
+
+Existing `model: timebox`, `model: mini` and `model: evo` entries continue to imply
+their protocol without a query. Explicit `--model` overrides the saved selection;
+`--model auto` ignores the saved model. Explicit `--protocol` overrides the saved
+protocol; `--protocol auto` forces a live protocol read even with saved settings.
+Conflicting model/protocol selections are rejected; correct the config or combine
+`--model auto` with the desired `--protocol`. REPL target changes resolve the new
+target independently; startup overrides do not carry across targets. `list --save`
+does not connect to devices or guess protocols, and preserves existing overrides.
+
+`TimeboxClient(model: .timebox)` selects the original model;
+`TimeboxClient(model: .mini)` keeps the Mini identity. Both select legacy11 encoding. Existing
 `TimeboxClient()` callers retain Evo behavior; pass `model: nil` to request
-conservative automatic identification. Mini BLE/iOS, native countdown and stored
+conservative automatic identification. Production legacy11 BLE/iOS, native countdown and stored
 content remain unverified and unsupported. Mini GIF uploads use a conservative
 12-frame/common-delay policy; see [format and physical validation](docs/validation/mini-animation.md).
 Native clock, stopwatch and alarm
@@ -223,6 +288,11 @@ see [Mini clock-sync evidence](docs/validation/mini-clock-sync.md) for its manua
 acceptance and protocol sources.
 Mini scrolling text requires explicit `--stream`, which holds the Mac connection
 for one full scroll; see [streaming behavior and validation](docs/validation/mini-streaming-text.md).
+Original Timebox/Mini bare `display clock` reads and preserves the complete stored
+format/RGB profile. It rejects incomplete or unknown layouts before writing; short
+selectors can corrupt RGB by consuming checksum bytes. Bare clock/light selections
+require live reads and cannot use `--mock`. See [original Timebox evidence](docs/validation/original-timebox.md).
+
 Mini `display light` preserves stored RGB, light level and known variant through
 a fresh settings read. Explicit `--color` or `--brightness` applies a full plain
 light profile; see [Mini light-mode validation](docs/validation/mini-light.md).

@@ -1,9 +1,10 @@
 import Foundation
 
-/// Original 11×11 Mini, not MiniToo. RGB444 and OldMode escaped framing.
+/// Original Timebox and 11×11 Mini, not MiniToo. RGB444 and OldMode escaped framing.
 /// Independent protocol reference: hass-divoom timeboxmini.py / divoom.py.
-public enum TimeboxMiniEncoder {
-    public static func encode(_ command: TimeboxCommand) throws -> Data {
+public enum TimeboxLegacyEncoder {
+    public static func encode(_ command: TimeboxCommand, model: TimeboxModel = .mini) throws -> Data {
+        guard model.protocolFamily == .legacy11 else { throw TimeboxModelError.unsupported("legacy11 encoding for \(model.rawValue)") }
         switch command {
         case .raw(let bytes): return bytes
         case .setBrightness(let percent):
@@ -15,26 +16,27 @@ public enum TimeboxMiniEncoder {
         case .image(let pixels):
             return try frame(imagePayload(pixels))
         case .setAlarm(let current, _, _), .disableAlarm(let current):
-            try TimeboxPacketEncoder.validateAlarm(current, model: .mini)
+            try TimeboxPacketEncoder.validateAlarm(current, model: model)
             // Share all full-record field validation with Evo, then escape OldMode.
             return escapeFrame(try TimeboxPacketEncoder.encode(command, model: .evo))
         case .stopwatch(let action): return try frame(Data([0x45, 6, action.rawValue]))
-        case .display(.clock(style: nil)): return try frame(Data([0x45, 0, 1]))
+        case .display(.clock(style: nil)):
+            throw TimeboxDisplayError.livePreparationRequired("Bare legacy clock selection")
         case let .display(.light(color, percent)):
-            guard color != nil || percent != nil else { throw TimeboxDisplayError.livePreparationRequired("Bare Mini light selection") }
+            guard color != nil || percent != nil else { throw TimeboxDisplayError.livePreparationRequired("Bare legacy11 light selection") }
             let rgb = color ?? PixelRGB(red: 255, green: 255, blue: 255)
             let level = percent ?? 100
             try validate(level)
             return try frame(Data([0x45, 2, rgb.red, rgb.green, rgb.blue, UInt8(level), 0]))
         case .displayProfile(let profile):
-            guard profile.model == .mini else { throw TimeboxDisplayError.profileModelMismatch(expected: .mini, actual: profile.model) }
+            guard profile.model == model else { throw TimeboxDisplayError.profileModelMismatch(expected: model, actual: profile.model) }
             return try frame(profile.payload)
         case .synchronizeClock(let snapshot): return try frame(snapshot.payload)
         case .startCountdown, .stopCountdown: throw TimeboxModelError.unsupported("timers")
         case .display, .selectDesignTab: throw TimeboxModelError.unsupported("display channels")
         }
     }
-    /// Native RGB444 image payload, also reused by Mini animation frame packing.
+    /// Native RGB444 image payload, also reused by legacy11 animation frame packing.
     static func imagePayload(_ pixels: PixelFrame) throws -> Data {
         guard pixels.width == 11, pixels.height == 11, pixels.pixels.count == 121 else {
             throw PixelFrameError.invalidPixelCount(expected: 121, actual: pixels.pixels.count)
@@ -66,3 +68,6 @@ public enum TimeboxMiniEncoder {
         return packet
     }
 }
+
+/// Source compatibility for callers using the original Mini encoder name.
+public typealias TimeboxMiniEncoder = TimeboxLegacyEncoder

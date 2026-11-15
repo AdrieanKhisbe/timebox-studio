@@ -121,7 +121,7 @@ final class TimeboxMiniTests: XCTestCase {
         let previousConnections = harness.transport.connections.count
         XCTAssertEqual(harness.run(["countdown", "start", "00:30"]), 1)
         XCTAssertEqual(harness.transport.connections.count, previousConnections)
-        XCTAssertTrue(harness.stderr.joined().contains("Mini"))
+        XCTAssertTrue(harness.stderr.joined().contains("countdown"))
         XCTAssertEqual(harness.run(["brightness", "50", "--model", "auto"]), 1)
         XCTAssertEqual(harness.transport.connections.count, previousConnections)
     }

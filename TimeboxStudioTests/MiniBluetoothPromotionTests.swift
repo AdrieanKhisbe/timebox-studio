@@ -58,17 +58,18 @@ final class MiniBluetoothPromotionTests: XCTestCase {
         XCTAssertTrue(busy.isConnected); XCTAssertNotNil(busy.onData)
     }
 
-    func testMiniBareClockWriterUsesOneWriteConnectionWithoutQuery() throws {
+    func testMiniBareClockWriterReadsAndPreservesCompleteProfile() throws {
         let transport = MiniPromotionTransport()
+        transport.replies = [bytes("01 1C 00 04 46 55 00 00 04 FF FF FF 64 05 14 00 00 3E E0 18 58 FF FF 00 00 FF FF FF 00 C2 0A 02")]
         var factories = 0
         let result = try TimeboxDisplayWriter.perform(.clock(), device: .mock, channel: 4, model: .mini,
             makeTransport: { factories += 1; return transport })
-        XCTAssertEqual(factories, 1)
+        XCTAssertEqual(factories, 2)
         XCTAssertEqual(result.packetCount, 1)
-        XCTAssertEqual(transport.controls, [bytes("01 05 00 45 00 03 04 4b 00 02")])
-        XCTAssertEqual(result.byteCount, 10)
+        XCTAssertEqual(transport.controls, [bytes("01 08 00 45 00 00 00 3E E0 6B 03 04 02")])
+        XCTAssertEqual(result.byteCount, 13)
         XCTAssertEqual(transport.channel, 4)
-        XCTAssertTrue(transport.queries.isEmpty)
+        XCTAssertEqual(transport.queries, [bytes("01 03 06 00 46 49 00 02")])
         XCTAssertFalse(transport.isConnected)
     }
 
@@ -84,11 +85,16 @@ final class MiniBluetoothPromotionTests: XCTestCase {
     }
 
     @MainActor
-    func testMiniClientSendsPromotedClockStopwatchAndFullAlarmRecordsWithoutQueries() async throws {
+    func testMiniClientPreservesClockThenSendsStopwatchAndAlarmRecordsDirectly() async throws {
         let transport = MiniPromotionTransport()
         var factories = 0
+        var radios: [MiniPromotionTransport] = []
         let client = TimeboxClient(model: .mini, transport: transport,
-            displayTransportFactory: { factories += 1; return MiniPromotionTransport() })
+            displayTransportFactory: {
+                let radio = MiniPromotionTransport()
+                if factories == 0 { radio.replies = [self.bytes("01 1C 00 04 46 55 00 00 04 FF FF FF 64 05 14 00 00 3E E0 18 58 FF FF 00 00 FF FF FF 00 C2 0A 02")] }
+                factories += 1; radios.append(radio); return radio
+            })
         try await client.connect(to: .mock)
         try await client.display(.clock())
         try await client.stopwatch(.start)
@@ -98,15 +104,16 @@ final class MiniBluetoothPromotionTests: XCTestCase {
         try await client.setAlarm(current, schedule: TimeboxAlarmSchedule(hour: 2, minute: 52))
         try await client.disableAlarm(current)
         XCTAssertEqual(transport.controls, [
-            bytes("01 05 00 45 00 03 04 4b 00 02"),
             bytes("01 05 00 45 06 03 04 51 00 02"),
             bytes("01 05 00 45 06 00 50 00 02"),
             bytes("01 05 00 45 06 03 05 52 00 02"),
             bytes("01 0d 00 43 03 05 03 04 03 05 34 00 00 03 04 00 00 32 bc 00 02"),
             bytes("01 0d 00 43 03 05 00 00 00 00 00 03 04 00 00 32 85 00 02")
         ])
-        XCTAssertEqual(factories, 0); XCTAssertTrue(transport.queries.isEmpty)
-        XCTAssertEqual(transport.connects, 1); XCTAssertTrue(client.isConnected)
+        XCTAssertEqual(factories, 2); XCTAssertTrue(transport.queries.isEmpty)
+        XCTAssertEqual(radios[0].queries, [bytes("01 03 06 00 46 49 00 02")])
+        XCTAssertEqual(radios[1].controls, [bytes("01 08 00 45 00 00 00 3E E0 6B 03 04 02")])
+        XCTAssertEqual(transport.connects, 2); XCTAssertTrue(client.isConnected)
         // A promoted operation's write errors still propagate unchanged.
         transport.writeError = TimeboxTransportError.notConnected
         do { try await client.stopwatch(.start); XCTFail("Expected write failure") }

@@ -1,14 +1,22 @@
 {
-  "pins" : [
+  "pins": [
     {
-      "identity" : "yams",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/jpsim/Yams.git",
-      "state" : {
-        "revision" : "a27b21e0c81c5bf42049b897a62aaf387e80f279",
-        "version" : "6.2.2"
+      "identity": "bestline-swift",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/mattt/bestline-swift.git",
+      "state": {
+        "revision": "823c299247f2f35a4fd9a70f7bea4c8c9edcc946"
+      }
+    },
+    {
+      "identity": "yams",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/jpsim/Yams.git",
+      "state": {
+        "revision": "a27b21e0c81c5bf42049b897a62aaf387e80f279",
+        "version": "6.2.2"
       }
     }
   ],
-  "version" : 2
+  "version": 2
 }

@@ -9,7 +9,7 @@ timeboxctl alarm disable 2
 Slots are 0 through 9. With no `--days`, the alarm fires once. With `--days`,
 it repeats weekly on those weekdays; no recurrence flag is needed. Finite
 weekday schedules are outside this interface after the app investigation. See
-[finite weekday findings](validation/evo-finite-weekday-follow-up.md).
+[finite weekday findings](https://github.com/AdrieanKhisbe/timebox-studio/issues/10#issuecomment-6558039284).
 
 Set and disable first read all slots, preserve the selected slot's sound mode,
 trigger mode, frequency bytes and existing volume, then write only that slot and
@@ -79,10 +79,8 @@ connection, closes it on success, timeout, cancellation or decoding failure, and
 never retries on that link. This prevents stale/duplicate responses from matching
 a later identical query. A matching command and validated frame are required;
 unrelated replies do not complete the read. Writes must not interleave on a query
-connection. The shared `TimeboxQueryReader` implements framed receive handling and ownership;
-`TimeboxQuery.alarms` supplies the verified alarm request and typed record decoder.
-Settings field decoding, BLE response decoding and multiplexed queries require
-separate evidence. See [device query contract](device-queries.md).
+connection. This implements the alarm-specific receive path; general settings
+queries, BLE response decoding and multiplexed queries remain outside its scope.
 
 Swift apps can read directly on the main actor:
 

@@ -16,6 +16,16 @@ struct CommandResult {
             if let resolution = device.modelResolution {
                 value["model"] = resolution.model.rawValue; value["model_source"] = resolution.source.rawValue
             }
+            if let resolution = device.protocolResolution {
+                value["model"] = device.modelResolution?.model.rawValue as Any? ?? NSNull()
+                value["protocol_family"] = resolution.family.rawValue
+                value["protocol_source"] = resolution.source.rawValue
+                value["transport"] = "classic"
+                if let detection = resolution.detection {
+                    value["protocol_detection_ms"] = detection.elapsedMilliseconds
+                    value["protocol_query_ms"] = detection.queryMilliseconds
+                }
+            }
             result["device"] = value
         }
         switch format {

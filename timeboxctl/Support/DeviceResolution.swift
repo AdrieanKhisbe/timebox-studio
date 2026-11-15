@@ -14,8 +14,9 @@ public struct ConfiguredDevice: Equatable {
     public var mac: String
     public var bluetoothName: String?
     public var model: TimeboxModel?
-    public init(mac: String, bluetoothName: String? = nil, model: TimeboxModel? = nil) {
-        self.mac = mac; self.bluetoothName = bluetoothName; self.model = model
+    public var protocolFamily: TimeboxProtocolFamily?
+    public init(mac: String, bluetoothName: String? = nil, model: TimeboxModel? = nil, protocolFamily: TimeboxProtocolFamily? = nil) {
+        self.mac = mac; self.bluetoothName = bluetoothName; self.model = model; self.protocolFamily = protocolFamily
     }
 }
 
@@ -34,8 +35,24 @@ public struct ResolvedDevice {
     public let logicalName: String?
     public let device: TimeboxDevice
     public var modelResolution: TimeboxModelResolution?
+    public var protocolResolution: ProtocolResolution?
+    // Codec APIs still accept retail models. This surrogate selects encoding
+    // only; it is never exposed as a detected product identity.
+    var encodingModel: TimeboxModel {
+        modelResolution?.model ?? (protocolResolution?.family == .legacy11 ? .mini : .evo)
+    }
     public init(logicalName: String?, device: TimeboxDevice) {
         self.logicalName = logicalName; self.device = device
+    }
+}
+
+public struct ProtocolResolution {
+    public enum Source: String { case explicit, config, model, detected }
+    public let family: TimeboxProtocolFamily
+    public let source: Source
+    public let detection: TimeboxProtocolDetection?
+    public init(family: TimeboxProtocolFamily, source: Source, detection: TimeboxProtocolDetection? = nil) {
+        self.family = family; self.source = source; self.detection = detection
     }
 }
 

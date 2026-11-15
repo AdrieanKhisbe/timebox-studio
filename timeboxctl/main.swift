@@ -1,4 +1,6 @@
 import Foundation
+import TimeboxREPL
+import TimeboxCommands
 import TimeboxBluetooth
 import TimeboxKit
 import TimeboxUtilities
@@ -551,11 +553,11 @@ enum TimeboxCLI {
         case "probe-rfcomm":
             return probeRFCOMMSync(arguments: arguments)
         case "color":
-            return colorSPP(arguments: arguments)
+            return deviceSPP(command: command, arguments: arguments)
         case "brightness":
-            return brightnessSPP(arguments: arguments)
+            return deviceSPP(command: command, arguments: arguments)
         case "image":
-            return imageSPP(arguments: arguments)
+            return deviceSPP(command: command, arguments: arguments)
         case "repl":
             return replSPP(arguments: arguments)
         default:
@@ -563,59 +565,12 @@ enum TimeboxCLI {
         }
     }
 
-    private static func brightnessSPP(arguments: [String]) -> Int32 {
+    private static func deviceSPP(command: String, arguments: [String]) -> Int32 {
         do {
             let options = try ParsedOptions(arguments: arguments, requiresHex: false)
-            let percent = try parseBrightnessPercent(options.hexInput)
-            let packet = try TimeboxPacketEncoder.encode(.setBrightness(percent))
-            for line in TimeboxDebugFormatter.commandDebugLines(
-                name: "setBrightness",
-                parameters: ["brightness: \(percent)%"],
-                data: packet
-            ) {
-                print(line)
-            }
-            return sendSPP(packet: packet, options: options)
-        } catch {
-            fputs("\(error.localizedDescription)\n", stderr)
-            return 1
-        }
-    }
-
-    private static func colorSPP(arguments: [String]) -> Int32 {
-        do {
-            let options = try ParsedOptions(arguments: arguments, requiresHex: true)
-            let color = try parseColor(options.hexInput)
-            let percent = options.brightness ?? 100
-            let packet = try TimeboxPacketEncoder.encode(
-                .lightningPlainColor(color: color, brightnessPercent: percent)
-            )
-            for line in TimeboxDebugFormatter.commandDebugLines(
-                name: "lightningPlainColor",
-                parameters: [
-                    "color: #\(String(format: "%02X%02X%02X", color.red, color.green, color.blue))",
-                    "brightness: \(percent)%"
-                ],
-                data: packet
-            ) {
-                print(line)
-            }
-            return sendSPP(packet: packet, options: options)
-        } catch {
-            fputs("\(error.localizedDescription)\n", stderr)
-            return 1
-        }
-    }
-
-    private static func imageSPP(arguments: [String]) -> Int32 {
-        do {
-            let options = try ParsedOptions(arguments: arguments, requiresHex: false)
-            let path = options.hexInput.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !path.isEmpty else { throw CLIError.missingImagePath }
-            let frame = try ImageToPixelFrameConverter.loadPixelFrame(path: path)
-            let packet = try TimeboxPacketEncoder.encode(.image(frame))
-            print("image: \(path) -> 16x16, packet \(packet.count) byte(s)")
-            return sendSPP(packet: packet, options: options)
+            let args = command == "image" ? [options.hexInput] : options.hexInput.split(whereSeparator: \.isWhitespace).map(String.init)
+            let operation = try DeviceCommand(name: command, arguments: args, brightness: options.brightness ?? 100)
+            return try operation.execute { sendSPP(packet: $0, options: options) }
         } catch {
             fputs("\(error.localizedDescription)\n", stderr)
             return 1
@@ -629,6 +584,7 @@ enum TimeboxCLI {
     /// before teardown (the firmware drops commands cut off too soon), and retries
     /// the connect if macOS is momentarily holding the channel.
     private static func sendSPP(packet: Data, options: ParsedOptions) -> Int32 {
+        if options.useMock { print("simulated (\(packet.count) bytes)"); return 0 }
         let holdMs = options.holdMilliseconds ?? 500
         let device: TimeboxDevice
         do {
@@ -673,37 +629,36 @@ enum TimeboxCLI {
     private static func replSPP(arguments: [String]) -> Int32 {
         do {
             let options = try ParsedOptions(arguments: arguments, requiresHex: false)
-            let device = try resolveDevice(name: options.name, address: options.address, useMock: false)
-            let transport = IOBluetoothTimeboxTransport()
-            let channelDescription = options.channel.map { "RFCOMM channel \($0)" } ?? "auto-resolved SPP channel"
-            print("Connecting to \(device.name) (\(device.address)) on \(channelDescription)...")
-            try transport.connectPumpingRunLoop(to: device, channelID: options.channel)
-            transport.waitPumpingRunLoop(milliseconds: 150)
-            if let channelID = transport.lastRFCOMMChannelID {
-                print("Connected on RFCOMM channel \(channelID). Persistent connection open.")
-            }
+            let input = try REPLInputFactory.make(editor: options.editor, historyFile: options.historyFile, deviceNames: [])
+            defer { try? input.close() }
+            let transport = options.useMock ? nil : IOBluetoothTimeboxTransport()
+            defer { transport?.disconnect() }
+            if let transport {
+                let device = try resolveDevice(name: options.name, address: options.address, useMock: false)
+                print("Connecting to \(device.name) (\(device.address))...")
+                try transport.connectPumpingRunLoop(to: device, channelID: options.channel)
+                transport.waitPumpingRunLoop(milliseconds: 150)
+                print("Connected on RFCOMM channel \(transport.lastRFCOMMChannelID.map(String.init) ?? "unknown").")
+            } else { print("Simulated connection open.") }
             printReplHelp()
-
-            while true {
-                print("timebox> ", terminator: "")
-                fflush(stdout)
-                guard let line = readLine(strippingNewline: true) else { break }
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let prompt = REPLPrompt.text(interactive: isatty(STDIN_FILENO) != 0 && isatty(STDOUT_FILENO) != 0,
+                                         noColor: ProcessInfo.processInfo.environment["NO_COLOR"] != nil)
+            while let line = try input.readLine(prompt: prompt) {
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.isEmpty { continue }
                 let lower = trimmed.lowercased()
-                if lower == "quit" || lower == "exit" || lower == "q" { break }
-                if lower == "help" || lower == "?" { printReplHelp(); continue }
+                if ["quit", "exit", "q"].contains(lower) { break }
+                if ["help", "?"].contains(lower) { printReplHelp(); continue }
                 do {
                     let packet = try parseReplCommand(trimmed)
-                    try transport.writePumpingRunLoop(packet)
-                    transport.waitPumpingRunLoop(milliseconds: 60)
-                    print("  ok (\(packet.count) bytes: \(HexDump.string(from: packet)))")
-                } catch {
-                    print("  error: \(error.localizedDescription)")
-                }
+                    if let transport {
+                        try transport.writePumpingRunLoop(packet)
+                        transport.waitPumpingRunLoop(milliseconds: 60)
+                    }
+                    print("\(options.useMock ? "simulated" : "sent") (\(packet.count) bytes)")
+                } catch { print("Error: \(error.localizedDescription)") }
             }
-
-            transport.disconnect()
+            try input.close()
             print("Disconnected.")
             return 0
         } catch {
@@ -724,27 +679,7 @@ enum TimeboxCLI {
     }
 
     private static func parseReplCommand(_ line: String) throws -> Data {
-        let parts = line.split(separator: " ").map(String.init)
-        switch parts.first?.lowercased() {
-        case "color":
-            guard parts.count >= 2 else { throw CLIError.missingColor }
-            let color = try parseColor(parts[1])
-            let percent = parts.count >= 3 ? (Int(parts[2]) ?? 100) : 100
-            return try TimeboxPacketEncoder.encode(
-                .lightningPlainColor(color: color, brightnessPercent: max(0, min(100, percent)))
-            )
-        case "brightness", "bright":
-            guard parts.count >= 2, let percent = Int(parts[1]) else { throw CLIError.missingBrightness }
-            return try TimeboxPacketEncoder.encode(.setBrightness(max(0, min(100, percent))))
-        case "image", "img":
-            guard parts.count >= 2 else { throw CLIError.missingImagePath }
-            let frame = try ImageToPixelFrameConverter.loadPixelFrame(path: parts.dropFirst().joined(separator: " "))
-            return try TimeboxPacketEncoder.encode(.image(frame))
-        case "hex":
-            return try TimeboxPacketEncoder.encode(.raw(HexStringParser.data(from: parts.dropFirst().joined(separator: " "))))
-        default:
-            return try TimeboxPacketEncoder.encode(.raw(HexStringParser.data(from: line)))
-        }
+        try DeviceCommand(replLine: line).encoded()
     }
 
     private static func sendHexSync(arguments: [String]) -> Int32 {
@@ -960,19 +895,19 @@ enum TimeboxCLI {
         print(
             """
             Usage:
+              timeboxctl status [--timeout SECONDS] [device options] [--json|--yaml]
               timeboxctl list [--all] [--save] [--config PATH] [--json|--yaml|--yml] [--mock]
               timeboxctl device select [NAME] [--config PATH]
               timeboxctl device rename [OLD [NEW]] [--config PATH]
               timeboxctl config [show] [--yaml|--yml|--json] [--config PATH]
-              timeboxctl status [--device NAME | --address MAC] [--config PATH] [--timeout 5] [--json|--yaml|--yml]
-              timeboxctl alarm list [--device NAME | --address MAC] [--config PATH] [--timeout 5] [--json|--yaml|--yml]
-              timeboxctl alarm set SLOT --time HH:MM [--days mon,tue] [--volume 0..100] [--device NAME] [--json|--yaml|--yml]
-              timeboxctl alarm disable SLOT [--device NAME] [--json|--yaml|--yml]
-              timeboxctl stopwatch start|stop|reset [--device NAME|--address MAC]
-              timeboxctl countdown start MM:SS | countdown stop [--device NAME|--address MAC]
+              timeboxctl text "Hello" [--stream] [device options]
+              timeboxctl animation FILE.gif [--resize fit|fill|stretch] [--adapt] [device options]
+              timeboxctl alarm set SLOT --time HH:MM [--days mon,tue] [--volume 0..100] [device options]
+              timeboxctl alarm disable SLOT [device options]
+              timeboxctl alarm list [device options] [--timeout SECONDS] [--json|--yaml]
+              timeboxctl stopwatch start|stop|reset [device options]
+              timeboxctl countdown start MM:SS | countdown stop [device options]
               timeboxctl time sync [--device NAME|--address MAC] [--json|--yaml]
-              timeboxctl text "Hello" [--stream] [--device NAME|--address MAC]
-              timeboxctl animation FILE.gif [--resize fit|fill|stretch] [--adapt] [--device NAME|--address MAC]
               timeboxctl scan [--seconds 12] [--mock]
               timeboxctl scan-ble [--seconds 12]
               timeboxctl inspect-ble --uuid "BE32D255-6999-AE59-4577-4F5BDA0458D3" [--service AF30]
@@ -1006,8 +941,9 @@ enum TimeboxCLI {
               scan-ble actively scans Bluetooth LE advertisements and prints UUIDs/service data.
               inspect-ble connects over BLE and discovers services/characteristics.
               send-ble-hex writes raw bytes to a BLE characteristic, auto-selecting a writable one if --characteristic is omitted.
-              --model auto|evo|mini selects device encoding (default auto; requires verified identity or a saved model override).
-              Original Mini: use --model mini [--channel 4] for brightness/color/static 11x11 images; alarms and BLE are unverified.
+              --protocol auto|legacy11|evo16 selects encoding; auto reads live settings when no protocol/model is configured.
+              --model auto|evo|mini|timebox sets product identity and implies its protocol; auto ignores the saved model.
+              Original Timebox: use --model timebox; Mini: use --model mini. Both use legacy11 over Classic SPP; raw BLE remains experimental.
               brightness/color with --address use Classic SPP; --uuid selects legacy raw-BLE diagnostics, not the RCSP transport used by the iOS library.
               --hold-ms keeps a one-shot connection open after writing; a completed write does not confirm a visible display change.
               listen-ble connects, subscribes to every notify characteristic, optionally sends one packet after subscribing (raw hex, or --request-settings), and streams back any value the device reports. This proves whether the BLE pipe actually feeds the Timebox protocol parser.
@@ -1022,6 +958,8 @@ enum TimeboxCLI {
 }
 
 private struct ParsedOptions {
+    var editor = "bestline"
+    var historyFile: String?
     var name: String?
     var address: String?
     var uuid: UUID?
@@ -1044,6 +982,12 @@ private struct ParsedOptions {
         while index < arguments.endIndex {
             let argument = arguments[index]
             switch argument {
+            case "--editor", "--history-file":
+                let nextIndex = arguments.index(after: index)
+                guard nextIndex < arguments.endIndex else { throw CLIError.missingValue(argument) }
+                if argument == "--editor" { editor = arguments[nextIndex] }
+                else { historyFile = arguments[nextIndex] }
+                index = arguments.index(after: nextIndex)
             case "--name":
                 let nextIndex = arguments.index(after: index)
                 guard nextIndex < arguments.endIndex else {
@@ -1241,11 +1185,17 @@ let classicSyncCommands: Set<String> = ["connect", "send-hex", "probe-rfcomm"]
 let sppCapableCommands: Set<String> = ["color", "brightness", "image", "repl"]
 
 let routeClassic: Bool = {
+    if cliCommand == "repl" { return true }
+    if cliIsMock, let cliCommand, ["brightness", "color", "image"].contains(cliCommand), !cliArguments.contains("--uuid") { return true }
     guard let cliCommand, !cliIsMock else { return false }
     if classicSyncCommands.contains(cliCommand) { return true }
     return sppCapableCommands.contains(cliCommand) && cliHasAddress
 }()
 
+if cliCommand != "repl", cliArguments.contains(where: { ["--editor", "--history-file"].contains($0) }) {
+    fputs("--editor and --history-file are only valid when starting repl.\n", stderr)
+    exit(2)
+}
 let exitCode: Int32
 if routeClassic, let cliCommand {
     // Classic IOBluetooth path: run on the main thread so the main run loop

@@ -116,7 +116,6 @@ final class MiniAlarmProtocolTests: XCTestCase {
         XCTAssertEqual(try query.decode(records).count, 3)
         XCTAssertEqual(TimeboxQuery<[TimeboxAlarm]>.alarms.model, .evo)
         let commands: [(TimeboxCommand, String)] = [
-            (.display(.clock()), "01 05 00 45 00 03 04 4B 00 02"),
             (.stopwatch(.stop), "01 05 00 45 06 00 50 00 02"),
             (.stopwatch(.start), "01 05 00 45 06 03 04 51 00 02"),
             (.stopwatch(.reset), "01 05 00 45 06 03 05 52 00 02")

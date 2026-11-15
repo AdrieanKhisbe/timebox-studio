@@ -31,11 +31,18 @@ public struct TimeboxDisplayProfile: Equatable, Sendable {
     public init(channel: Channel, status: TimeboxStatus) throws {
         model = status.model
         let bytes = Array(status.rawData)
-        if model == .mini {
-            guard channel == .light else { throw TimeboxModelError.unsupported("clock profile preservation") }
-            guard bytes.count == 23 else { throw TimeboxModelError.unsupported("preservation of unknown Mini settings-layout extensions") }
-            guard bytes[22] <= 4 else { throw TimeboxModelError.unsupported("preservation of unknown light variant \(bytes[22])") }
-            payload = Data([0x45, 2] + Array(bytes[3...6]) + [bytes[22]])
+        if model.protocolFamily == .legacy11 {
+            guard bytes.count == 23 else { throw TimeboxModelError.unsupported("preservation of unknown legacy11 settings-layout extensions") }
+            switch channel {
+            case .clock:
+                guard bytes[9] <= 1 else { throw TimeboxModelError.unsupported("preservation of unknown clock format \(bytes[9])") }
+                // Full format/RGB profile: short selectors let firmware consume
+                // checksum bytes as RGB, as observed on the original Timebox.
+                payload = Data([0x45, 0, bytes[9]] + Array(bytes[10...12]))
+            case .light:
+                guard bytes[22] <= 4 else { throw TimeboxModelError.unsupported("preservation of unknown light variant \(bytes[22])") }
+                payload = Data([0x45, 2] + Array(bytes[3...6]) + [bytes[22]])
+            }
             return
         }
         guard bytes.count == 20 else {
@@ -75,5 +82,15 @@ extension TimeboxDisplay {
         if case .design(let index?) = self {
             guard (0...2).contains(index) else { throw TimeboxDisplayError.invalidDesignIndex(index) }
         } else if !requiresLivePreparation { _ = try payload() }
+    }
+
+    public func validate(model: TimeboxModel) throws {
+        if model.protocolFamily == .legacy11 {
+            switch self {
+            case .clock(style: nil), .light: break
+            default: throw TimeboxModelError.unsupported("this display channel or Evo clock style")
+            }
+        }
+        try validate()
     }
 }

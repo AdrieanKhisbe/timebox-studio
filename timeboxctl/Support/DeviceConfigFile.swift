@@ -35,11 +35,21 @@ public struct DeviceConfigDocument {
                     var model: TimeboxModel?
                     if let value = entry["model"] {
                         guard let text = Self.string(value), let parsed = TimeboxModel(rawValue: text) else {
-                            throw CommandFailure("invalid_config", "Device model must be evo or mini.")
+                            throw CommandFailure("invalid_config", "Device model must be evo, mini or timebox.")
                         }
                         model = parsed
                     }
-                    devices[name] = ConfiguredDevice(mac: canonical, bluetoothName: bluetoothName, model: model)
+                    var protocolFamily: TimeboxProtocolFamily?
+                    if let value = entry["protocol"] {
+                        guard let text = Self.string(value), let parsed = TimeboxProtocolFamily(rawValue: text) else {
+                            throw CommandFailure("invalid_config", "Device protocol must be legacy11 or evo16; omit it for automatic detection.")
+                        }
+                        protocolFamily = parsed
+                    }
+                    if let model, let protocolFamily, model.protocolFamily != protocolFamily {
+                        throw CommandFailure("invalid_config", "Device '\(name)' has conflicting model and protocol fields.")
+                    }
+                    devices[name] = ConfiguredDevice(mac: canonical, bluetoothName: bluetoothName, model: model, protocolFamily: protocolFamily)
                 }
             }
             var defaultName: String?
@@ -117,7 +127,8 @@ public struct DeviceConfigFile {
                 try editor.set(["devices", name, "mac"], value: .string(mac))
                 try editor.set(["devices", name, "bluetooth_name"], value: .string(device.name))
             }
-            configuration.devices[name] = .init(mac: mac, bluetoothName: device.name, model: configuration.devices[name]?.model)
+            configuration.devices[name] = .init(mac: mac, bluetoothName: device.name, model: configuration.devices[name]?.model,
+                                                protocolFamily: configuration.devices[name]?.protocolFamily)
         }
         if configuration.defaultName == nil, let name = configuration.devices.keys.sorted().first {
             try editor.set(["default"], value: .string(name))

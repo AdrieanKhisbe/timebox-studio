@@ -1,6 +1,6 @@
 # CLI output
 
-`list`, `brightness`, `color`, `image`, `connect`, `send-hex`, `status` and alarm commands accept `--json`
+`list`, `brightness`, `color`, `image`, `connect`, `send-hex` and alarm commands accept `--json`
 or `--yaml` (`--yml` alias). Conflicting formats fail. Both encode the same
 one-result model; stdout contains that result only. Diagnostics, errors and
 `list --save` hints go to stderr. Human output remains the default; list names
@@ -23,7 +23,6 @@ the same path regardless of output format.
 | image | `path`, encoded `width`/`height` (16), `bytes` written |
 | send-hex | `bytes` written |
 | connect | selected RFCOMM `channel` (null if unavailable); connection is closed on exit |
-| status | live configured-channel `mode`/`mode_raw`, system `brightness`, `light_brightness`, full `raw_data`; see [status](status.md) |
 | alarm list | live `alarms` array of ten slot records; see [alarm schema](alarms.md) |
 | alarm set / alarm disable | `slot`, `bytes`, `alarm` from live readback, `readback_matches: true` |
 
@@ -42,9 +41,7 @@ success/simulation, 2 for invalid arguments, and 1 for config, execution or
 transport failures. Error codes currently used by this CLI are `invalid_arguments`,
 `invalid_config`, `device_not_found`, `ambiguous_device`, `connection_failed`,
 `write_failed`, `query_timeout`, `invalid_media`, `unsupported` and
-`invalid_response`, `cancelled`, `query_busy`, and `execution_failed` (unexpected execution errors).
-Alarm query cancellation and an already occupied receive handler are explicit
-errors, not empty lists. With conflicting format flags,
+`execution_failed` (unexpected execution errors). With conflicting format flags,
 the first requested format carries the error. Diagnostics also go to stderr.
 
 `config show` is an exception: YAML emits the original file bytes including

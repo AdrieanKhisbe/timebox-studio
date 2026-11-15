@@ -1,9 +1,9 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 
 import PackageDescription
 import Foundation
 
-let packageDirectory = URL(fileURLWithPath: #file).deletingLastPathComponent().path
+let packageDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent().path
 let appInfoPlist = "\(packageDirectory)/TimeboxStudio/App/Info.plist"
 let cliInfoPlist = "\(packageDirectory)/timeboxctl/Info.plist"
 
@@ -20,12 +20,19 @@ let package = Package(
         .library(name: "TimeboxBluetooth", targets: ["TimeboxBluetooth"])
     ],
     dependencies: [
+        .package(url: "https://github.com/mattt/bestline-swift.git", revision: "823c299247f2f35a4fd9a70f7bea4c8c9edcc946"),
         .package(url: "https://github.com/jpsim/Yams.git", from: "6.2.2")
     ],
     targets: [
+        .target(name: "TimeboxCommands", dependencies: ["TimeboxKit", "TimeboxUtilities"], path: "timeboxctl/Commands"),
+        .target(name: "REPLInputSupport", path: "timeboxctl/REPLInputSupport", publicHeadersPath: "include"),
+        .target(name: "TimeboxREPL", dependencies: [
+            .target(name: "REPLInputSupport", condition: .when(platforms: [.macOS])),
+            .product(name: "Bestline", package: "bestline-swift", condition: .when(platforms: [.macOS]))
+        ], path: "timeboxctl/REPL"),
         .target(
             name: "TimeboxCLIKit",
-            dependencies: ["TimeboxBluetooth", "TimeboxKit", "TimeboxUtilities", .product(name: "Yams", package: "Yams")],
+            dependencies: ["TimeboxBluetooth", "TimeboxKit", "TimeboxUtilities", "TimeboxREPL", "TimeboxCommands", .product(name: "Yams", package: "Yams")],
             path: "timeboxctl/Support"
         ),
         .target(
@@ -69,13 +76,15 @@ let package = Package(
         .executableTarget(
             name: "timeboxctl",
             dependencies: [
+                "TimeboxREPL",
+                "TimeboxCommands",
                 "TimeboxCLIKit",
                 "TimeboxBluetooth",
                 "TimeboxKit",
                 "TimeboxUtilities"
             ],
             path: "timeboxctl",
-            exclude: ["Info.plist", "Support"],
+            exclude: ["Info.plist", "REPL", "REPLInputSupport", "Commands", "Support"],
             linkerSettings: [
                 .unsafeFlags(["-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist", "-Xlinker", cliInfoPlist])
             ]
@@ -83,6 +92,8 @@ let package = Package(
         .testTarget(
             name: "TimeboxStudioTests",
             dependencies: [
+                "TimeboxREPL",
+                "TimeboxCommands",
                 "TimeboxCLIKit",
                 "TimeboxBluetooth",
                 "TimeboxKit",
@@ -90,5 +101,6 @@ let package = Package(
             ],
             path: "TimeboxStudioTests"
         )
-    ]
+    ],
+    swiftLanguageModes: [.v5]
 )

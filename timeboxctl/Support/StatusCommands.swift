@@ -3,17 +3,21 @@ import TimeboxKit
 import TimeboxBluetooth
 
 extension TimeboxCommandLine {
-    func performStatus(target: ResolvedDevice, options: CommandOptions) throws -> CommandResult {
-        let model = target.modelResolution?.model ?? .evo
+    func performStatus(target: ResolvedDevice, options: CommandOptions, detectedSettings: Data? = nil) throws -> CommandResult {
+        let model = target.encodingModel
         guard !options.mock else { throw CommandFailure("unsupported", "Mock mode has no live device status.") }
-        let transport = environment.makeTransport(false)
-        defer { transport.disconnect() }
-        try connect(transport, to: target, channel: options.channel)
-        transport.wait(milliseconds: 150)
         let status: TimeboxStatus
-        do { status = try TimeboxStatusReader.read(from: transport, model: model, timeout: options.queryTimeout ?? 5) }
-        catch let error as TimeboxQueryError { throw Self.failure(error) }
-        catch { throw CommandFailure("write_failed", error.localizedDescription) }
+        if let detectedSettings {
+            status = try TimeboxStatusDecoder.decode(detectedSettings, model: model)
+        } else {
+            let transport = environment.makeTransport(false)
+            defer { transport.disconnect() }
+            try connect(transport, to: target, channel: options.channel)
+            transport.wait(milliseconds: 150)
+            do { status = try TimeboxStatusReader.read(from: transport, model: model, timeout: options.queryTimeout ?? 5) }
+            catch let error as TimeboxQueryError { throw Self.failure(error) }
+            catch { throw CommandFailure("write_failed", error.localizedDescription) }
+        }
         if outputFormat == nil {
             let mode = status.mode.map { "\($0) (\(status.modeRaw))" } ?? "unknown (\(status.modeRaw))"
             environment.output("Configured channel: \(mode); system brightness: \(status.brightness)%; light brightness: \(status.lightBrightness)%.")

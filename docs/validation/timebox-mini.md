@@ -9,7 +9,6 @@ The original Mini uses 11×11 pixels, high-four-bit RGB444 quantization and esca
 interior bytes. Evo retains its 16×16 palette encoding and unescaped framing.
 Brightness, solid color, static files, clock display and synchronization, native stopwatch and
 three-slot alarms are integrated into the ordinary CLI, REPL and `TimeboxClient`.
-Native GIF upload is also supported; see [animation limits and validation](mini-animation.md).
 See [clock/stopwatch/alarm validation](mini-clock-stopwatch-alarms.md) for the later
 promotion and exact hardware scope. Raw packets remain an escape hatch. Other
 channels except clock/light, native countdown, MiniToo and
@@ -20,7 +19,7 @@ Clock synchronization is described separately in the
 [Mini clock-sync report](mini-clock-sync.md).
 Scrolling text requires explicit [host streaming](mini-streaming-text.md), which
 keeps the Mac connected for one complete scroll. Remaining countdown and automatic
-identity evidence is recorded in [the capability follow-up](mini-remaining-capabilities.md).
+identity evidence is recorded in [the capability follow-up](https://github.com/AdrieanKhisbe/timebox-studio/issues/20#issuecomment-6558040141).
 Model-aware [live status](mini-status.md) reports fresh configured mode and
 brightness using the Mini-specific settings layout.
 Mini [light selection](mini-light.md) also supports a preserved stored profile
@@ -78,7 +77,7 @@ opcode was sent.
 
 A subsequent parent-coordinated standard SDP refresh completed successfully on
 both units and exposed seven services each, but neither had a UUID1200 DeviceID
-record. The [actual-app and identity follow-up](timebox-model-identity.md) traces
+record. The [actual-app and identity follow-up](https://github.com/AdrieanKhisbe/timebox-studio/issues/20#issuecomment-6558039853) traces
 why app name routing, firmware numbers and a modern registration query do not
 supply a verified Mini/Evo discriminator. Explicit/config overrides remain valid.
 

@@ -30,6 +30,7 @@ final class RecordingCommandTransport: CommandTransport {
     func writeQuery(_ packet: Data) throws {
         guard ownsQuery, !requestWritten else { throw TimeboxQueryError.busy }
         requestWritten = true
+        queryActive = true
         try recordWrite(packet)
     }
     func connect(to device: TimeboxDevice, channel: UInt8?) throws {
@@ -47,7 +48,6 @@ final class RecordingCommandTransport: CommandTransport {
         if failWrites || failOnWriteNumber == packets.count + 1 { throw CommandFailure("write_failed", "Write rejected") }
         packets.append(packet)
         uptime += writeSeconds
-        if [Data([1, 3, 0, 0x42, 0x45, 0, 2]), Data([1, 3, 6, 0, 0x42, 0x45, 0, 2]), Data([1, 3, 0, 0x46, 0x49, 0, 2]), Data([1, 3, 6, 0, 0x46, 0x49, 0, 2]), Data([1, 4, 0, 0xBD, 0x18, 0xD9, 0, 2])].contains(packet) { queryActive = true }
         writeTargets.append(connections.last!.0)
     }
     func wait(milliseconds: Int) {
@@ -70,6 +70,7 @@ final class CommandHarness {
     var input: [String] = []
     var paired: [TimeboxDevice] = []
     var detectedModels: Set<TimeboxModel> = [.evo]
+    var useProtocolProbe = false
     var configuration = DeviceConfiguration()
     let transport = RecordingCommandTransport()
     var environment: [String: String] = [:]
@@ -83,6 +84,7 @@ final class CommandHarness {
                 if let path { return try DeviceConfigFile(path: path).read().configuration }
                 return self.configuration
             }, makeTransport: { _ in self.transport }, detectModels: { _ in self.detectedModels },
+            detectProtocol: useProtocolProbe ? nil : { _, _, _ in throw CommandFailure("unknown_protocol", "No simulated settings available. Use --model or --protocol.") },
             output: { self.stdout.append($0) }, errorOutput: { self.stderr.append($0) },
             rawOutput: { self.rawStdout += $0 },
             readLine: { self.input.isEmpty ? nil : self.input.removeFirst() },

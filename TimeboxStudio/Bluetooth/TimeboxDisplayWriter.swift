@@ -2,7 +2,7 @@ import Foundation
 import TimeboxKit
 
 /// Main-run-loop driven Classic display/query boundary, injectable without radios.
-/// Mini light and Evo channel profiles use model-specific fresh settings.
+/// Legacy11 clock/light and Evo channel profiles use model-specific fresh settings.
 public protocol TimeboxDisplayTransport: TimeboxQueryTransport {
     func connectForDisplay(to device: TimeboxDevice, channel: UInt8?) throws
     func writeDisplay(_ data: Data) throws
@@ -28,25 +28,17 @@ public enum TimeboxDisplayWriter {
               holdMilliseconds >= 0 else { throw TimeboxQueryError.invalidArguments }
         if isCancelled() { throw TimeboxQueryError.cancelled }
         var commands: [TimeboxCommand]
-        let miniClock = model == .mini && selection == .clock()
-        if miniClock {
-            commands = [.display(selection)]
-        } else {
-            if model == .mini {
-                guard case .light = selection else { throw TimeboxModelError.unsupported("this display channel or Evo clock style") }
-            }
-            try selection.validate()
-            if let preserved = selection.preservedChannel {
-                let snapshot = try read(.status(model: model), device: device, channel: channel,
-                                        timeout: timeout, isCancelled: isCancelled, makeTransport: makeTransport)
-                commands = [.displayProfile(try TimeboxDisplayProfile(channel: preserved, status: snapshot))]
-            } else if case .design(let index?) = selection {
-                let capability = try read(.designCapabilities, device: device, channel: channel,
-                                          timeout: timeout, isCancelled: isCancelled, makeTransport: makeTransport)
-                guard capability.supportsThreeTabs else { throw TimeboxDisplayError.designCapability(capability.rawFlag) }
-                commands = [.display(.design()), .selectDesignTab(index)]
-            } else { commands = [.display(selection)] }
-        }
+        try selection.validate(model: model)
+        if let preserved = selection.preservedChannel {
+            let snapshot = try read(.status(model: model), device: device, channel: channel,
+                                    timeout: timeout, isCancelled: isCancelled, makeTransport: makeTransport)
+            commands = [.displayProfile(try TimeboxDisplayProfile(channel: preserved, status: snapshot))]
+        } else if case .design(let index?) = selection {
+            let capability = try read(.designCapabilities, device: device, channel: channel,
+                                      timeout: timeout, isCancelled: isCancelled, makeTransport: makeTransport)
+            guard capability.supportsThreeTabs else { throw TimeboxDisplayError.designCapability(capability.rawFlag) }
+            commands = [.display(.design()), .selectDesignTab(index)]
+        } else { commands = [.display(selection)] }
         // Fully validate/encode every packet before the first control write.
         let packets = try commands.map { try TimeboxPacketEncoder.encode($0, model: model) }
         if isCancelled() { throw TimeboxQueryError.cancelled }
@@ -67,7 +59,7 @@ public enum TimeboxDisplayWriter {
         }
         transport.settleDisplay(milliseconds: holdMilliseconds)
         transport.disconnect()
-        if !miniClock, selection.requiresLivePreparation { transport.settleDisplay(milliseconds: 500) }
+        if selection.requiresLivePreparation { transport.settleDisplay(milliseconds: 500) }
         return TimeboxDisplayWriteResult(packetCount: packets.count, byteCount: packets.reduce(0) { $0 + $1.count })
     }
 

@@ -1,22 +1,18 @@
 # Verified device queries
 
 [AdrieanKhisbe/timebox-studio#11](https://github.com/AdrieanKhisbe/timebox-studio/issues/11)
-extends the receive path established by alarm listing into a reusable typed library API.
+provides a reusable typed query engine without depending on alarm types.
 
-```swift
-// Main actor; opens and closes a dedicated Classic RFCOMM link.
-let alarms = try await TimeboxQueryReader.read(TimeboxQuery.alarms, device: device)
-// Equivalent compatibility helper:
-let sameShape = try await TimeboxAlarmReader.read(device: device)
-```
+A query supplies a sourced request payload, expected response opcode and typed
+payload decoder. `TimeboxQueryReader.read(_:device:channel:timeout:)` opens and
+closes a dedicated Classic RFCOMM connection on the main actor. Application-level
+status and alarm adapters are added by their respective feature stages.
 
 `TimeboxQuery<Response>` belongs to TimeboxKit: a request payload, expected reply
 command and throwing typed data decoder. Its initializer frames the request.
 `TimeboxResponseDecoder` validates Evo NewMode delimiters, little-endian length,
 additive checksum and the `04 command 55` success envelope before exposing data.
-No CLI formatting or transport dependencies enter this layer. Built-in queries
-are `.alarms` and the sourced `.status` settings subset. Settings fields are not
-inferred from outgoing writes; see [status field evidence](validation/evo-status.md).
+No CLI formatting or transport dependencies enter this layer. Settings fields are not inferred from outgoing writes.
 
 `TimeboxQueryReader` and `TimeboxQueryTransport` belong to TimeboxBluetooth. The
 transport exposes raw `onData` events, synchronous query writes and run-loop
@@ -66,24 +62,18 @@ third-party conformers cannot be assumed to do so.
 
 ## Evidence and scope
 
-The [captured Evo alarm reply](validation/fixtures/evo-alarm-list-live.json) and
-[manufacturer/app investigation](validation/evo-alarm-listing.md) establish the
-alarm request, reply layout and checksum. The authorized real device test in that
-report returned ten records and matched the official app. This refactor reuses
-those bytes and performs **no new device writes or connections**.
-
-Automated tests cover that capture fragmented and coalesced with unrelated and
-duplicate responses, corrupt/truncated frames, malformed typed data, disconnect,
-timeout, cancellation, immediate delivery during write, write failure, nested
-queries, writes during a query, prior in-flight/completed writes and obsolete
-callbacks during a fresh identical request. Existing CLI/REPL tests exercise the
-real adapter contract through simulated transport; they do not claim hardware.
+The framing contract derives from the previously captured Evo alarm reply,
+archived with [AdrieanKhisbe/timebox-studio#12](https://github.com/AdrieanKhisbe/timebox-studio/issues/12).
+The generic engine tests use an explicitly synthetic opcode and independently
+specified checksum fixtures. They cover fragmented/coalesced frames, corruption,
+typed-schema failure, timeout, cancellation, write failures, nested access,
+prior traffic and obsolete callbacks. They establish engine behavior, not a new
+device command or fresh hardware acceptance.
 
 BLE/RCSP writes remain supported and unchanged. The observed RCSP write ACK is
 not evidence for an application settings/alarm reply decoder: no RCSP query
 support is claimed. Mini OldMode framing is likewise outside this Evo decoder.
-The settings model exposes only the sourced mode/brightness subset, with a
-captured Evo response;
+There is no general settings model until its field map has been established;
 [AdrieanKhisbe/timebox-studio#13](https://github.com/AdrieanKhisbe/timebox-studio/issues/13)
-tracks its independent Evo hardware validation. Multiplexing, automatic retries and receive-history emulation
+tracks that work. Multiplexing, automatic retries and receive-history emulation
 are not provided.

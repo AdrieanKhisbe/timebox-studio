@@ -6,7 +6,7 @@ Use `timeboxctl countdown start 05:00` and `timeboxctl countdown stop`, also ava
 
 The [manufacturer Bluetooth tools page](https://docin.divoom-gz.com/web/#/5/265) specifies opcode 72, tool index 3 and minute/second bytes, with seconds maximum 59. Its countdown control prose says 0=start and 1=cancel. **That control mapping conflicts with the official app's actual Bluetooth path.**
 
-Divoom Android 3.8.40 (APK SHA256 `d7ae490205cf71cc37f74948bd1ca7f1b2a446070565294b3ae835c0a51fde81`, provenance in [alarm investigation](validation/evo-finite-weekday-follow-up.md)) has the following trace, inspected using JADX 1.5.6:
+Divoom Android 3.8.40 (APK SHA256 `d7ae490205cf71cc37f74948bd1ca7f1b2a446070565294b3ae835c0a51fde81`, provenance in [alarm investigation](https://github.com/AdrieanKhisbe/timebox-studio/issues/10#issuecomment-6558039284)) has the following trace, inspected using JADX 1.5.6:
 
 - `CountDownFragment.mOnclick`: selecting a duration or pressing start sets its running boolean true; pressing stop sets false.
 - `ToolServer.k(boolean, int, int)`: Bluetooth branch passes that boolean and the minute/second values unchanged to `CmdManager.s3`.

@@ -124,7 +124,7 @@ isolate their meanings. Their names still come from the manufacturer field map.
 Mode remained 0 throughout; no independent mode change was validated.
 
 As a bounded cross-check, the same hash-verified official app 3.8.40 examined in
-[the earlier app investigation](evo-finite-weekday-follow-up.md) routes
+[the earlier app investigation](https://github.com/AdrieanKhisbe/timebox-studio/issues/10#issuecomment-6558039284) routes
 `LightSettingServer.j(value)` through `CmdManager.z2(value)` to
 `SPP_SET_SYSTEM_BRIGHT` (`0x74`). Its `LightSettingServer.a()` instead calls
 `CmdManager.M()` / `SPP_LIGHT_CURRENT_LEVEL` (`0x31`) for a separate brightness

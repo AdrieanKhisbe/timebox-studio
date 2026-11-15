@@ -1,4 +1,5 @@
 import Foundation
+import TimeboxREPL
 import TimeboxBluetooth
 import TimeboxKit
 
@@ -23,10 +24,12 @@ public struct CommandEnvironment {
     public var discover: (Bool) throws -> [TimeboxDevice]
     public var configuration: (String?) throws -> DeviceConfiguration
     public var detectModels: (TimeboxDevice) throws -> Set<TimeboxModel>
+    public var detectProtocol: ((TimeboxDevice, UInt8?, TimeInterval) throws -> TimeboxProtocolDetection)?
     public var makeTransport: (Bool) -> CommandTransport
     public var output: (String) -> Void
     public var errorOutput: (String) -> Void
     public var rawOutput: (String) -> Void
+    public var makeREPLInput: ((String, String?, [String]) throws -> REPLLineInput)?
     public var readLine: () -> String?
     public var isInteractive: Bool
     public var stdoutIsTerminal: Bool
@@ -39,16 +42,20 @@ public struct CommandEnvironment {
                 configuration: @escaping (String?) throws -> DeviceConfiguration = { try DeviceConfigFile(path: $0).read().configuration },
                 makeTransport: @escaping (Bool) -> CommandTransport,
                 detectModels: @escaping (TimeboxDevice) throws -> Set<TimeboxModel> = { TimeboxModelResolver.detectedModels(for: $0) },
+                detectProtocol: ((TimeboxDevice, UInt8?, TimeInterval) throws -> TimeboxProtocolDetection)? = nil,
                 output: @escaping (String) -> Void = { print($0) },
                 errorOutput: @escaping (String) -> Void = { fputs($0 + "\n", stderr) },
                 rawOutput: @escaping (String) -> Void = { FileHandle.standardOutput.write(Data($0.utf8)) },
                 readLine: @escaping () -> String? = { Swift.readLine() },
                 isInteractive: Bool = false, stdoutIsTerminal: Bool = false, variables: [String: String] = [:],
                 clock: @escaping () -> Date = Date.init, timeZone: @escaping () -> TimeZone = { .current },
+                makeREPLInput: ((String, String?, [String]) throws -> REPLLineInput)? = nil,
                 monotonicTime: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
+        self.makeREPLInput = makeREPLInput
         self.monotonicTime = monotonicTime
         self.clock = clock; self.timeZone = timeZone
         self.detectModels = detectModels
+        self.detectProtocol = detectProtocol
 
         self.discover = discover; self.configuration = configuration; self.makeTransport = makeTransport
         self.output = output; self.errorOutput = errorOutput; self.readLine = readLine
@@ -65,7 +72,11 @@ public struct CommandEnvironment {
         }, makeTransport: { mock in
             if mock { return SimulatedCommandTransport() }
             return ClassicCommandTransport()
-        }, isInteractive: isatty(STDIN_FILENO) != 0, stdoutIsTerminal: isatty(STDOUT_FILENO) != 0, variables: ProcessInfo.processInfo.environment)
+        }, isInteractive: isatty(STDIN_FILENO) != 0, stdoutIsTerminal: isatty(STDOUT_FILENO) != 0, variables: ProcessInfo.processInfo.environment,
+        makeREPLInput: { editor, history, names in
+            try REPLInputFactory.make(editor: editor, historyFile: history, deviceNames: names,
+                                      commands: TimeboxCommandLine.replVocabulary)
+        })
     }
 }
 
@@ -112,4 +123,10 @@ private final class ClassicCommandTransport: CommandTransport {
     func wait(milliseconds: Int) {}
     func disconnect() {}
     #endif
+}
+
+final class CallbackREPLInput: REPLLineInput {
+    let read: () -> String?
+    init(_ read: @escaping () -> String?) { self.read = read }
+    func readLine(prompt: String) -> String? { read() }
 }

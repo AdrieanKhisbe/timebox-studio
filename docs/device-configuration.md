@@ -69,3 +69,9 @@ target selected and disconnected; commands cannot fall back to the old device.
 Switch back explicitly to reconnect. Startup `--channel` applies only to the
 initial device; later switches use that device's SDP. `current` is reserved for
 reporting; rename a device with that logical name to use shorthand selection.
+
+Device `model` values are `timebox` (original), `mini`, and `evo`. Original Timebox
+and Mini share the `legacy11` protocol family; Evo uses `evo16`. A model override
+is separate from the Bluetooth transport. Normal saved targets currently use
+Classic MAC addresses; experimental original-Timebox BLE tests do not imply
+production BLE UUID routing. Existing `model: mini` entries remain valid.

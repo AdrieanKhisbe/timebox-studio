@@ -4,9 +4,16 @@ import TimeboxKit
 enum OutputFormat: String { case json, yaml }
 
 struct CommandOptions {
+    var queryTimeout: TimeInterval?
+    var editor = "bestline"
+    var historyFile: String?
+    var hasREPLInputOptions = false
     var name: String?
     var model: TimeboxModel?
     var explicitAutoModel = false
+    var protocolFamily: TimeboxProtocolFamily?
+    var explicitAutoProtocol = false
+    var hasProtocolOption: Bool { protocolFamily != nil || explicitAutoProtocol }
     var address: String?
     var channel: UInt8?
     var brightness = 100
@@ -19,7 +26,6 @@ struct CommandOptions {
     var save = false
     var configPath: String?
     var format: OutputFormat?
-    var queryTimeout: TimeInterval?
     var alarmTime: String?
     var alarmDays: String?
     var alarmVolume: Int?
@@ -40,18 +46,34 @@ struct CommandOptions {
                 return arguments[index]
             }
             switch argument {
+            case "--timeout":
+                let text = try value()
+                guard let seconds = Double(text), seconds.isFinite, seconds > 0, seconds <= 60 else {
+                    throw CommandFailure("invalid_arguments", "--timeout must be greater than zero and at most 60 seconds.")
+                }
+                queryTimeout = seconds
+            case "--editor":
+                editor = try value(); hasREPLInputOptions = true
+                guard ["bestline", "plain"].contains(editor) else { throw CommandFailure("invalid_arguments", "Use --editor bestline or --editor plain.") }
+            case "--history-file": historyFile = try value(); hasREPLInputOptions = true
             case "--device", "--name": name = try value(); selectorCount += 1
             case "--address": address = try value(); selectorCount += 1
             case "--model":
                 let text = try value()
                 guard text == "auto" || TimeboxModel(rawValue: text) != nil else {
-                    throw CommandFailure("invalid_arguments", "--model must be auto, evo or mini.")
+                    throw CommandFailure("invalid_arguments", "--model must be auto, evo, mini or timebox.")
                 }
                 model = TimeboxModel(rawValue: text); explicitAutoModel = text == "auto"
             case "--channel":
                 let text = try value()
                 guard let number = UInt8(text), number > 0 else { throw CommandFailure("invalid_arguments", "Channel must be 1...255.") }
                 channel = number
+            case "--protocol":
+                let text = try value()
+                guard text == "auto" || TimeboxProtocolFamily(rawValue: text) != nil else {
+                    throw CommandFailure("invalid_arguments", "--protocol must be auto, legacy11 or evo16.")
+                }
+                protocolFamily = TimeboxProtocolFamily(rawValue: text); explicitAutoProtocol = text == "auto"
             case "--brightness": brightness = try Self.percent(value()); hasBrightnessOption = true
             case "--color": displayColor = try value()
             case "--style":
@@ -77,12 +99,6 @@ struct CommandOptions {
                     throw CommandFailure("invalid_arguments", "Alarm volume must be an integer from 0 through 100.")
                 }
                 alarmVolume = volume
-            case "--timeout":
-                let text = try value()
-                guard let seconds = Double(text), seconds.isFinite, seconds > 0, seconds <= 60 else {
-                    throw CommandFailure("invalid_arguments", "--timeout must be greater than zero and at most 60 seconds.")
-                }
-                queryTimeout = seconds
             case "--json", "--yaml", "--yml":
                 let requested: OutputFormat = argument == "--json" ? .json : .yaml
                 guard format == nil || format == requested else { throw CommandFailure("invalid_arguments", "Choose either JSON or YAML output.") }
@@ -93,6 +109,7 @@ struct CommandOptions {
             }
             index += 1
         }
+        guard historyFile == nil || editor == "bestline" else { throw CommandFailure("invalid_arguments", "History persistence requires Bestline.") }
         guard selectorCount <= 1 else { throw CommandFailure("invalid_arguments", "Choose one selector: --device/--name or --address.") }
     }
 

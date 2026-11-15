@@ -24,7 +24,7 @@ public enum TimeboxTextRenderer {
     public static func render(_ text: String, model: TimeboxModel) throws -> TimeboxRenderedText {
         #if canImport(CoreText)
         let side = model.width
-        let fontSize: CGFloat = model == .mini ? 9 : 12
+        let fontSize: CGFloat = model.protocolFamily == .legacy11 ? 9 : 12
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, text.utf16.count <= 1024 else {
             throw TimeboxAnimationError.invalid("Text must be nonempty and at most 1024 UTF-16 units (host input limit).")
         }

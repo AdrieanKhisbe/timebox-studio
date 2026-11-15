@@ -20,7 +20,7 @@ final class MiniLightTests: XCTestCase {
         XCTAssertEqual(try TimeboxPacketEncoder.encode(.displayProfile(profile), model: .mini), golden)
         XCTAssertEqual(try TimeboxPacketEncoder.encode(.display(.light(color: blue, brightnessPercent: 80)), model: .mini), golden)
         XCTAssertThrowsError(try TimeboxPacketEncoder.encode(.display(.light()), model: .mini))
-        XCTAssertThrowsError(try TimeboxDisplayProfile(channel: .clock, status: status))
+        XCTAssertNoThrow(try TimeboxDisplayProfile(channel: .clock, status: status))
         for level in [-1,101] { XCTAssertThrowsError(try TimeboxPacketEncoder.encode(.display(.light(brightnessPercent: level)), model: .mini)) }
     }
 
@@ -66,12 +66,12 @@ final class MiniLightTests: XCTestCase {
     }
 
     func testREPLBareLightPreservesCurrentMiniChannelThenReturnsToClock() throws {
-        let h = CommandHarness(); h.transport.replyChunks = [try response(raw)]
+        let h = CommandHarness(); h.transport.replyChunks = [try response(raw), try response(raw)]
         h.input = ["display light", "display clock", "quit"]
         XCTAssertEqual(h.run(["repl", "--address", address, "--channel", "4", "--model", "mini"]), 0, h.stderr.joined())
-        XCTAssertEqual(h.transport.packets, [request,golden,Data([1,5,0,0x45,0,3,4,0x4B,0,2])])
+        XCTAssertEqual(h.transport.packets, [request,golden,request,Data([1,8,0,0x45,0,3,4,0x4B,0,0,0x99,0,2])])
         XCTAssertTrue(h.transport.connections.allSatisfy { $0.0 == address && $0.1 == 4 })
-        XCTAssertEqual(h.transport.connections.count, 4)
+        XCTAssertEqual(h.transport.connections.count, 7)
     }
 
     @MainActor
